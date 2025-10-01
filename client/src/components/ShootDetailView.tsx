@@ -47,6 +47,8 @@ interface ShootDetailViewProps {
   isExporting?: boolean;
   onCreateCalendar?: () => void;
   isCreatingCalendar?: boolean;
+  onSendReminders?: () => void;
+  isSendingReminders?: boolean;
 }
 
 const statusConfig = {
@@ -56,7 +58,7 @@ const statusConfig = {
   completed: { label: "Completed", variant: "outline" as const },
 };
 
-export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar }: ShootDetailViewProps) {
+export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar, onSendReminders, isSendingReminders }: ShootDetailViewProps) {
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
 
@@ -128,10 +130,17 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button variant="outline" data-testid="button-send-reminder">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Send Reminder
-                  </Button>
+                  {shoot.date && (
+                    <Button 
+                      variant="outline" 
+                      onClick={onSendReminders}
+                      disabled={isSendingReminders}
+                      data-testid="button-send-reminder"
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {isSendingReminders ? 'Sending...' : 'Send Reminder'}
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={onDelete}

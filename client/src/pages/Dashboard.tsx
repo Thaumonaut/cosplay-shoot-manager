@@ -94,6 +94,32 @@ export default function Dashboard() {
     },
   });
 
+  const sendRemindersMutation = useMutation({
+    mutationFn: async (shootId: string) => {
+      const res = await apiRequest("POST", `/api/shoots/${shootId}/send-reminders`);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send reminders');
+      }
+      
+      return data as { success: boolean; count: number; message: string };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Reminders Sent",
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Send Reminders",
+        description: error.message || "Failed to send email reminders. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const selectedShoot = shoots.find((shoot) => shoot.id === selectedShootId);
 
   const getStatusFromShoot = (shoot: Shoot): 'idea' | 'planning' | 'scheduled' | 'completed' => {
@@ -251,6 +277,8 @@ export default function Dashboard() {
         isExporting={exportDocsMutation.isPending}
         onCreateCalendar={() => createCalendarMutation.mutate(selectedShootId)}
         isCreatingCalendar={createCalendarMutation.isPending}
+        onSendReminders={() => sendRemindersMutation.mutate(selectedShootId)}
+        isSendingReminders={sendRemindersMutation.isPending}
       />
     );
   }

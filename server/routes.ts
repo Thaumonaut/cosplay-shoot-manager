@@ -10,6 +10,7 @@ import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
+import { sendShootReminder } from "./services/email";
 import { supabase } from "./supabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -450,6 +451,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error instanceof Error
               ? error.message
               : "Failed to create calendar event",
+        });
+      }
+    },
+  );
+
+  // Send email reminders to participants
+  app.post(
+    "/api/shoots/:id/send-reminders",
+    authenticateUser,
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = getUserId(req);
+        const shoot = await storage.getShoot(req.params.id, userId);
+        if (!shoot) {
+          return res.status(404).json({ error: "Shoot not found" });
+        }
+
+        if (!shoot.date) {
+          return res.status(400).json({ error: "Shoot must have a date to send reminders" });
+        }
+
+        // Validate and convert date
+        const shootDate = new Date(shoot.date);
+        if (isNaN(shootDate.getTime())) {
+          return res.status(400).json({ error: "Invalid date format" });
+        }
+
+        const participants = await storage.getShootParticipants(req.params.id);
+        
+        if (participants.length === 0) {
+          return res.status(400).json({ error: "No participants to send reminders to" });
+        }
+
+        const participantsWithEmail = participants.filter(p => p.email);
+        
+        if (participantsWithEmail.length === 0) {
+          return res.status(400).json({ error: "No participants have email addresses" });
+        }
+
+        // Send emails to all participants
+        const emailPromises = participantsWithEmail.map(participant =>
+          sendShootReminder({
+            shootTitle: shoot.title,
+            shootDate,
+            shootLocation: shoot.location || undefined,
+            participantEmail: participant.email!,
+            participantName: participant.name,
+          })
+        );
+
+        await Promise.all(emailPromises);
+
+        res.json({ 
+          success: true, 
+          count: participantsWithEmail.length,
+          message: `Reminders sent to ${participantsWithEmail.length} participant${participantsWithEmail.length === 1 ? '' : 's'}` 
+        });
+      } catch (error) {
+        console.error("Error sending reminders:", error);
+        
+        // Better error handling for missing Resend connection
+        if (error instanceof Error && error.message.includes('Resend not connected')) {
+          return res.status(503).json({
+            error: "Please connect your Resend email account to use this feature"
+          });
+        }
+
+        res.status(500).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to send reminders",
         });
       }
     },
