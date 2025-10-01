@@ -61,6 +61,7 @@ Preferred communication style: Simple, everyday language.
 - DatabaseStorage implementation separating data access from routes
 - Zod schema validation for request payloads
 - Type-safe data models shared between client and server
+- Security hardening: updateShoot explicitly omits userId and createdAt to prevent ownership changes
 
 ### Data Storage Architecture
 
@@ -93,9 +94,9 @@ shootParticipants: People involved in shoots with roles (cascade delete)
 - Server-side SDK for token validation
 
 **Database Hosting**
-- Neon Serverless PostgreSQL
-- Connection via DATABASE_URL environment variable
-- HTTP-based connection using @neondatabase/serverless
+- Supabase PostgreSQL (configured for postgres-js driver compatibility)
+- Connection via DATABASE_URL environment variable (requires Session pooler connection string, port 5432)
+- Standard PostgreSQL connection using postgres-js driver
 
 **Third-Party Integrations (Planned)**
 - Google Calendar API (calendarEventId, calendarEventUrl fields present)
