@@ -43,7 +43,6 @@ export const personnel = pgTable("personnel", {
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
-  defaultRole: text("default_role"),
   notes: text("notes"),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

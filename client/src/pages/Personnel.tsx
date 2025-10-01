@@ -34,7 +34,6 @@ const personnelFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional(),
-  role: z.string().min(1, "Role is required"),
   notes: z.string().optional(),
 });
 
@@ -56,7 +55,6 @@ export default function Personnel() {
       name: "",
       email: "",
       phone: "",
-      role: "",
       notes: "",
     },
   });
@@ -67,7 +65,6 @@ export default function Personnel() {
       formData.append("name", data.name);
       formData.append("email", data.email || "");
       formData.append("phone", data.phone || "");
-      formData.append("defaultRole", data.role);
       formData.append("notes", data.notes || "");
 
       const res = await fetch("/api/personnel", {
@@ -106,7 +103,6 @@ export default function Personnel() {
       formData.append("name", data.name);
       formData.append("email", data.email || "");
       formData.append("phone", data.phone || "");
-      formData.append("defaultRole", data.role);
       formData.append("notes", data.notes || "");
 
       const res = await fetch(`/api/personnel/${id}`, {
@@ -172,7 +168,6 @@ export default function Personnel() {
       name: person.name,
       email: person.email || "",
       phone: person.phone || "",
-      role: person.defaultRole || "",
       notes: person.notes || "",
     });
   };
@@ -247,11 +242,6 @@ export default function Personnel() {
                     <CardTitle className="text-base truncate" data-testid={`text-personnel-name-${person.id}`}>
                       {person.name}
                     </CardTitle>
-                    {person.defaultRole && (
-                      <Badge variant="secondary" className="mt-1" data-testid={`badge-role-${person.id}`}>
-                        {person.defaultRole}
-                      </Badge>
-                    )}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -319,23 +309,6 @@ export default function Personnel() {
                     <FormLabel>Name</FormLabel>
                     <FormControl>
                       <Input placeholder="John Doe" {...field} data-testid="input-personnel-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Photographer, Model, Makeup Artist, etc."
-                        {...field}
-                        data-testid="input-personnel-role"
-                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
