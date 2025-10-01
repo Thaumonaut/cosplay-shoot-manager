@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Shoot } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCcw, AlertCircle } from "lucide-react";
+import { Plus, RefreshCcw, Camera, Sparkles } from "lucide-react";
 import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
@@ -155,7 +155,10 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="max-w-md w-full" data-testid="card-error">
           <CardContent className="pt-6 text-center space-y-4">
-            <div className="text-6xl">📸✨</div>
+            <div className="flex items-center justify-center gap-2">
+              <Camera className="h-12 w-12 text-primary" />
+              <Sparkles className="h-10 w-10 text-primary" />
+            </div>
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">Oops! Our Database is Taking a Cosplay Break</h3>
               <p className="text-sm text-muted-foreground" data-testid="text-error-message">

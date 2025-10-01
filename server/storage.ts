@@ -54,9 +54,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
+    const { userId: _, createdAt: __, ...allowedUpdates } = shoot;
     const [updated] = await db
       .update(shoots)
-      .set({ ...shoot, updatedAt: new Date() })
+      .set({ ...allowedUpdates, updatedAt: new Date() })
       .where(and(eq(shoots.id, id), eq(shoots.userId, userId)))
       .returning();
     return updated;
