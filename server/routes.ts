@@ -96,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shoots = await storage.getUserShoots(userId);
       res.json(shoots);
     } catch (error) {
-      // res.status(401).json({ error: error instanceof Error ? error.message : "Unauthorized" });
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load shoots" });
     }
   });
 

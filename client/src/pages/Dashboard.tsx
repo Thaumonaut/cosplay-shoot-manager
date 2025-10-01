@@ -2,29 +2,34 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Shoot } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { Lightbulb, Clock, Calendar, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, RefreshCcw, AlertCircle } from "lucide-react";
+import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { AddShootDialog } from "@/components/AddShootDialog";
 import { ShootDetailView } from "@/components/ShootDetailView";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import heroImage from '@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png';
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: shoots = [], isLoading } = useQuery<Shoot[]>({
+  const { data: shoots = [], isLoading, isError, error, refetch, isFetching } = useQuery<Shoot[]>({
     queryKey: ["/api/shoots"],
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const exportDocsMutation = useMutation({
     mutationFn: async (shootId: string) => {
-      return await apiRequest(`/api/shoots/${shootId}/export-doc`, "POST");
+      const res = await apiRequest("POST", `/api/shoots/${shootId}/export-doc`);
+      return await res.json() as { docId: string; docUrl: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
@@ -32,7 +37,7 @@ export default function Dashboard() {
         title: "Export Successful",
         description: "Your shoot has been exported to Google Docs.",
       });
-      if (data.docUrl) {
+      if (data?.docUrl) {
         window.open(data.docUrl, '_blank');
       }
     },
@@ -142,9 +147,35 @@ export default function Dashboard() {
   ];
 
   if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" data-testid="loader-shoots" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full" data-testid="card-error">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Failed to Load Shoots</h3>
+              <p className="text-sm text-muted-foreground" data-testid="text-error-message">
+                {error instanceof Error ? error.message : "Unable to connect to the database. Please try again."}
+              </p>
+            </div>
+            <Button 
+              onClick={() => refetch()} 
+              variant="outline" 
+              className="gap-2"
+              disabled={isFetching}
+              data-testid="button-retry"
+            >
+              <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+              {isFetching ? 'Retrying...' : 'Retry'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
