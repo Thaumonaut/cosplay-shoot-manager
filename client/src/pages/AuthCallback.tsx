@@ -1,25 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
   const [, setLocation] = useLocation();
+  const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // Supabase will automatically detect and handle the session from the URL
-        // since we have detectSessionInUrl: true in the config
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error("Error getting session:", error);
-          setLocation("/auth");
-          return;
-        }
-
-        if (session) {
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setIsProcessing(true);
+        
+        try {
           // Send session to backend to set cookies
           const res = await fetch("/api/auth/set-session", {
             method: "POST",
@@ -68,16 +62,19 @@ export default function AuthCallback() {
           } else {
             setLocation("/auth");
           }
-        } else {
+        } catch (error) {
+          console.error("Error processing session:", error);
           setLocation("/auth");
         }
-      } catch (error) {
-        console.error("Error in auth callback:", error);
+      } else if (event === 'SIGNED_OUT') {
         setLocation("/auth");
       }
-    };
+    });
 
-    handleCallback();
+    // Clean up subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [setLocation]);
 
   return (
