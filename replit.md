@@ -45,8 +45,9 @@ Preferred communication style: Simple, everyday language.
 
 **Authentication & Authorization**
 - Supabase Auth for user authentication (JWT-based)
-- Custom authenticateUser middleware for route protection
-- Bearer token validation on protected API endpoints
+- HTTP-only cookie-based session management for enhanced security
+- Custom authenticateUser middleware for route protection and automatic token refresh
+- Cookie-based JWT validation (sb-access-token, sb-refresh-token)
 - User ID association for data isolation
 
 **API Design**
@@ -108,15 +109,24 @@ shootParticipants: People involved in shoots with roles (cascade delete)
 
 ### Security & Data Isolation
 
-**Authentication Flow**
-1. Client authenticates with Supabase to receive JWT access token
-2. Token stored in Supabase client session
-3. API requests include Authorization header with Bearer token
-4. Server validates token via Supabase getUser()
-5. Unauthorized requests redirect to /auth
+**Authentication Flow (Cookie-Based)**
+1. Client authenticates with Supabase Auth (sign up/sign in)
+2. Frontend sends session tokens to POST /api/auth/set-session
+3. Backend validates tokens and sets HTTP-only cookies (sb-access-token, sb-refresh-token)
+4. All API requests automatically include cookies (credentials: 'include')
+5. Middleware validates access token and auto-refreshes if expired using refresh token
+6. Unauthorized requests clear cookies and redirect to /auth
+
+**Cookie Configuration**
+- HttpOnly: true (prevents JavaScript access, protects against XSS)
+- SameSite: lax (allows same-site navigation, mitigates CSRF)
+- Secure: true in production (HTTPS only)
+- Access token: expires based on Supabase JWT expiry
+- Refresh token: 30-day expiration
 
 **Authorization Pattern**
 - All shoot-related operations scoped to authenticated user
-- UserId extracted from validated JWT claims
+- UserId extracted from validated JWT claims in cookies
 - Database queries filter by userId to prevent cross-user data access
+- Automatic token refresh maintains session without user intervention
 - 401 responses trigger automatic sign-out and redirect
