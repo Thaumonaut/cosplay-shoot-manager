@@ -32,6 +32,17 @@ A web application for managing and organizing cosplay photo shoots. The system p
 - Implemented participant management system for shoots
 - Fixed sidebar navigation routing and URL synchronization
 - Set up object storage for avatar uploads with security best practices
+- **Mapbox Integration**: Implemented location autocomplete in shoot creation using Mapbox Geocoding API
+  - Created MapboxLocationSearch component with real-time autocomplete
+  - Added backend proxy endpoint `/api/mapbox/geocode` to keep API key secure on server
+  - Location search integrated into AddShootDialog with coordinates and address auto-fill
+  - Users can search for locations or select from saved locations in team library
+- **Resource Display**: Added resource display on shoot detail page
+  - Created storage methods with JOIN queries: `getShootEquipment`, `getShootProps`, `getShootCostumes`
+  - Added secured API endpoints: `/api/shoots/:id/equipment`, `/api/shoots/:id/props`, `/api/shoots/:id/costumes`
+  - Authorization checks verify shoot ownership before returning resources (prevents unauthorized access)
+  - ShootDetailView displays equipment, props, and costumes with icons, status badges, and progress bars
+  - Proper loading states and error handling for all resource queries
 
 ## Known Limitations
 
@@ -153,10 +164,13 @@ shootParticipants: People involved in shoots with roles (cascade delete)
 - Connection via DATABASE_URL environment variable (requires Session pooler connection string, port 5432)
 - Standard PostgreSQL connection using postgres-js driver
 
-**Third-Party Integrations (Planned)**
+**Third-Party Integrations**
 - Google Calendar API (calendarEventId, calendarEventUrl fields present)
 - Google Docs integration (docsUrl field present)
 - Instagram (instagramLinks array for reference storage)
+- Mapbox Geocoding API for location search and autocomplete
+  - Backend proxy endpoint keeps API key secure
+  - Provides real-time location suggestions with coordinates
 
 **Development Tools**
 - Replit-specific plugins for enhanced development experience
