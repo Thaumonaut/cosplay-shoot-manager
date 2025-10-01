@@ -134,16 +134,20 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
                         onClick={() => onShootClick(shoot.id)}
                         data-testid={`card-shoot-${shoot.id}`}
                       >
-                        {shoot.firstReferenceUrl && (
-                          <div className="relative h-32 w-full overflow-hidden bg-muted">
+                        <div className="relative h-32 w-full overflow-hidden bg-muted">
+                          {shoot.firstReferenceUrl ? (
                             <img
                               src={shoot.firstReferenceUrl}
                               alt={shoot.title}
                               className="w-full h-full object-cover"
                               data-testid={`image-shoot-thumbnail-${shoot.id}`}
                             />
-                          </div>
-                        )}
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-purple-600/20 flex items-center justify-center">
+                              <Image className="h-12 w-12 text-muted-foreground/40" />
+                            </div>
+                          )}
+                        </div>
                         
                         <div className="p-4 space-y-3">
                           <h3 className="font-semibold text-base line-clamp-2" data-testid={`text-shoot-title-${shoot.id}`}>
