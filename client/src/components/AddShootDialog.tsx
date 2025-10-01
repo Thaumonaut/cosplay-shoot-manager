@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import type { InsertShoot, Shoot } from "@shared/schema";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type { InsertShoot, Shoot, Equipment, Location, Prop, CostumeProgress } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,8 +25,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, Link as LinkIcon } from "lucide-react";
+import { CalendarIcon, Upload, Link as LinkIcon, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AddShootDialogProps {
   open: boolean;
@@ -38,14 +39,40 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("idea");
   const [date, setDate] = useState<Date>();
-  const [location, setLocation] = useState("");
+  const [locationId, setLocationId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
+  
+  // Resource selections
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [selectedProps, setSelectedProps] = useState<string[]>([]);
+  const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
+
+  // Fetch resources
+  const { data: equipment = [] } = useQuery<Equipment[]>({
+    queryKey: ["/api/equipment"],
+    enabled: open,
+  });
+
+  const { data: locations = [] } = useQuery<Location[]>({
+    queryKey: ["/api/locations"],
+    enabled: open,
+  });
+
+  const { data: props = [] } = useQuery<Prop[]>({
+    queryKey: ["/api/props"],
+    enabled: open,
+  });
+
+  const { data: costumes = [] } = useQuery<CostumeProgress[]>({
+    queryKey: ["/api/costumes"],
+    enabled: open,
+  });
 
   const createShootMutation = useMutation({
-    mutationFn: async (shoot: InsertShoot) => {
-      const response = await apiRequest("POST", "/api/shoots", shoot);
+    mutationFn: async (data: { shoot: InsertShoot; equipmentIds: string[]; propIds: string[]; costumeIds: string[] }) => {
+      const response = await apiRequest("POST", "/api/shoots", data);
       return await response.json() as Shoot;
     },
     onSuccess: () => {
@@ -70,9 +97,12 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     setTitle("");
     setStatus("idea");
     setDate(undefined);
-    setLocation("");
+    setLocationId("");
     setNotes("");
     setInstagramLinks([]);
+    setSelectedEquipment([]);
+    setSelectedProps([]);
+    setSelectedCostumes([]);
   };
 
   const handleAddLink = () => {
@@ -86,19 +116,43 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     setInstagramLinks(instagramLinks.filter((_, i) => i !== index));
   };
 
+  const toggleEquipment = (id: string) => {
+    setSelectedEquipment(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleProp = (id: string) => {
+    setSelectedProps(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleCostume = (id: string) => {
+    setSelectedCostumes(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleSubmit = () => {
     const shoot = {
       title,
       status,
       date: date ? date.toISOString() : null,
-      location: location || null,
+      locationId: locationId || null,
       description: notes || null,
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
       calendarEventId: null,
       calendarEventUrl: null,
       docsUrl: null,
     } as any;
-    createShootMutation.mutate(shoot as InsertShoot);
+    
+    createShootMutation.mutate({
+      shoot: shoot as InsertShoot,
+      equipmentIds: selectedEquipment,
+      propIds: selectedProps,
+      costumeIds: selectedCostumes,
+    });
   };
 
   return (
@@ -165,13 +219,19 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  placeholder="e.g., Downtown Industrial District"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  data-testid="input-location"
-                />
+                <Select value={locationId} onValueChange={setLocationId}>
+                  <SelectTrigger data-testid="select-location">
+                    <SelectValue placeholder="Choose a location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No location selected</SelectItem>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}
@@ -187,6 +247,96 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
               data-testid="textarea-notes"
             />
           </div>
+
+          {/* Equipment Selection */}
+          {equipment.length > 0 && (
+            <div className="space-y-2">
+              <Label>Equipment</Label>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                {equipment.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`equipment-${item.id}`}
+                      checked={selectedEquipment.includes(item.id)}
+                      onCheckedChange={() => toggleEquipment(item.id)}
+                      data-testid={`checkbox-equipment-${item.id}`}
+                    />
+                    <label
+                      htmlFor={`equipment-${item.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {item.name} {item.category && `(${item.category})`}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {selectedEquipment.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedEquipment.length} item{selectedEquipment.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Props Selection */}
+          {props.length > 0 && (
+            <div className="space-y-2">
+              <Label>Props</Label>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                {props.map((prop) => (
+                  <div key={prop.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`prop-${prop.id}`}
+                      checked={selectedProps.includes(prop.id)}
+                      onCheckedChange={() => toggleProp(prop.id)}
+                      data-testid={`checkbox-prop-${prop.id}`}
+                    />
+                    <label
+                      htmlFor={`prop-${prop.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {prop.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {selectedProps.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedProps.length} prop{selectedProps.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Costumes Selection */}
+          {costumes.length > 0 && (
+            <div className="space-y-2">
+              <Label>Costumes</Label>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                {costumes.map((costume) => (
+                  <div key={costume.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`costume-${costume.id}`}
+                      checked={selectedCostumes.includes(costume.id)}
+                      onCheckedChange={() => toggleCostume(costume.id)}
+                      data-testid={`checkbox-costume-${costume.id}`}
+                    />
+                    <label
+                      htmlFor={`costume-${costume.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      {costume.characterName} {costume.seriesName && `(${costume.seriesName})`}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {selectedCostumes.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedCostumes.length} costume{selectedCostumes.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Instagram References</Label>

@@ -314,9 +314,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const data = insertShootSchema.parse({ ...req.body, userId });
-      const shoot = await storage.createShoot(data);
-      res.status(201).json(shoot);
+      const { shoot, equipmentIds = [], propIds = [], costumeIds = [] } = req.body;
+      
+      const data = insertShootSchema.parse({ ...shoot, userId });
+      const createdShoot = await storage.createShoot(data);
+      
+      // Create resource associations
+      if (equipmentIds.length > 0) {
+        for (const equipmentId of equipmentIds) {
+          await storage.createShootEquipment({
+            shootId: createdShoot.id,
+            equipmentId,
+            quantity: 1,
+          });
+        }
+      }
+      
+      if (propIds.length > 0) {
+        for (const propId of propIds) {
+          await storage.createShootProp({
+            shootId: createdShoot.id,
+            propId,
+          });
+        }
+      }
+      
+      if (costumeIds.length > 0) {
+        for (const costumeId of costumeIds) {
+          await storage.createShootCostume({
+            shootId: createdShoot.id,
+            costumeId,
+          });
+        }
+      }
+      
+      res.status(201).json(createdShoot);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });

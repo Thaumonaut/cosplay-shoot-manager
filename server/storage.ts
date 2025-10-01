@@ -5,6 +5,12 @@ import {
   type InsertShootReference,
   type ShootParticipant,
   type InsertShootParticipant,
+  type ShootEquipment,
+  type InsertShootEquipment,
+  type ShootProp,
+  type InsertShootProp,
+  type ShootCostume,
+  type InsertShootCostume,
   type Personnel,
   type InsertPersonnel,
   type Equipment,
@@ -28,6 +34,9 @@ import {
   shoots, 
   shootReferences, 
   shootParticipants,
+  shootEquipment,
+  shootProps,
+  shootCostumes,
   personnel,
   equipment,
   locations,
@@ -59,6 +68,11 @@ export interface IStorage {
   getShootParticipantById(id: string): Promise<ShootParticipant | undefined>;
   createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant>;
   deleteShootParticipant(id: string): Promise<boolean>;
+
+  // Shoot Resource Associations
+  createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment>;
+  createShootProp(association: InsertShootProp): Promise<ShootProp>;
+  createShootCostume(association: InsertShootCostume): Promise<ShootCostume>;
 
   // Personnel
   getPersonnel(id: string, teamId: string): Promise<Personnel | undefined>;
@@ -226,6 +240,22 @@ export class DatabaseStorage implements IStorage {
   async deleteShootParticipant(id: string): Promise<boolean> {
     const result = await db.delete(shootParticipants).where(eq(shootParticipants.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Shoot Resource Association methods
+  async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
+    const [newAssociation] = await db.insert(shootEquipment).values(association).returning();
+    return newAssociation;
+  }
+
+  async createShootProp(association: InsertShootProp): Promise<ShootProp> {
+    const [newAssociation] = await db.insert(shootProps).values(association).returning();
+    return newAssociation;
+  }
+
+  async createShootCostume(association: InsertShootCostume): Promise<ShootCostume> {
+    const [newAssociation] = await db.insert(shootCostumes).values(association).returning();
+    return newAssociation;
   }
 
   // Personnel methods
