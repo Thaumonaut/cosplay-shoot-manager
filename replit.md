@@ -4,6 +4,14 @@
 
 A web application for managing and organizing cosplay photo shoots. The system provides a comprehensive platform for tracking photo shoot ideas, planning sessions, scheduling events, and managing participants and references. Built with a modern tech stack featuring React, Express, and PostgreSQL, the application offers both calendar and Kanban board views for shoot management, integrated with Google Calendar and Google Docs for enhanced collaboration.
 
+## Recent Changes
+
+**October 1, 2025**
+- Implemented participant management system allowing users to add and remove models, photographers, and crew members to shoots
+- Each participant includes name, role, and optional email contact information
+- Real-time UI updates with proper cache invalidation
+- Fixed sidebar navigation routing to properly respond to URL changes and show appropriate dashboard views
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -36,6 +44,15 @@ Preferred communication style: Simple, everyday language.
 - UI state: Local component state with React hooks
 - Theme preference: Local storage with context provider
 
+**Routing Strategy**
+- Dashboard component responds to multiple routes:
+  - `/` - Full dashboard with upcoming shoots and calendar
+  - `/calendar` - Calendar-only view
+  - `/shoots` - Kanban board view
+  - `/status/:status` - Filtered kanban by status (idea, planning, scheduled, completed)
+- Individual shoot details rendered when shoot is selected
+- Navigation handled via sidebar with proper route updates
+
 ### Backend Architecture
 
 **Server Framework**
@@ -54,6 +71,9 @@ Preferred communication style: Simple, everyday language.
 - RESTful API endpoints under `/api` prefix
 - Resource-based routing: `/api/shoots`, `/api/shoots/:id`
 - Nested resources for shoot references and participants
+  - POST `/api/shoots/:id/participants` - Add participant
+  - GET `/api/shoots/:id/participants` - List participants
+  - DELETE `/api/participants/:id` - Remove participant
 - Standardized error responses with HTTP status codes
 
 **Business Logic Layer**
@@ -77,6 +97,12 @@ shoots: Core entity with userId, title, status, date, location, description,
         integration URLs (calendarEventUrl, docsUrl), and instagram links
 shootReferences: Related images/references linked to shoots (cascade delete)
 shootParticipants: People involved in shoots with roles (cascade delete)
+  - id: UUID primary key
+  - shootId: Foreign key to shoots table
+  - name: Participant name (required)
+  - role: Role description (required, e.g., "Cosplayer", "Photographer", "Makeup Artist")
+  - email: Optional contact email
+  - createdAt: Timestamp
 ```
 
 **Data Access Patterns**
