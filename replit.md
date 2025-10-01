@@ -15,8 +15,10 @@ A web application for managing and organizing cosplay photo shoots. The system p
 - Fixed boolean conversion: Props endpoints properly convert "available" string to boolean
 - Fixed integer conversion: Costumes endpoints properly convert "completionPercentage" string to integer
 - Added validation: All PATCH endpoints now use `.partial().parse()` for proper data validation
+- Refactored personnel/participant system: Removed default role from personnel, implemented per-shoot role assignment
+- Enhanced participant dialog: Added personnel selection dropdown with option to create new personnel inline
 - Created comprehensive resource management systems:
-  - Personnel/contacts with name, email, phone, role, notes, avatar
+  - Personnel/contacts with name, email, phone, notes, avatar (roles assigned per-shoot)
   - Equipment tracking with category, description, quantity, availability
   - Locations management with address, notes, images
   - Props tracking with description, availability, images
