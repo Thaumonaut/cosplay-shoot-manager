@@ -1,10 +1,11 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertShootSchema, insertShootReferenceSchema, insertShootParticipantSchema } from "@shared/schema";
 import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
+import { supabase } from "./supabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const getUserId = (req: AuthRequest): string => {
@@ -13,6 +14,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     return req.user.id;
   };
+
+  // Cookie helper function
+  const setCookies = (res: Response, accessToken: string, refreshToken: string, expiresAt: number) => {
+    const isProduction = process.env.NODE_ENV === "production";
+    const expiresIn = Math.floor((expiresAt * 1000 - Date.now()) / 1000);
+    
+    res.cookie("sb-access-token", accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "strict",
+      path: "/",
+      maxAge: expiresIn * 1000,
+    });
+
+    res.cookie("sb-refresh-token", refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+  };
+
+  // Set session cookies after login
+  app.post("/api/auth/set-session", async (req, res) => {
+    try {
+      const { access_token, refresh_token, expires_at } = req.body;
+
+      if (!access_token || !refresh_token || !expires_at) {
+        return res.status(400).json({ error: "Missing session data" });
+      }
+
+      // Validate the token by getting the user
+      const { data: { user }, error } = await supabase.auth.getUser(access_token);
+
+      if (error || !user) {
+        return res.status(401).json({ error: "Invalid session" });
+      }
+
+      setCookies(res, access_token, refresh_token, expires_at);
+      res.json({ user });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  // Get current user from cookie
+  app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
+    res.json({ user: req.user });
+  });
+
+  // Sign out - clear cookies
+  app.post("/api/auth/signout", async (req, res) => {
+    res.clearCookie("sb-access-token", { path: "/" });
+    res.clearCookie("sb-refresh-token", { path: "/" });
+    res.json({ success: true });
+  });
 
   // Get all shoots for user
   app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {

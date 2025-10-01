@@ -14,18 +14,53 @@ export async function authenticateUser(
   next: NextFunction
 ) {
   try {
-    const authHeader = req.headers.authorization;
+    const accessToken = req.cookies["sb-access-token"];
+    const refreshToken = req.cookies["sb-refresh-token"];
     
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Missing or invalid authorization header" });
+    if (!accessToken) {
+      return res.status(401).json({ error: "Missing authentication cookie" });
     }
 
-    const token = authHeader.substring(7);
+    // Try to validate the access token
+    let { data: { user }, error } = await supabase.auth.getUser(accessToken);
     
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    
-    if (error || !user) {
+    // If access token is invalid/expired and we have a refresh token, try to refresh
+    if (error && refreshToken) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+
+      if (refreshError || !refreshData.session) {
+        return res.status(401).json({ error: "Session expired" });
+      }
+
+      // Update cookies with new tokens
+      const isProduction = process.env.NODE_ENV === "production";
+      const expiresIn = Math.floor((refreshData.session.expires_at! * 1000 - Date.now()) / 1000);
+      
+      res.cookie("sb-access-token", refreshData.session.access_token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "strict",
+        path: "/",
+        maxAge: expiresIn * 1000,
+      });
+
+      res.cookie("sb-refresh-token", refreshData.session.refresh_token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "strict",
+        path: "/",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      user = refreshData.user;
+    } else if (error) {
       return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: "Authentication failed" });
     }
 
     req.user = {
