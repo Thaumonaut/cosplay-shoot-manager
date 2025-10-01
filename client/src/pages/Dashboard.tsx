@@ -50,6 +50,50 @@ export default function Dashboard() {
     },
   });
 
+  const createCalendarMutation = useMutation({
+    mutationFn: async (shootId: string) => {
+      const res = await apiRequest("POST", `/api/shoots/${shootId}/create-calendar-event`);
+      const data = await res.json();
+      
+      // Handle 409 (conflict - event already exists) as success
+      if (res.status === 409) {
+        return { ...data, alreadyExists: true };
+      }
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create calendar event');
+      }
+      
+      return data as { eventId: string; eventUrl: string };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      
+      if (data.alreadyExists) {
+        toast({
+          title: "Calendar Event Exists",
+          description: "This shoot is already on your Google Calendar.",
+        });
+      } else {
+        toast({
+          title: "Calendar Event Created",
+          description: "Your shoot has been added to Google Calendar.",
+        });
+      }
+      
+      if (data?.eventUrl) {
+        window.open(data.eventUrl, '_blank');
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Calendar Creation Failed",
+        description: error.message || "Failed to create calendar event. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const selectedShoot = shoots.find((shoot) => shoot.id === selectedShootId);
 
   const getStatusFromShoot = (shoot: Shoot): 'idea' | 'planning' | 'scheduled' | 'completed' => {
@@ -205,6 +249,8 @@ export default function Dashboard() {
         }}
         onExportDocs={() => exportDocsMutation.mutate(selectedShootId)}
         isExporting={exportDocsMutation.isPending}
+        onCreateCalendar={() => createCalendarMutation.mutate(selectedShootId)}
+        isCreatingCalendar={createCalendarMutation.isPending}
       />
     );
   }

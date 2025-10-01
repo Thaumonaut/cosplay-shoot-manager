@@ -45,6 +45,8 @@ interface ShootDetailViewProps {
   onDelete?: () => void;
   onExportDocs?: () => void;
   isExporting?: boolean;
+  onCreateCalendar?: () => void;
+  isCreatingCalendar?: boolean;
 }
 
 const statusConfig = {
@@ -54,7 +56,7 @@ const statusConfig = {
   completed: { label: "Completed", variant: "outline" as const },
 };
 
-export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting }: ShootDetailViewProps) {
+export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar }: ShootDetailViewProps) {
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
 
@@ -100,6 +102,17 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {!shoot.calendarEventUrl && shoot.date && (
+                    <Button 
+                      variant="default" 
+                      onClick={onCreateCalendar}
+                      disabled={isCreatingCalendar}
+                      data-testid="button-create-calendar"
+                    >
+                      <SiGooglecalendar className="h-4 w-4 mr-2" />
+                      {isCreatingCalendar ? 'Adding to Calendar...' : 'Add to Calendar'}
+                    </Button>
+                  )}
                   {!shoot.docsUrl && (
                     <Button 
                       variant="default" 

@@ -9,6 +9,7 @@ import {
 import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
+import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
 import { supabase } from "./supabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -385,6 +386,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error instanceof Error
               ? error.message
               : "Failed to export to Google Docs",
+        });
+      }
+    },
+  );
+
+  // Create calendar event for shoot
+  app.post(
+    "/api/shoots/:id/create-calendar-event",
+    authenticateUser,
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = getUserId(req);
+        const shoot = await storage.getShoot(req.params.id, userId);
+        if (!shoot) {
+          return res.status(404).json({ error: "Shoot not found" });
+        }
+
+        if (!shoot.date) {
+          return res.status(400).json({ error: "Shoot must have a date to create calendar event" });
+        }
+
+        // Check if calendar event already exists (idempotency)
+        if (shoot.calendarEventId && shoot.calendarEventUrl) {
+          return res.status(409).json({ 
+            eventId: shoot.calendarEventId, 
+            eventUrl: shoot.calendarEventUrl,
+            message: "Calendar event already exists" 
+          });
+        }
+
+        // Validate and convert date
+        const startDate = new Date(shoot.date);
+        if (isNaN(startDate.getTime())) {
+          return res.status(400).json({ error: "Invalid date format" });
+        }
+
+        const { eventId, eventUrl } = await createCalendarEvent(
+          shoot.title,
+          shoot.description,
+          startDate,
+          shoot.location
+        );
+
+        const updatedShoot = await storage.updateShoot(req.params.id, userId, {
+          calendarEventId: eventId,
+          calendarEventUrl: eventUrl,
+        });
+
+        res.json({ eventId, eventUrl, shoot: updatedShoot });
+      } catch (error) {
+        console.error("Error creating calendar event:", error);
+        
+        // Better error handling for missing Google Calendar connection
+        if (error instanceof Error && error.message.includes('Google Calendar not connected')) {
+          return res.status(503).json({
+            error: "Please connect your Google Calendar account to use this feature"
+          });
+        }
+
+        res.status(500).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to create calendar event",
         });
       }
     },
