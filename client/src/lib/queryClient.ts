@@ -11,7 +11,7 @@ async function throwIfResNotOk(res: Response) {
 async function getAuthHeaders() {
   const { data: { session } } = await supabase.auth.getSession();
   return {
-    ...(session?.user?.id ? { "x-user-id": session.user.id } : {}),
+    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
   };
 }
 
@@ -31,6 +31,11 @@ export async function apiRequest(
     credentials: "include",
   });
 
+  if (res.status === 401) {
+    await supabase.auth.signOut();
+    window.location.href = "/auth";
+  }
+
   await throwIfResNotOk(res);
   return res;
 }
@@ -47,8 +52,12 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
+      await supabase.auth.signOut();
+      window.location.href = "/auth";
     }
 
     await throwIfResNotOk(res);

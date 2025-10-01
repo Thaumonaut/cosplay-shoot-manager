@@ -3,19 +3,18 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertShootSchema, insertShootReferenceSchema, insertShootParticipantSchema } from "@shared/schema";
 import { z } from "zod";
+import { authenticateUser, type AuthRequest } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Middleware to extract user ID from headers (will be set by Supabase auth)
-  const getUserId = (req: any): string => {
-    const userId = req.headers["x-user-id"] as string;
-    if (!userId) {
+  const getUserId = (req: AuthRequest): string => {
+    if (!req.user?.id) {
       throw new Error("Unauthorized");
     }
-    return userId;
+    return req.user.id;
   };
 
   // Get all shoots for user
-  app.get("/api/shoots", async (req, res) => {
+  app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
       const shoots = await storage.getUserShoots(userId);
@@ -26,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single shoot
-  app.get("/api/shoots/:id", async (req, res) => {
+  app.get("/api/shoots/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
       const shoot = await storage.getShoot(req.params.id, userId);
@@ -40,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new shoot
-  app.post("/api/shoots", async (req, res) => {
+  app.post("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
       const data = insertShootSchema.parse({ ...req.body, userId });
@@ -55,10 +54,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update shoot
-  app.patch("/api/shoots/:id", async (req, res) => {
+  app.patch("/api/shoots/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const data = insertShootSchema.partial().parse(req.body);
+      const updateSchema = insertShootSchema.omit({ userId: true }).partial();
+      const data = updateSchema.parse(req.body);
       const shoot = await storage.updateShoot(req.params.id, userId, data);
       if (!shoot) {
         return res.status(404).json({ error: "Shoot not found" });
@@ -73,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete shoot
-  app.delete("/api/shoots/:id", async (req, res) => {
+  app.delete("/api/shoots/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
       const deleted = await storage.deleteShoot(req.params.id, userId);
@@ -87,9 +87,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get shoot references
-  app.get("/api/shoots/:id/references", async (req, res) => {
+  app.get("/api/shoots/:id/references", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
       const references = await storage.getShootReferences(req.params.id);
       res.json(references);
     } catch (error) {
@@ -98,9 +102,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add shoot reference
-  app.post("/api/shoots/:id/references", async (req, res) => {
+  app.post("/api/shoots/:id/references", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
       const data = insertShootReferenceSchema.parse({
         ...req.body,
         shootId: req.params.id,
@@ -116,13 +124,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete shoot reference
-  app.delete("/api/references/:id", async (req, res) => {
+  app.delete("/api/references/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
-      const deleted = await storage.deleteShootReference(req.params.id);
-      if (!deleted) {
+      const userId = getUserId(req);
+      const reference = await storage.getShootReferenceById(req.params.id);
+      if (!reference) {
         return res.status(404).json({ error: "Reference not found" });
       }
+      const shoot = await storage.getShoot(reference.shootId, userId);
+      if (!shoot) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      await storage.deleteShootReference(req.params.id);
       res.status(204).send();
     } catch (error) {
       res.status(401).json({ error: error instanceof Error ? error.message : "Unauthorized" });
@@ -130,9 +143,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get shoot participants
-  app.get("/api/shoots/:id/participants", async (req, res) => {
+  app.get("/api/shoots/:id/participants", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
       const participants = await storage.getShootParticipants(req.params.id);
       res.json(participants);
     } catch (error) {
@@ -141,9 +158,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add shoot participant
-  app.post("/api/shoots/:id/participants", async (req, res) => {
+  app.post("/api/shoots/:id/participants", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
       const data = insertShootParticipantSchema.parse({
         ...req.body,
         shootId: req.params.id,
@@ -159,13 +180,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete shoot participant
-  app.delete("/api/participants/:id", async (req, res) => {
+  app.delete("/api/participants/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      getUserId(req); // Verify auth
-      const deleted = await storage.deleteShootParticipant(req.params.id);
-      if (!deleted) {
+      const userId = getUserId(req);
+      const participant = await storage.getShootParticipantById(req.params.id);
+      if (!participant) {
         return res.status(404).json({ error: "Participant not found" });
       }
+      const shoot = await storage.getShoot(participant.shootId, userId);
+      if (!shoot) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      await storage.deleteShootParticipant(req.params.id);
       res.status(204).send();
     } catch (error) {
       res.status(401).json({ error: error instanceof Error ? error.message : "Unauthorized" });

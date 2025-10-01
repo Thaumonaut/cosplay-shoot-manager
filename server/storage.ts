@@ -20,11 +20,13 @@ export interface IStorage {
   
   // References
   getShootReferences(shootId: string): Promise<ShootReference[]>;
+  getShootReferenceById(id: string): Promise<ShootReference | undefined>;
   createShootReference(reference: InsertShootReference): Promise<ShootReference>;
   deleteShootReference(id: string): Promise<boolean>;
   
   // Participants
   getShootParticipants(shootId: string): Promise<ShootParticipant[]>;
+  getShootParticipantById(id: string): Promise<ShootParticipant | undefined>;
   createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant>;
   deleteShootParticipant(id: string): Promise<boolean>;
 }
@@ -74,6 +76,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(shootReferences.shootId, shootId));
   }
 
+  async getShootReferenceById(id: string): Promise<ShootReference | undefined> {
+    const [reference] = await db
+      .select()
+      .from(shootReferences)
+      .where(eq(shootReferences.id, id));
+    return reference;
+  }
+
   async createShootReference(reference: InsertShootReference): Promise<ShootReference> {
     const [newRef] = await db.insert(shootReferences).values(reference).returning();
     return newRef;
@@ -89,6 +99,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(shootParticipants)
       .where(eq(shootParticipants.shootId, shootId));
+  }
+
+  async getShootParticipantById(id: string): Promise<ShootParticipant | undefined> {
+    const [participant] = await db
+      .select()
+      .from(shootParticipants)
+      .where(eq(shootParticipants.id, id));
+    return participant;
   }
 
   async createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant> {
