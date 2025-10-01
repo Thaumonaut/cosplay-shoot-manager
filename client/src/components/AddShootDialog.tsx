@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import type { InsertShoot, Shoot } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +34,7 @@ interface AddShootDialogProps {
 }
 
 export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<string>("idea");
   const [date, setDate] = useState<Date>();
@@ -37,6 +42,38 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [notes, setNotes] = useState("");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
+
+  const createShootMutation = useMutation({
+    mutationFn: async (shoot: InsertShoot) => {
+      const response = await apiRequest("POST", "/api/shoots", shoot);
+      return await response.json() as Shoot;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      toast({
+        title: "Shoot created",
+        description: "Your photo shoot has been added successfully.",
+      });
+      onOpenChange(false);
+      resetForm();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create shoot. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setTitle("");
+    setStatus("idea");
+    setDate(undefined);
+    setLocation("");
+    setNotes("");
+    setInstagramLinks([]);
+  };
 
   const handleAddLink = () => {
     if (currentLink && currentLink.includes('instagram.com')) {
@@ -50,14 +87,18 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   };
 
   const handleSubmit = () => {
-    console.log('Creating shoot:', { title, status, date, location, notes, instagramLinks });
-    onOpenChange(false);
-    setTitle("");
-    setStatus("idea");
-    setDate(undefined);
-    setLocation("");
-    setNotes("");
-    setInstagramLinks([]);
+    const shoot: Partial<InsertShoot> = {
+      title,
+      status,
+      date: date || null,
+      location: location || null,
+      description: notes || null,
+      instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
+      calendarEventId: null,
+      calendarEventUrl: null,
+      docsUrl: null,
+    };
+    createShootMutation.mutate(shoot as InsertShoot);
   };
 
   return (
@@ -206,10 +247,10 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!title}
+            disabled={!title || createShootMutation.isPending}
             data-testid="button-create-shoot"
           >
-            Create Shoot
+            {createShootMutation.isPending ? "Creating..." : "Create Shoot"}
           </Button>
         </DialogFooter>
       </DialogContent>

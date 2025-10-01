@@ -11,6 +11,7 @@ export const shoots = pgTable("shoots", {
   date: timestamp("date"),
   location: text("location"),
   description: text("description"),
+  instagramLinks: text("instagram_links").array(),
   calendarEventId: text("calendar_event_id"),
   calendarEventUrl: text("calendar_event_url"),
   docsUrl: text("docs_url"),

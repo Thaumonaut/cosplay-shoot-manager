@@ -1,185 +1,144 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { Shoot } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { Lightbulb, Clock, Calendar, CheckCircle2, Loader2 } from "lucide-react";
 import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { AddShootDialog } from "@/components/AddShootDialog";
 import { ShootDetailView } from "@/components/ShootDetailView";
 import heroImage from '@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png';
-import studioImage from '@assets/generated_images/Studio_cosplay_shoot_reference_a9b46c37.png';
-import forestImage from '@assets/generated_images/Forest_cosplay_shoot_reference_c64c29f5.png';
-import cyberpunkImage from '@assets/generated_images/Cyberpunk_cosplay_shoot_reference_34e2553e.png';
 
 export default function Dashboard() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
 
-  const upcomingShoots = [
-    {
-      id: '1',
-      title: 'Cyberpunk 2077 - V Character Shoot',
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      location: 'Downtown Industrial District',
-      image: heroImage,
-      hasCalendar: true,
-      hasDocs: true,
-      countdown: '5 days',
-    },
-    {
-      id: '2',
-      title: 'Genshin Impact - Raiden Shogun',
-      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      location: 'Cherry Blossom Park',
-      image: studioImage,
-      hasCalendar: true,
-      hasDocs: true,
-      countdown: '2 weeks',
-    },
-    {
-      id: '4',
-      title: 'Demon Slayer - Nezuko',
-      date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
-      location: 'Japanese Garden',
-      image: cyberpunkImage,
-      hasCalendar: true,
-      hasDocs: true,
-      countdown: '3 weeks',
-    },
-  ];
+  const { data: shoots = [], isLoading } = useQuery<Shoot[]>({
+    queryKey: ["/api/shoots"],
+  });
 
-  const calendarShoots = [
-    {
-      id: '1',
-      title: 'Cyberpunk 2077',
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-      status: 'scheduled' as const,
-    },
-    {
-      id: '2',
-      title: 'Genshin Impact',
-      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      status: 'planning' as const,
-    },
-    {
-      id: '4',
-      title: 'Demon Slayer',
-      date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
-      status: 'scheduled' as const,
-    },
-  ];
+  const selectedShoot = shoots.find((shoot) => shoot.id === selectedShootId);
+
+  const getStatusFromShoot = (shoot: Shoot): 'idea' | 'planning' | 'scheduled' | 'completed' => {
+    return shoot.status as 'idea' | 'planning' | 'scheduled' | 'completed';
+  };
+
+  const upcomingShoots = shoots
+    .filter((shoot) => shoot.status === 'scheduled' && shoot.date)
+    .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+    .slice(0, 3)
+    .map((shoot) => {
+      const daysUntil = Math.ceil((new Date(shoot.date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      return {
+        id: shoot.id,
+        title: shoot.title,
+        date: new Date(shoot.date!),
+        location: shoot.location || 'TBD',
+        image: heroImage,
+        hasCalendar: !!shoot.calendarEventUrl,
+        hasDocs: !!shoot.docsUrl,
+        countdown: daysUntil === 1 ? '1 day' : daysUntil < 7 ? `${daysUntil} days` : `${Math.ceil(daysUntil / 7)} week${Math.ceil(daysUntil / 7) === 1 ? '' : 's'}`,
+      };
+    });
+
+  const calendarShoots = shoots
+    .filter((shoot) => shoot.date)
+    .map((shoot) => ({
+      id: shoot.id,
+      title: shoot.title,
+      date: new Date(shoot.date!),
+      status: getStatusFromShoot(shoot),
+    }));
 
   const kanbanColumns = [
     {
-      id: 'ideas',
+      id: 'idea',
       title: 'Ideas',
       icon: Lightbulb,
-      shoots: [
-        {
-          id: '3',
-          title: 'Final Fantasy VII Remake - Cloud',
-          image: forestImage,
-          referenceCount: 3,
-        },
-        {
-          id: '5',
-          title: 'Elden Ring - Malenia',
-          referenceCount: 2,
-        },
-      ],
+      shoots: shoots
+        .filter((shoot) => shoot.status === 'idea')
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          image: heroImage,
+          referenceCount: 0,
+        })),
     },
     {
       id: 'planning',
       title: 'Planning',
       icon: Clock,
-      shoots: [
-        {
-          id: '2',
-          title: 'Genshin Impact - Raiden Shogun',
-          image: studioImage,
-          location: 'Cherry Blossom Park',
-          participants: 2,
-          hasDocs: true,
-          referenceCount: 5,
-        },
-      ],
+      shoots: shoots
+        .filter((shoot) => shoot.status === 'planning')
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          image: heroImage,
+          location: shoot.location || undefined,
+          participants: 0,
+          hasDocs: !!shoot.docsUrl,
+          referenceCount: 0,
+        })),
     },
     {
       id: 'scheduled',
       title: 'Scheduled',
       icon: Calendar,
-      shoots: [
-        {
-          id: '1',
-          title: 'Cyberpunk 2077 - V Character',
+      shoots: shoots
+        .filter((shoot) => shoot.status === 'scheduled')
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
           image: heroImage,
-          location: 'Downtown Industrial District',
-          participants: 3,
-          hasCalendar: true,
-          hasDocs: true,
-          referenceCount: 8,
-        },
-        {
-          id: '4',
-          title: 'Demon Slayer - Nezuko',
-          image: cyberpunkImage,
-          location: 'Japanese Garden',
-          participants: 4,
-          hasCalendar: true,
-          hasDocs: true,
-          referenceCount: 6,
-        },
-      ],
+          location: shoot.location || undefined,
+          participants: 0,
+          hasCalendar: !!shoot.calendarEventUrl,
+          hasDocs: !!shoot.docsUrl,
+          referenceCount: 0,
+        })),
     },
     {
       id: 'completed',
       title: 'Completed',
       icon: CheckCircle2,
-      shoots: [
-        {
-          id: '6',
-          title: 'Attack on Titan - Levi',
-          location: 'Urban Rooftop',
-          participants: 2,
-          referenceCount: 10,
-        },
-        {
-          id: '7',
-          title: 'My Hero Academia - Deku',
-          location: 'School Campus',
-          participants: 3,
-          referenceCount: 7,
-        },
-      ],
+      shoots: shoots
+        .filter((shoot) => shoot.status === 'completed')
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.location || undefined,
+          participants: 0,
+          referenceCount: 0,
+        })),
     },
   ];
 
-  const detailedShoot = {
-    id: '1',
-    title: 'Cyberpunk 2077 - V Character Shoot',
-    status: 'scheduled' as const,
-    date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    location: 'Downtown Industrial District',
-    description: 'Full character cosplay shoot for V from Cyberpunk 2077. Planning to capture both action poses and atmospheric shots with neon lighting. Bringing multiple costume pieces and props including iconic jacket and weapons.\n\nLocation scouting completed - found perfect alley with great neon signage. Need to shoot during evening for best lighting conditions.',
-    participants: [
-      { name: 'Alex Chen', role: 'Cosplayer' },
-      { name: 'Jordan Smith', role: 'Photographer' },
-      { name: 'Sam Taylor', role: 'Assistant' },
-    ],
-    references: [heroImage, studioImage, forestImage, cyberpunkImage],
-    instagramLinks: [
-      'https://instagram.com/p/example1',
-      'https://instagram.com/p/example2',
-    ],
-    calendarEventUrl: 'https://calendar.google.com/example',
-    docsUrl: 'https://docs.google.com/example',
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" data-testid="loader-shoots" />
+      </div>
+    );
+  }
 
-  if (selectedShootId) {
+  if (selectedShootId && selectedShoot) {
     return (
       <ShootDetailView
-        shoot={detailedShoot}
+        shoot={{
+          id: selectedShoot.id,
+          title: selectedShoot.title,
+          status: getStatusFromShoot(selectedShoot),
+          date: selectedShoot.date ? new Date(selectedShoot.date) : undefined,
+          location: selectedShoot.location || undefined,
+          description: selectedShoot.description || '',
+          participants: [],
+          references: [],
+          instagramLinks: selectedShoot.instagramLinks || [],
+          calendarEventUrl: selectedShoot.calendarEventUrl || undefined,
+          docsUrl: selectedShoot.docsUrl || undefined,
+        }}
         onBack={() => setSelectedShootId(null)}
         onEdit={() => console.log('Edit shoot')}
         onDelete={() => {
