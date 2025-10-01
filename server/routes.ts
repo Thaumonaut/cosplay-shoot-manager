@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertShootSchema, insertShootReferenceSchema, insertShootParticipantSchema } from "@shared/schema";
 import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
+import { createShootDocument } from "./services/docs-export";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const getUserId = (req: AuthRequest): string => {
@@ -195,6 +196,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(401).json({ error: error instanceof Error ? error.message : "Unauthorized" });
+    }
+  });
+
+  // Export shoot to Google Docs
+  app.post("/api/shoots/:id/export-doc", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
+
+      const participants = await storage.getShootParticipants(req.params.id);
+      const references = await storage.getShootReferences(req.params.id);
+
+      const { docId, docUrl } = await createShootDocument({
+        ...shoot,
+        participants,
+        references,
+      });
+
+      const updatedShoot = await storage.updateShoot(req.params.id, userId, {
+        docsUrl: docUrl,
+      });
+
+      res.json({ docId, docUrl, shoot: updatedShoot });
+    } catch (error) {
+      console.error('Error exporting to Google Docs:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export to Google Docs" 
+      });
     }
   });
 
