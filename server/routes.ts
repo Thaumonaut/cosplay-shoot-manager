@@ -12,6 +12,8 @@ import { createShootDocument } from "./services/docs-export";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
 import { sendShootReminder } from "./services/email";
 import { supabase } from "./supabase";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const getUserId = (req: AuthRequest): string => {
@@ -89,6 +91,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.clearCookie("sb-access-token", { path: "/" });
     res.clearCookie("sb-refresh-token", { path: "/" });
     res.json({ success: true });
+  });
+
+  // Object Storage Routes
+  // Serve uploaded images with authentication and ACL
+  app.get("/objects/:objectPath(*)", authenticateUser, async (req: AuthRequest, res) => {
+    const userId = req.user?.id;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error accessing object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Get presigned URL for image upload
+  app.post("/api/objects/upload", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
   });
 
   // Get all shoots for user
@@ -226,8 +267,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
+        
+        // If imageUrl is from object storage, set ACL policy
+        let imageUrl = req.body.imageUrl;
+        if (imageUrl && imageUrl.startsWith("https://storage.googleapis.com/")) {
+          const objectStorageService = new ObjectStorageService();
+          imageUrl = await objectStorageService.trySetObjectEntityAclPolicy(
+            imageUrl,
+            {
+              owner: userId,
+              visibility: "public",
+            },
+          );
+        }
+        
         const data = insertShootReferenceSchema.parse({
           ...req.body,
+          imageUrl,
           shootId: req.params.id,
         });
         const reference = await storage.createShootReference(data);
