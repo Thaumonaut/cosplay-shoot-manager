@@ -3,13 +3,11 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Calendar,
   MapPin,
   Clock,
-  FileText,
   Image as ImageIcon,
   ExternalLink,
   Edit,
@@ -18,6 +16,7 @@ import {
   ArrowLeft,
   Plus,
   X,
+  Users,
 } from "lucide-react";
 import { SiGooglecalendar, SiGoogledocs, SiInstagram } from "react-icons/si";
 import { format } from "date-fns";
@@ -119,7 +118,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                 <div>
                   <h1 className="text-4xl font-bold mb-3">{shoot.title}</h1>
                   <div className="flex flex-wrap gap-3">
-                    <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                    <Badge variant={statusInfo.variant} data-testid="badge-status">{statusInfo.label}</Badge>
                     {shoot.calendarEventUrl && (
                       <Badge variant="outline" className="gap-1">
                         <SiGooglecalendar className="h-3 w-3" />
@@ -134,7 +133,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {!shoot.calendarEventUrl && shoot.date && (
                     <Button 
                       variant="default" 
@@ -143,7 +142,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                       data-testid="button-create-calendar"
                     >
                       <SiGooglecalendar className="h-4 w-4 mr-2" />
-                      {isCreatingCalendar ? 'Adding to Calendar...' : 'Add to Calendar'}
+                      {isCreatingCalendar ? 'Adding...' : 'Add to Calendar'}
                     </Button>
                   )}
                   {!shoot.docsUrl && (
@@ -154,14 +153,14 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                       data-testid="button-export-docs"
                     >
                       <SiGoogledocs className="h-4 w-4 mr-2" />
-                      {isExporting ? 'Exporting...' : 'Export to Docs'}
+                      {isExporting ? 'Saving...' : 'Save as Google Doc'}
                     </Button>
                   )}
                   <Button variant="outline" onClick={onEdit} data-testid="button-edit">
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  {shoot.date && (
+                  {shoot.date && shoot.participants.length > 0 && (
                     <Button 
                       variant="outline" 
                       onClick={onSendReminders}
@@ -169,7 +168,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                       data-testid="button-send-reminder"
                     >
                       <Mail className="h-4 w-4 mr-2" />
-                      {isSendingReminders ? 'Sending...' : 'Send Reminder'}
+                      {isSendingReminders ? 'Sending...' : 'Send Reminders'}
                     </Button>
                   )}
                   <Button
@@ -197,7 +196,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Date & Time</p>
-                  <p className="font-medium">{format(shoot.date, "MMM d, yyyy")}</p>
+                  <p className="font-medium" data-testid="text-shoot-date">{format(shoot.date, "MMM d, yyyy")}</p>
                   <p className="text-sm text-muted-foreground">{format(shoot.date, "h:mm a")}</p>
                 </div>
               </CardContent>
@@ -211,7 +210,7 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{shoot.location}</p>
+                    <p className="font-medium" data-testid="text-shoot-location">{shoot.location}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -231,25 +230,15 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
           </div>
         )}
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList>
-            <TabsTrigger value="details" data-testid="tab-details">Details</TabsTrigger>
-            <TabsTrigger value="references" data-testid="tab-references">
-              References ({shoot.references.length + shoot.instagramLinks.length})
-            </TabsTrigger>
-            <TabsTrigger value="participants" data-testid="tab-participants">
-              Participants ({shoot.participants.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="details" className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap">
-                  {shoot.description}
+                <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-description">
+                  {shoot.description || 'No description provided.'}
                 </p>
               </CardContent>
             </Card>
@@ -291,91 +280,39 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </div>
 
-          <TabsContent value="references" className="space-y-6">
-            {shoot.references.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5" />
-                    Reference Images
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {shoot.references.map((ref, index) => (
-                      <div
-                        key={index}
-                        className="relative aspect-square rounded-lg overflow-hidden bg-muted hover-elevate cursor-pointer group"
-                        data-testid={`image-reference-${index}`}
-                      >
-                        <img
-                          src={ref}
-                          alt={`Reference ${index + 1}`}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {shoot.instagramLinks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <SiInstagram className="h-5 w-5" />
-                    Instagram References
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {shoot.instagramLinks.map((link, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => window.open(link, '_blank')}
-                      data-testid={`button-instagram-${index}`}
-                    >
-                      <span>Instagram Post {index + 1}</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="participants">
+          <div className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle>Team</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Team ({shoot.participants.length})
+                </CardTitle>
                 <Button
                   size="sm"
                   onClick={() => setAddParticipantOpen(true)}
                   data-testid="button-add-participant"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Participant
+                  Add
                 </Button>
               </CardHeader>
               <CardContent>
                 {shoot.participants.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p>No participants added yet.</p>
-                    <p className="text-sm mt-1">Add models, photographers, and crew members to your shoot.</p>
+                    <p>No participants yet.</p>
+                    <p className="text-sm mt-1">Add models, photographers, and crew.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {shoot.participants.map((participant, index) => (
                       <div
                         key={participant.id}
                         className="flex items-center justify-between gap-4 p-3 rounded-lg hover-elevate"
                         data-testid={`participant-${index}`}
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <Avatar>
                             <AvatarImage src={participant.avatar} />
                             <AvatarFallback>{participant.name.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -403,14 +340,72 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                 )}
               </CardContent>
             </Card>
-            <AddParticipantDialog
-              open={addParticipantOpen}
-              onOpenChange={setAddParticipantOpen}
-              shootId={shoot.id}
-            />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
+
+        {(shoot.references.length > 0 || shoot.instagramLinks.length > 0) && (
+          <div className="space-y-6">
+            {shoot.references.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Reference Images ({shoot.references.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {shoot.references.map((ref, index) => (
+                      <div
+                        key={index}
+                        className="relative aspect-square rounded-lg overflow-hidden bg-muted hover-elevate cursor-pointer group"
+                        data-testid={`image-reference-${index}`}
+                      >
+                        <img
+                          src={ref}
+                          alt={`Reference ${index + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {shoot.instagramLinks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <SiInstagram className="h-5 w-5" />
+                    Instagram References ({shoot.instagramLinks.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {shoot.instagramLinks.map((link, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => window.open(link, '_blank')}
+                      data-testid={`button-instagram-${index}`}
+                    >
+                      <span>Instagram Post {index + 1}</span>
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
+
+      <AddParticipantDialog
+        open={addParticipantOpen}
+        onOpenChange={setAddParticipantOpen}
+        shootId={shoot.id}
+      />
     </div>
   );
 }
