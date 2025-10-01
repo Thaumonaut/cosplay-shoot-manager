@@ -43,6 +43,8 @@ interface ShootDetailViewProps {
   onBack?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onExportDocs?: () => void;
+  isExporting?: boolean;
 }
 
 const statusConfig = {
@@ -52,7 +54,7 @@ const statusConfig = {
   completed: { label: "Completed", variant: "outline" as const },
 };
 
-export function ShootDetailView({ shoot, onBack, onEdit, onDelete }: ShootDetailViewProps) {
+export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting }: ShootDetailViewProps) {
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
 
@@ -98,6 +100,17 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete }: ShootDetail
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {!shoot.docsUrl && (
+                    <Button 
+                      variant="default" 
+                      onClick={onExportDocs}
+                      disabled={isExporting}
+                      data-testid="button-export-docs"
+                    >
+                      <SiGoogledocs className="h-4 w-4 mr-2" />
+                      {isExporting ? 'Exporting...' : 'Export to Docs'}
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={onEdit} data-testid="button-edit">
                     <Edit className="h-4 w-4 mr-2" />
                     Edit

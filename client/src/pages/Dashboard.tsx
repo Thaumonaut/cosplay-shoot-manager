@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Shoot } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -10,13 +10,39 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 import { AddShootDialog } from "@/components/AddShootDialog";
 import { ShootDetailView } from "@/components/ShootDetailView";
 import heroImage from '@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png';
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const { data: shoots = [], isLoading } = useQuery<Shoot[]>({
     queryKey: ["/api/shoots"],
+  });
+
+  const exportDocsMutation = useMutation({
+    mutationFn: async (shootId: string) => {
+      return await apiRequest(`/api/shoots/${shootId}/export-doc`, "POST");
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      toast({
+        title: "Export Successful",
+        description: "Your shoot has been exported to Google Docs.",
+      });
+      if (data.docUrl) {
+        window.open(data.docUrl, '_blank');
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export to Google Docs. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const selectedShoot = shoots.find((shoot) => shoot.id === selectedShootId);
@@ -145,6 +171,8 @@ export default function Dashboard() {
           console.log('Delete shoot');
           setSelectedShootId(null);
         }}
+        onExportDocs={() => exportDocsMutation.mutate(selectedShootId)}
+        isExporting={exportDocsMutation.isPending}
       />
     );
   }
