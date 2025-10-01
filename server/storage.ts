@@ -108,6 +108,7 @@ export interface IStorage {
 
   // Team Invites
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
+  getUserTeamMember(userId: string): Promise<TeamMember | undefined>;
   createTeamMember(member: InsertTeamMember): Promise<TeamMember>;
 }
 
@@ -490,6 +491,15 @@ export class DatabaseStorage implements IStorage {
       .from(teamInvites)
       .where(eq(teamInvites.inviteCode, inviteCode));
     return invite;
+  }
+
+  async getUserTeamMember(userId: string): Promise<TeamMember | undefined> {
+    const [member] = await db
+      .select()
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, userId))
+      .limit(1);
+    return member;
   }
 
   async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {

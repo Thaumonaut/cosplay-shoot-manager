@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
+import AuthCallback from "@/pages/AuthCallback";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ function AppContent() {
     return (
       <Switch>
         <Route path="/auth" component={Auth} />
+        <Route path="/auth/callback" component={AuthCallback} />
         <Route path="/">
           <ProtectedRoute>
             <Dashboard />
@@ -138,6 +140,7 @@ function AppContent() {
                   </ProtectedRoute>
                 </Route>
                 <Route path="/auth" component={Auth} />
+                <Route path="/auth/callback" component={AuthCallback} />
                 <Route component={NotFound} />
               </Switch>
             </div>

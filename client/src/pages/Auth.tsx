@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { Camera, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { SiGoogle, SiApple } from "react-icons/si";
+import { Mail } from "lucide-react";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -19,7 +22,7 @@ export default function Auth() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, signInWithProvider, user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -145,6 +148,17 @@ export default function Auth() {
     }
   };
 
+  const handleSocialLogin = async (provider: 'google' | 'apple' | 'azure') => {
+    const { error } = await signInWithProvider(provider);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-md">
@@ -196,6 +210,49 @@ export default function Auth() {
                 >
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('google')}
+                    disabled={loading}
+                    data-testid="button-google-signin"
+                  >
+                    <SiGoogle className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('apple')}
+                    disabled={loading}
+                    data-testid="button-apple-signin"
+                  >
+                    <SiApple className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('azure')}
+                    disabled={loading}
+                    data-testid="button-microsoft-signin"
+                    className="gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    <span className="text-xs">MS</span>
+                  </Button>
+                </div>
               </form>
             </TabsContent>
             <TabsContent value="signup">
@@ -307,6 +364,49 @@ export default function Auth() {
                 >
                   {loading ? "Creating account..." : "Create Account"}
                 </Button>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('google')}
+                    disabled={loading}
+                    data-testid="button-google-signup"
+                  >
+                    <SiGoogle className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('apple')}
+                    disabled={loading}
+                    data-testid="button-apple-signup"
+                  >
+                    <SiApple className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSocialLogin('azure')}
+                    disabled={loading}
+                    data-testid="button-microsoft-signup"
+                    className="gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    <span className="text-xs">MS</span>
+                  </Button>
+                </div>
               </form>
             </TabsContent>
           </Tabs>

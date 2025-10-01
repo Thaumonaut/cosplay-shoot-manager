@@ -8,6 +8,14 @@ A web application for managing and organizing cosplay photo shoots. The system p
 
 **October 1, 2025**
 - Extended signup flow with first/last name, profile picture upload, and team invite code
+- Implemented social login (Google, Apple, Microsoft) with OAuth callback handling
+- Created comprehensive resource management systems:
+  - Personnel/contacts with name, email, phone, role, notes, avatar
+  - Equipment tracking with category, description, quantity, availability
+  - Locations management with address, notes, images
+  - Props tracking with description, availability, images
+  - Costume progress tracking with character, series, status, completion percentage
+- Added full CRUD API endpoints for all resource management systems
 - Implemented user profile management with object storage for avatars
 - Added inline editing for all shoot fields (title, status, date/duration, location, description)
 - Enhanced accordion cards with placeholder images and improved data display

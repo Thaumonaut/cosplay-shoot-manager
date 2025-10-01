@@ -6,6 +6,11 @@ import {
   insertShootReferenceSchema,
   insertShootParticipantSchema,
   insertUserProfileSchema,
+  insertPersonnelSchema,
+  insertEquipmentSchema,
+  insertLocationSchema,
+  insertPropSchema,
+  insertCostumeProgressSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
@@ -24,6 +29,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new Error("Unauthorized");
     }
     return req.user.id;
+  };
+
+  const getUserTeamId = async (userId: string): Promise<string> => {
+    const member = await storage.getUserTeamMember(userId);
+    if (!member) {
+      throw new Error("User not part of any team");
+    }
+    return member.teamId;
   };
 
   // Cookie helper function
@@ -699,6 +712,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  // Personnel endpoints
+  app.get("/api/personnel", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const personnelList = await storage.getTeamPersonnel(teamId);
+      res.json(personnelList);
+    } catch (error) {
+      console.error("Error fetching personnel:", error);
+      res.status(500).json({ error: "Failed to fetch personnel" });
+    }
+  });
+
+  app.post("/api/personnel", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const data = insertPersonnelSchema.parse({ ...req.body, teamId });
+      const person = await storage.createPersonnel(data);
+      res.status(201).json(person);
+    } catch (error) {
+      console.error("Error creating personnel:", error);
+      res.status(400).json({ error: "Failed to create personnel" });
+    }
+  });
+
+  app.patch("/api/personnel/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const updated = await storage.updatePersonnel(req.params.id, teamId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Personnel not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating personnel:", error);
+      res.status(500).json({ error: "Failed to update personnel" });
+    }
+  });
+
+  app.delete("/api/personnel/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const deleted = await storage.deletePersonnel(req.params.id, teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Personnel not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting personnel:", error);
+      res.status(500).json({ error: "Failed to delete personnel" });
+    }
+  });
+
+  // Equipment endpoints
+  app.get("/api/equipment", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const equipmentList = await storage.getTeamEquipment(teamId);
+      res.json(equipmentList);
+    } catch (error) {
+      console.error("Error fetching equipment:", error);
+      res.status(500).json({ error: "Failed to fetch equipment" });
+    }
+  });
+
+  app.post("/api/equipment", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const data = insertEquipmentSchema.parse({ ...req.body, teamId });
+      const item = await storage.createEquipment(data);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating equipment:", error);
+      res.status(400).json({ error: "Failed to create equipment" });
+    }
+  });
+
+  app.patch("/api/equipment/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const updated = await storage.updateEquipment(req.params.id, teamId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Equipment not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating equipment:", error);
+      res.status(500).json({ error: "Failed to update equipment" });
+    }
+  });
+
+  app.delete("/api/equipment/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const deleted = await storage.deleteEquipment(req.params.id, teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Equipment not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting equipment:", error);
+      res.status(500).json({ error: "Failed to delete equipment" });
+    }
+  });
+
+  // Locations endpoints
+  app.get("/api/locations", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const locationsList = await storage.getTeamLocations(teamId);
+      res.json(locationsList);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      res.status(500).json({ error: "Failed to fetch locations" });
+    }
+  });
+
+  app.post("/api/locations", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const data = insertLocationSchema.parse({ ...req.body, teamId });
+      const location = await storage.createLocation(data);
+      res.status(201).json(location);
+    } catch (error) {
+      console.error("Error creating location:", error);
+      res.status(400).json({ error: "Failed to create location" });
+    }
+  });
+
+  app.patch("/api/locations/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const updated = await storage.updateLocation(req.params.id, teamId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Location not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating location:", error);
+      res.status(500).json({ error: "Failed to update location" });
+    }
+  });
+
+  app.delete("/api/locations/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const deleted = await storage.deleteLocation(req.params.id, teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Location not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting location:", error);
+      res.status(500).json({ error: "Failed to delete location" });
+    }
+  });
+
+  // Props endpoints
+  app.get("/api/props", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const propsList = await storage.getTeamProps(teamId);
+      res.json(propsList);
+    } catch (error) {
+      console.error("Error fetching props:", error);
+      res.status(500).json({ error: "Failed to fetch props" });
+    }
+  });
+
+  app.post("/api/props", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const data = insertPropSchema.parse({ ...req.body, teamId });
+      const prop = await storage.createProp(data);
+      res.status(201).json(prop);
+    } catch (error) {
+      console.error("Error creating prop:", error);
+      res.status(400).json({ error: "Failed to create prop" });
+    }
+  });
+
+  app.patch("/api/props/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const updated = await storage.updateProp(req.params.id, teamId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Prop not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating prop:", error);
+      res.status(500).json({ error: "Failed to update prop" });
+    }
+  });
+
+  app.delete("/api/props/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const deleted = await storage.deleteProp(req.params.id, teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Prop not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting prop:", error);
+      res.status(500).json({ error: "Failed to delete prop" });
+    }
+  });
+
+  // Costume Progress endpoints
+  app.get("/api/costumes", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const costumesList = await storage.getTeamCostumes(teamId);
+      res.json(costumesList);
+    } catch (error) {
+      console.error("Error fetching costumes:", error);
+      res.status(500).json({ error: "Failed to fetch costumes" });
+    }
+  });
+
+  app.post("/api/costumes", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const data = insertCostumeProgressSchema.parse({ ...req.body, teamId });
+      const costume = await storage.createCostumeProgress(data);
+      res.status(201).json(costume);
+    } catch (error) {
+      console.error("Error creating costume:", error);
+      res.status(400).json({ error: "Failed to create costume" });
+    }
+  });
+
+  app.patch("/api/costumes/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const updated = await storage.updateCostumeProgress(req.params.id, teamId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Costume not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating costume:", error);
+      res.status(500).json({ error: "Failed to update costume" });
+    }
+  });
+
+  app.delete("/api/costumes/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const teamId = await getUserTeamId(getUserId(req));
+      const deleted = await storage.deleteCostumeProgress(req.params.id, teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Costume not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting costume:", error);
+      res.status(500).json({ error: "Failed to delete costume" });
+    }
+  });
 
   const httpServer = createServer(app);
 
