@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   MapPin,
@@ -37,6 +38,7 @@ interface ShootDetail {
   title: string;
   status: "idea" | "planning" | "scheduled" | "completed";
   date?: Date;
+  durationMinutes?: number;
   location?: string;
   description: string;
   participants: Participant[];
@@ -94,267 +96,250 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
 
   return (
     <div className="min-h-screen bg-background">
-      {heroImage && (
-        <div className="relative h-64 md:h-96 w-full overflow-hidden">
-          <img
-            src={heroImage}
-            alt={shoot.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-            <div className="max-w-7xl mx-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="mb-4"
-                data-testid="button-back"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-4xl font-bold mb-3">{shoot.title}</h1>
-                  <div className="flex flex-wrap gap-3">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onEdit} data-testid="button-edit">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              className="text-destructive hover:bg-destructive/10"
+              data-testid="button-delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Card */}
+        <Card>
+          {heroImage && (
+            <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
+              <img
+                src={heroImage}
+                alt={shoot.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          
+          <CardHeader>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <h1 className="text-3xl font-bold">{shoot.title}</h1>
+                  <div className="flex flex-wrap gap-2">
                     <Badge variant={statusInfo.variant} data-testid="badge-status">{statusInfo.label}</Badge>
                     {shoot.calendarEventUrl && (
                       <Badge variant="outline" className="gap-1">
                         <SiGooglecalendar className="h-3 w-3" />
-                        Synced
+                        Calendar
                       </Badge>
                     )}
                     {shoot.docsUrl && (
                       <Badge variant="outline" className="gap-1">
                         <SiGoogledocs className="h-3 w-3" />
-                        Docs Linked
+                        Docs
                       </Badge>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {!shoot.calendarEventUrl && shoot.date && (
-                    <Button 
-                      variant="default" 
-                      onClick={onCreateCalendar}
-                      disabled={isCreatingCalendar}
-                      data-testid="button-create-calendar"
-                    >
-                      <SiGooglecalendar className="h-4 w-4 mr-2" />
-                      {isCreatingCalendar ? 'Adding...' : 'Add to Calendar'}
-                    </Button>
-                  )}
-                  {!shoot.docsUrl && (
-                    <Button 
-                      variant="default" 
-                      onClick={onExportDocs}
-                      disabled={isExporting}
-                      data-testid="button-export-docs"
-                    >
-                      <SiGoogledocs className="h-4 w-4 mr-2" />
-                      {isExporting ? 'Saving...' : 'Save as Google Doc'}
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={onEdit} data-testid="button-edit">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
+              </div>
+
+              {/* Quick Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                {shoot.date && (
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Date & Time</p>
+                      <p className="text-sm text-muted-foreground">{format(shoot.date, "MMM d, yyyy")}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(shoot.date, "h:mm a")}
+                        {shoot.durationMinutes && shoot.durationMinutes > 0 && (
+                          <>
+                            {" "}· {Math.floor(shoot.durationMinutes / 60) > 0 && `${Math.floor(shoot.durationMinutes / 60)}h `}
+                            {shoot.durationMinutes % 60 > 0 && `${shoot.durationMinutes % 60}m`}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {shoot.location && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Location</p>
+                      <p className="text-sm text-muted-foreground" data-testid="text-shoot-location">{shoot.location}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {!shoot.calendarEventUrl && shoot.date && (
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={onCreateCalendar}
+                    disabled={isCreatingCalendar}
+                    data-testid="button-create-calendar"
+                  >
+                    <SiGooglecalendar className="h-4 w-4 mr-2" />
+                    {isCreatingCalendar ? 'Adding...' : 'Add to Calendar'}
                   </Button>
-                  {shoot.date && shoot.participants.length > 0 && (
-                    <Button 
-                      variant="outline" 
-                      onClick={onSendReminders}
-                      disabled={isSendingReminders}
-                      data-testid="button-send-reminder"
-                    >
-                      <Mail className="h-4 w-4 mr-2" />
-                      {isSendingReminders ? 'Sending...' : 'Send Reminders'}
-                    </Button>
-                  )}
+                )}
+                {shoot.calendarEventUrl && (
                   <Button
                     variant="outline"
-                    onClick={onDelete}
-                    className="text-destructive hover:bg-destructive/10"
-                    data-testid="button-delete"
+                    size="sm"
+                    onClick={() => window.open(shoot.calendarEventUrl, '_blank')}
+                    data-testid="button-view-calendar"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <SiGooglecalendar className="h-4 w-4 mr-2" />
+                    View in Calendar
                   </Button>
-                </div>
+                )}
+                {!shoot.docsUrl && (
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={onExportDocs}
+                    disabled={isExporting}
+                    data-testid="button-export-docs"
+                  >
+                    <SiGoogledocs className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Saving...' : 'Save as Google Doc'}
+                  </Button>
+                )}
+                {shoot.docsUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(shoot.docsUrl, '_blank')}
+                    data-testid="button-view-docs"
+                  >
+                    <SiGoogledocs className="h-4 w-4 mr-2" />
+                    Open Planning Doc
+                  </Button>
+                )}
+                {shoot.date && shoot.participants.length > 0 && (
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={onSendReminders}
+                    disabled={isSendingReminders}
+                    data-testid="button-send-reminder"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {isSendingReminders ? 'Sending...' : 'Send Reminders'}
+                  </Button>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </CardHeader>
 
-      <div className="max-w-7xl mx-auto p-6 md:p-12 space-y-8">
-        {shoot.date && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-lg bg-primary/10 p-3">
-                  <Calendar className="h-6 w-6 text-primary" />
+          <CardContent className="space-y-6">
+            {/* Description */}
+            {shoot.description && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Description</h3>
+                  <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-description">
+                    {shoot.description}
+                  </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Date & Time</p>
-                  <p className="font-medium" data-testid="text-shoot-date">{format(shoot.date, "MMM d, yyyy")}</p>
-                  <p className="text-sm text-muted-foreground">{format(shoot.date, "h:mm a")}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {shoot.location && (
-              <Card>
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="rounded-lg bg-primary/10 p-3">
-                    <MapPin className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium" data-testid="text-shoot-location">{shoot.location}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              </>
             )}
 
-            <Card>
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-lg bg-primary/10 p-3">
-                  <Clock className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p className="font-medium capitalize">{shoot.status}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-description">
-                  {shoot.description || 'No description provided.'}
-                </p>
-              </CardContent>
-            </Card>
-
-            {(shoot.calendarEventUrl || shoot.docsUrl) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Integrations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {shoot.calendarEventUrl && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => window.open(shoot.calendarEventUrl, '_blank')}
-                      data-testid="button-view-calendar"
-                    >
-                      <span className="flex items-center gap-2">
-                        <SiGooglecalendar className="h-4 w-4" />
-                        View in Google Calendar
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {shoot.docsUrl && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => window.open(shoot.docsUrl, '_blank')}
-                      data-testid="button-view-docs"
-                    >
-                      <span className="flex items-center gap-2">
-                        <SiGoogledocs className="h-4 w-4" />
-                        Open Planning Document
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle className="flex items-center gap-2">
+            {/* Team */}
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   Team ({shoot.participants.length})
-                </CardTitle>
+                </h3>
                 <Button
                   size="sm"
+                  variant="outline"
                   onClick={() => setAddParticipantOpen(true)}
                   data-testid="button-add-participant"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
-              </CardHeader>
-              <CardContent>
-                {shoot.participants.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No participants yet.</p>
-                    <p className="text-sm mt-1">Add models, photographers, and crew.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {shoot.participants.map((participant, index) => (
-                      <div
-                        key={participant.id}
-                        className="flex items-center justify-between gap-4 p-3 rounded-lg hover-elevate"
-                        data-testid={`participant-${index}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={participant.avatar} />
-                            <AvatarFallback>{participant.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{participant.name}</p>
-                            <p className="text-sm text-muted-foreground">{participant.role}</p>
-                            {participant.email && (
-                              <p className="text-xs text-muted-foreground">{participant.email}</p>
-                            )}
-                          </div>
+              </div>
+              
+              {shoot.participants.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No participants yet.</p>
+                  <p className="text-sm mt-1">Add models, photographers, and crew.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {shoot.participants.map((participant, index) => (
+                    <div
+                      key={participant.id}
+                      className="flex items-center justify-between gap-4 p-3 rounded-lg border hover-elevate"
+                      data-testid={`participant-${index}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={participant.avatar} />
+                          <AvatarFallback>{participant.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{participant.name}</p>
+                          <p className="text-sm text-muted-foreground">{participant.role}</p>
+                          {participant.email && (
+                            <p className="text-xs text-muted-foreground">{participant.email}</p>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteParticipantMutation.mutate(participant.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                          data-testid={`button-delete-participant-${index}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteParticipantMutation.mutate(participant.id)}
+                        className="text-destructive hover:bg-destructive/10"
+                        data-testid={`button-delete-participant-${index}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        {(shoot.references.length > 0 || shoot.instagramLinks.length > 0) && (
-          <div className="space-y-6">
+            {/* References */}
             {shoot.references.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
                     <ImageIcon className="h-5 w-5" />
                     Reference Images ({shoot.references.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {shoot.references.map((ref, index) => (
                       <div
                         key={index}
@@ -369,36 +354,38 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </>
             )}
 
+            {/* Instagram Links */}
             {shoot.instagramLinks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
                     <SiInstagram className="h-5 w-5" />
                     Instagram References ({shoot.instagramLinks.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {shoot.instagramLinks.map((link, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => window.open(link, '_blank')}
-                      data-testid={`button-instagram-${index}`}
-                    >
-                      <span>Instagram Post {index + 1}</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
+                  </h3>
+                  <div className="space-y-2">
+                    {shoot.instagramLinks.map((link, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        className="w-full justify-between"
+                        onClick={() => window.open(link, '_blank')}
+                        data-testid={`button-instagram-${index}`}
+                      >
+                        <span>Instagram Post {index + 1}</span>
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        )}
+          </CardContent>
+        </Card>
       </div>
 
       <AddParticipantDialog
