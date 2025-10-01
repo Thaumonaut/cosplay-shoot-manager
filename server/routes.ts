@@ -483,7 +483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shoot.title,
           shoot.description,
           startDate,
-          shoot.location
+          shoot.locationNotes || null
         );
 
         const updatedShoot = await storage.updateShoot(req.params.id, userId, {
@@ -551,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sendShootReminder({
             shootTitle: shoot.title,
             shootDate,
-            shootLocation: shoot.location || undefined,
+            shootLocation: shoot.locationNotes || undefined,
             participantEmail: participant.email!,
             participantName: participant.name,
           })
