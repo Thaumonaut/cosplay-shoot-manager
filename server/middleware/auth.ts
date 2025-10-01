@@ -17,15 +17,18 @@ export async function authenticateUser(
     const accessToken = req.cookies["sb-access-token"];
     const refreshToken = req.cookies["sb-refresh-token"];
     
-    if (!accessToken) {
-      return res.status(401).json({ error: "Missing authentication cookie" });
-    }
+    let user;
+    let error;
 
-    // Try to validate the access token
-    let { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    // Try to validate the access token if it exists
+    if (accessToken) {
+      const result = await supabase.auth.getUser(accessToken);
+      user = result.data.user;
+      error = result.error;
+    }
     
-    // If access token is invalid/expired and we have a refresh token, try to refresh
-    if (error && refreshToken) {
+    // If access token is missing/invalid/expired and we have a refresh token, try to refresh
+    if (!user && refreshToken) {
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
         refresh_token: refreshToken,
       });
@@ -41,7 +44,7 @@ export async function authenticateUser(
       res.cookie("sb-access-token", refreshData.session.access_token, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: "strict",
+        sameSite: "lax",
         path: "/",
         maxAge: expiresIn * 1000,
       });
@@ -49,7 +52,7 @@ export async function authenticateUser(
       res.cookie("sb-refresh-token", refreshData.session.refresh_token, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: "strict",
+        sameSite: "lax",
         path: "/",
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });

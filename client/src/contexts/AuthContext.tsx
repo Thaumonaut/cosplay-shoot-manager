@@ -65,9 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sessionData = await res.json();
       setUser(sessionData.user);
 
-      // Clear Supabase in-memory session
-      await supabase.auth.signOut();
-
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -101,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const sessionData = await res.json();
           setUser(sessionData.user);
-          await supabase.auth.signOut();
         }
       }
 

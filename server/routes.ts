@@ -23,7 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.cookie("sb-access-token", accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
       maxAge: expiresIn * 1000,
     });
@@ -31,7 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.cookie("sb-refresh-token", refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
