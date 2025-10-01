@@ -277,6 +277,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mapbox Geocoding Proxy
+  app.get("/api/mapbox/geocode", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const { q, limit = 5 } = req.query;
+      
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+
+      const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN;
+      if (!mapboxToken) {
+        return res.status(500).json({ error: "Mapbox token not configured" });
+      }
+
+      const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(q)}&access_token=${mapboxToken}&limit=${limit}&autocomplete=true`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      res.json(data);
+    } catch (error) {
+      console.error("Mapbox geocoding error:", error);
+      res.status(500).json({ error: "Failed to fetch location data" });
+    }
+  });
+
   // Get all shoots for user with participant counts and first reference
   app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {

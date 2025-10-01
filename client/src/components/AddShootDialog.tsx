@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Upload, Link as LinkIcon, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
 
 interface AddShootDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [status, setStatus] = useState<string>("idea");
   const [date, setDate] = useState<Date>();
   const [locationId, setLocationId] = useState<string>("");
+  const [locationNotes, setLocationNotes] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
@@ -98,6 +100,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     setStatus("idea");
     setDate(undefined);
     setLocationId("");
+    setLocationNotes("");
     setNotes("");
     setInstagramLinks([]);
     setSelectedEquipment([]);
@@ -140,6 +143,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
       status,
       date: date ? date.toISOString() : null,
       locationId: locationId && locationId !== "" ? locationId : null,
+      locationNotes: locationNotes || null,
       description: notes || null,
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
       calendarEventId: null,
@@ -217,21 +221,49 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Select value={locationId} onValueChange={setLocationId}>
-                  <SelectTrigger data-testid="select-location">
-                    <SelectValue placeholder="Choose a location..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No location selected</SelectItem>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Search for Location</Label>
+                  <MapboxLocationSearch
+                    onLocationSelect={(location) => {
+                      setLocationNotes(`${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}`);
+                    }}
+                    placeholder="Search for a location near you..."
+                  />
+                </div>
+
+                {locations.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Or select from saved locations</Label>
+                    <Select value={locationId} onValueChange={setLocationId}>
+                      <SelectTrigger data-testid="select-location">
+                        <SelectValue placeholder="Choose a saved location..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No location selected</SelectItem>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {locationNotes && (
+                  <div className="space-y-2">
+                    <Label htmlFor="location-notes">Location Details</Label>
+                    <Textarea
+                      id="location-notes"
+                      value={locationNotes}
+                      onChange={(e) => setLocationNotes(e.target.value)}
+                      rows={2}
+                      className="text-sm"
+                      data-testid="textarea-location-notes"
+                    />
+                  </div>
+                )}
               </div>
             </>
           )}
