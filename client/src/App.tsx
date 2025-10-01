@@ -52,35 +52,6 @@ function UserMenu() {
   );
 }
 
-function ProtectedRouter() {
-  return (
-    <Switch>
-      <Route path="/">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/shoots">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/calendar">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/status/:status">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/auth" component={Auth} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
 function AppContent() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -92,7 +63,32 @@ function AppContent() {
   };
 
   if (isAuthPage || !user) {
-    return <ProtectedRouter />;
+    return (
+      <Switch>
+        <Route path="/auth" component={Auth} />
+        <Route path="/">
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/shoots">
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/calendar">
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/status/:status">
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    );
   }
 
   return (
@@ -109,7 +105,30 @@ function AppContent() {
           </header>
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-7xl mx-auto p-6 md:p-8">
-              <ProtectedRouter />
+              <Switch>
+                <Route path="/">
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/shoots">
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/calendar">
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/status/:status">
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/auth" component={Auth} />
+                <Route component={NotFound} />
+              </Switch>
             </div>
           </main>
         </div>
