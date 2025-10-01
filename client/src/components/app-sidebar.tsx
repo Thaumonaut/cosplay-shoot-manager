@@ -14,6 +14,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   {
@@ -62,6 +63,22 @@ const statusFilters = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  const getInitials = (email: string) => {
+    const username = email.split('@')[0];
+    const parts = username.split(/[._-]/);
+    if (parts.length > 1) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return username.substring(0, 2).toUpperCase();
+  };
+
+  const getUserName = (email: string) => {
+    const username = email.split('@')[0];
+    const parts = username.split(/[._-]/);
+    return parts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+  };
 
   return (
     <Sidebar>
@@ -117,16 +134,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-6 pt-4">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src="" />
-            <AvatarFallback className="bg-primary text-primary-foreground">CU</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium">Cosplay User</p>
-            <p className="text-xs text-muted-foreground truncate">user@example.com</p>
+        <Link href="/profile" data-testid="link-profile">
+          <div className="flex items-center gap-3 rounded-lg p-2 -m-2 hover-elevate cursor-pointer">
+            <Avatar>
+              <AvatarImage src="" />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user?.email ? getInitials(user.email) : 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-medium" data-testid="text-user-name">
+                {user?.email ? getUserName(user.email) : 'User'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate" data-testid="text-user-email">
+                {user?.email || 'user@example.com'}
+              </p>
+            </div>
           </div>
-        </div>
+        </Link>
       </SidebarFooter>
     </Sidebar>
   );

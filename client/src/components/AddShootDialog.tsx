@@ -87,17 +87,17 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   };
 
   const handleSubmit = () => {
-    const shoot: Partial<InsertShoot> = {
+    const shoot = {
       title,
       status,
-      date: date || null,
+      date: date ? date.toISOString() : null,
       location: location || null,
       description: notes || null,
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
       calendarEventId: null,
       calendarEventUrl: null,
       docsUrl: null,
-    };
+    } as any;
     createShootMutation.mutate(shoot as InsertShoot);
   };
 

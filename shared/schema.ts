@@ -40,6 +40,12 @@ export const insertShootSchema = createInsertSchema(shoots).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  date: z.union([z.date(), z.string(), z.null()]).optional().transform(val => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
 });
 
 export const insertShootReferenceSchema = createInsertSchema(shootReferences).omit({

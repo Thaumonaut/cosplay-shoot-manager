@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 import { Button } from "@/components/ui/button";
 import { LogOut, User as UserIcon } from "lucide-react";
@@ -86,6 +87,11 @@ function AppContent() {
             <Dashboard />
           </ProtectedRoute>
         </Route>
+        <Route path="/profile">
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        </Route>
         <Route component={NotFound} />
       </Switch>
     );
@@ -124,6 +130,11 @@ function AppContent() {
                 <Route path="/status/:status">
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/profile">
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 </Route>
                 <Route path="/auth" component={Auth} />
