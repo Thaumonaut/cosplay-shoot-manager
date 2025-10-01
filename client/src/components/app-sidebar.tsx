@@ -1,4 +1,4 @@
-import { Calendar, Camera, LayoutGrid, Lightbulb, CheckCircle2, Clock } from "lucide-react";
+import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
@@ -21,43 +20,52 @@ const menuItems = [
     title: "Dashboard",
     url: "/",
     icon: LayoutGrid,
+    testId: "link-navigation-dashboard",
   },
   {
     title: "All Shoots",
     url: "/shoots",
     icon: Camera,
+    testId: "link-navigation-all-shoots",
   },
   {
     title: "Calendar",
     url: "/calendar",
     icon: Calendar,
+    testId: "link-navigation-calendar",
   },
 ];
 
-const statusFilters = [
+const resourceItems = [
   {
-    title: "Ideas",
-    url: "/status/ideas",
-    icon: Lightbulb,
-    count: 3,
+    title: "Personnel",
+    url: "/personnel",
+    icon: Users,
+    testId: "link-resource-personnel",
   },
   {
-    title: "Planning",
-    url: "/status/planning",
-    icon: Clock,
-    count: 2,
+    title: "Equipment",
+    url: "/equipment",
+    icon: Wrench,
+    testId: "link-resource-equipment",
   },
   {
-    title: "Scheduled",
-    url: "/status/scheduled",
-    icon: Calendar,
-    count: 4,
+    title: "Locations",
+    url: "/locations",
+    icon: MapPin,
+    testId: "link-resource-locations",
   },
   {
-    title: "Completed",
-    url: "/status/completed",
-    icon: CheckCircle2,
-    count: 12,
+    title: "Props",
+    url: "/props",
+    icon: Package,
+    testId: "link-resource-props",
+  },
+  {
+    title: "Costumes",
+    url: "/costumes",
+    icon: Shirt,
+    testId: "link-resource-costumes",
   },
 ];
 
@@ -101,7 +109,7 @@ export function AppSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(' ', '-')}`}>
+                    <Link href={item.url} data-testid={item.testId}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -113,22 +121,35 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Status</SidebarGroupLabel>
+          <SidebarGroupLabel>Resources</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {statusFilters.map((item) => (
+              {resourceItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`link-status-${item.title.toLowerCase()}`}>
+                    <Link href={item.url} data-testid={item.testId}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
-                      <Badge variant="secondary" className="ml-auto">
-                        {item.count}
-                      </Badge>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        <SidebarGroup>
+          <SidebarGroupLabel>Team</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/team/settings"}>
+                  <Link href="/team/settings" data-testid="link-team-settings">
+                    <Settings className="h-4 w-4" />
+                    <span>Team Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
