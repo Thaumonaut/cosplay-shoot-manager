@@ -17,6 +17,8 @@ A web application for managing and organizing cosplay photo shoots. The system p
 - Added validation: All PATCH endpoints now use `.partial().parse()` for proper data validation
 - Refactored personnel/participant system: Removed default role from personnel, implemented per-shoot role assignment
 - Enhanced participant dialog: Added personnel selection dropdown with option to create new personnel inline
+- Integrated resource selection in shoot creation: Users can now select equipment, props, costumes, and locations when creating shoots
+- Implemented resource associations: Backend creates association records linking shoots to selected resources
 - Created comprehensive resource management systems:
   - Personnel/contacts with name, email, phone, notes, avatar (roles assigned per-shoot)
   - Equipment tracking with category, description, quantity, availability
