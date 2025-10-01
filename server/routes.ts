@@ -959,10 +959,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/costumes", authenticateUser, async (req: AuthRequest, res) => {
+  app.post("/api/costumes", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const data = insertCostumeProgressSchema.parse({ ...req.body, teamId });
+      const bodyData = {
+        ...req.body,
+        teamId,
+        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : 0
+      };
+      const data = insertCostumeProgressSchema.parse(bodyData);
       const costume = await storage.createCostumeProgress(data);
       res.status(201).json(costume);
     } catch (error) {
@@ -971,17 +976,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/costumes/:id", authenticateUser, async (req: AuthRequest, res) => {
+  app.patch("/api/costumes/:id", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const updated = await storage.updateCostumeProgress(req.params.id, teamId, req.body);
+      const bodyData = {
+        ...req.body,
+        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : undefined
+      };
+      const validatedData = insertCostumeProgressSchema.partial().parse(bodyData);
+      const updated = await storage.updateCostumeProgress(req.params.id, teamId, validatedData);
       if (!updated) {
         return res.status(404).json({ error: "Costume not found" });
       }
       res.json(updated);
     } catch (error) {
       console.error("Error updating costume:", error);
-      res.status(500).json({ error: "Failed to update costume" });
+      res.status(400).json({ error: "Failed to update costume" });
     }
   });
 
