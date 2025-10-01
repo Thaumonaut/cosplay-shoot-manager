@@ -1,15 +1,111 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const teams = pgTable("teams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const userProfiles = pgTable("user_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull().unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const teamMembers = pgTable("team_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  role: text("role").notNull().default("member"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const teamInvites = pgTable("team_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  inviteCode: text("invite_code").notNull().unique(),
+  expiresAt: timestamp("expires_at"),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const personnel = pgTable("personnel", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  defaultRole: text("default_role"),
+  notes: text("notes"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const equipment = pgTable("equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category"),
+  description: text("description"),
+  quantity: integer("quantity").default(1),
+  available: boolean("available").default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const locations = pgTable("locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  address: text("address"),
+  notes: text("notes"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const props = pgTable("props", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  available: boolean("available").default(true),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const costumeProgress = pgTable("costume_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  characterName: text("character_name").notNull(),
+  seriesName: text("series_name"),
+  status: text("status").notNull().default("planning"),
+  completionPercentage: integer("completion_percentage").default(0),
+  notes: text("notes"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 export const shoots = pgTable("shoots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   status: text("status").notNull().default("idea"),
   date: timestamp("date"),
-  location: text("location"),
+  locationId: varchar("location_id").references(() => locations.id),
+  locationNotes: text("location_notes"),
   description: text("description"),
   instagramLinks: text("instagram_links").array(),
   calendarEventId: text("calendar_event_id"),
@@ -30,10 +126,85 @@ export const shootReferences = pgTable("shoot_references", {
 export const shootParticipants = pgTable("shoot_participants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
+  personnelId: varchar("personnel_id").references(() => personnel.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   role: text("role").notNull(),
   email: text("email"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const shootEquipment = pgTable("shoot_equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
+  equipmentId: varchar("equipment_id").notNull().references(() => equipment.id, { onDelete: "cascade" }),
+  quantity: integer("quantity").default(1),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const shootProps = pgTable("shoot_props", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
+  propId: varchar("prop_id").notNull().references(() => props.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const shootCostumes = pgTable("shoot_costumes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
+  costumeId: varchar("costume_id").notNull().references(() => costumeProgress.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTeamInviteSchema = createInsertSchema(teamInvites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPersonnelSchema = createInsertSchema(personnel).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEquipmentSchema = createInsertSchema(equipment).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLocationSchema = createInsertSchema(locations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropSchema = createInsertSchema(props).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCostumeProgressSchema = createInsertSchema(costumeProgress).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertShootSchema = createInsertSchema(shoots).omit({
@@ -58,9 +229,48 @@ export const insertShootParticipantSchema = createInsertSchema(shootParticipants
   createdAt: true,
 });
 
+export const insertShootEquipmentSchema = createInsertSchema(shootEquipment).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShootPropSchema = createInsertSchema(shootProps).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShootCostumeSchema = createInsertSchema(shootCostumes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type Team = typeof teams.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamInvite = z.infer<typeof insertTeamInviteSchema>;
+export type TeamInvite = typeof teamInvites.$inferSelect;
+export type InsertPersonnel = z.infer<typeof insertPersonnelSchema>;
+export type Personnel = typeof personnel.$inferSelect;
+export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
+export type Equipment = typeof equipment.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type Location = typeof locations.$inferSelect;
+export type InsertProp = z.infer<typeof insertPropSchema>;
+export type Prop = typeof props.$inferSelect;
+export type InsertCostumeProgress = z.infer<typeof insertCostumeProgressSchema>;
+export type CostumeProgress = typeof costumeProgress.$inferSelect;
 export type InsertShoot = z.infer<typeof insertShootSchema>;
 export type Shoot = typeof shoots.$inferSelect;
 export type InsertShootReference = z.infer<typeof insertShootReferenceSchema>;
 export type ShootReference = typeof shootReferences.$inferSelect;
 export type InsertShootParticipant = z.infer<typeof insertShootParticipantSchema>;
 export type ShootParticipant = typeof shootParticipants.$inferSelect;
+export type InsertShootEquipment = z.infer<typeof insertShootEquipmentSchema>;
+export type ShootEquipment = typeof shootEquipment.$inferSelect;
+export type InsertShootProp = z.infer<typeof insertShootPropSchema>;
+export type ShootProp = typeof shootProps.$inferSelect;
+export type InsertShootCostume = z.infer<typeof insertShootCostumeSchema>;
+export type ShootCostume = typeof shootCostumes.$inferSelect;
