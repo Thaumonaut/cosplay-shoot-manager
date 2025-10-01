@@ -9,6 +9,8 @@ A web application for managing and organizing cosplay photo shoots. The system p
 **October 1, 2025**
 - Extended signup flow with first/last name, profile picture upload, and team invite code
 - Implemented social login (Google, Apple, Microsoft) with OAuth callback handling
+- Added automatic team creation: new users without invite codes get a personal team created automatically
+- Built resource management UI pages for Personnel, Equipment, and Locations with full CRUD operations
 - Created comprehensive resource management systems:
   - Personnel/contacts with name, email, phone, role, notes, avatar
   - Equipment tracking with category, description, quantity, availability

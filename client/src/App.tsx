@@ -13,6 +13,9 @@ import Dashboard from "@/pages/Dashboard";
 import Auth from "@/pages/Auth";
 import AuthCallback from "@/pages/AuthCallback";
 import Profile from "@/pages/Profile";
+import Personnel from "@/pages/Personnel";
+import Equipment from "@/pages/Equipment";
+import Locations from "@/pages/Locations";
 import NotFound from "@/pages/not-found";
 import { Button } from "@/components/ui/button";
 import { LogOut, User as UserIcon } from "lucide-react";
@@ -137,6 +140,21 @@ function AppContent() {
                 <Route path="/profile">
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/personnel">
+                  <ProtectedRoute>
+                    <Personnel />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/equipment">
+                  <ProtectedRoute>
+                    <Equipment />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/locations">
+                  <ProtectedRoute>
+                    <Locations />
                   </ProtectedRoute>
                 </Route>
                 <Route path="/auth" component={Auth} />

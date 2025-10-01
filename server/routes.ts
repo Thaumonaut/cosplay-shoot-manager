@@ -191,25 +191,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profile = await storage.createUserProfile(profileData);
       }
 
-      // Handle team invite if provided
-      if (inviteCode) {
-        const invite = await storage.getTeamInviteByCode(inviteCode);
-        if (invite) {
-          try {
-            await storage.createTeamMember({
-              teamId: invite.teamId,
-              userId,
-              role: "member",
-            });
-          } catch (error: any) {
-            // Check if it's a duplicate key error (user already a member)
-            if (error.code === '23505' || error.message?.includes('duplicate')) {
-              // Silently ignore duplicate team membership
-              console.log("User already a team member");
-            } else {
-              throw error; // Re-throw other errors
+      // Check if user is already part of a team
+      const existingTeamMember = await storage.getUserTeamMember(userId);
+      
+      if (!existingTeamMember) {
+        // Handle team invite if provided
+        if (inviteCode) {
+          const invite = await storage.getTeamInviteByCode(inviteCode);
+          if (invite) {
+            try {
+              await storage.createTeamMember({
+                teamId: invite.teamId,
+                userId,
+                role: "member",
+              });
+            } catch (error: any) {
+              // Check if it's a duplicate key error (user already a member)
+              if (error.code === '23505' || error.message?.includes('duplicate')) {
+                // Silently ignore duplicate team membership
+                console.log("User already a team member");
+              } else {
+                throw error; // Re-throw other errors
+              }
             }
           }
+        } else {
+          // No invite code - create a personal team for the user
+          const teamName = `${firstName}'s Team`;
+          const team = await storage.createTeam({ name: teamName });
+          
+          // Add user as team owner
+          await storage.createTeamMember({
+            teamId: team.id,
+            userId,
+            role: "owner",
+          });
         }
       }
 
@@ -725,7 +741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/personnel", authenticateUser, async (req: AuthRequest, res) => {
+  app.post("/api/personnel", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const data = insertPersonnelSchema.parse({ ...req.body, teamId });
@@ -737,7 +753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/personnel/:id", authenticateUser, async (req: AuthRequest, res) => {
+  app.patch("/api/personnel/:id", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const updated = await storage.updatePersonnel(req.params.id, teamId, req.body);
@@ -829,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations", authenticateUser, async (req: AuthRequest, res) => {
+  app.post("/api/locations", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const data = insertLocationSchema.parse({ ...req.body, teamId });
@@ -841,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/locations/:id", authenticateUser, async (req: AuthRequest, res) => {
+  app.patch("/api/locations/:id", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const updated = await storage.updateLocation(req.params.id, teamId, req.body);
