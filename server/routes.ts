@@ -132,11 +132,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all shoots for user
+  // Get all shoots for user with participant counts and first reference
   app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const shoots = await storage.getUserShoots(userId);
+      const shoots = await storage.getUserShootsWithCounts(userId);
       res.json(shoots);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load shoots" });

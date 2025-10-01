@@ -30,7 +30,7 @@ import {
   costumeProgress,
   teams,
 } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql as rawSql } from "drizzle-orm";
 
 export interface IStorage {
   // Shoots
@@ -109,6 +109,32 @@ export class DatabaseStorage implements IStorage {
       .from(shoots)
       .where(eq(shoots.userId, userId))
       .orderBy(desc(shoots.createdAt));
+  }
+
+  async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
+    const result = await db
+      .select({
+        shoot: shoots,
+        participantCount: rawSql<number>`COALESCE(COUNT(DISTINCT ${shootParticipants.id}), 0)`,
+        firstReferenceUrl: rawSql<string | null>`(
+          SELECT url
+          FROM shoot_references
+          WHERE shoot_id = ${shoots.id}
+          ORDER BY created_at ASC
+          LIMIT 1
+        )`,
+      })
+      .from(shoots)
+      .leftJoin(shootParticipants, eq(shoots.id, shootParticipants.shootId))
+      .where(eq(shoots.userId, userId))
+      .groupBy(shoots.id)
+      .orderBy(desc(shoots.createdAt));
+
+    return result.map(row => ({
+      ...row.shoot,
+      participantCount: Number(row.participantCount),
+      firstReferenceUrl: row.firstReferenceUrl,
+    }));
   }
 
   async createShoot(shoot: InsertShoot): Promise<Shoot> {

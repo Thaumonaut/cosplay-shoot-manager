@@ -9,10 +9,16 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, Clock, Calendar, CheckCircle2, MapPin } from "lucide-react";
+import { Lightbulb, Clock, Calendar, CheckCircle2, MapPin, Users, Image } from "lucide-react";
+import { format } from "date-fns";
+
+interface EnrichedShoot extends Shoot {
+  participantCount?: number;
+  firstReferenceUrl?: string | null;
+}
 
 interface AccordionShootsProps {
-  shoots: Shoot[];
+  shoots: EnrichedShoot[];
   onShootClick: (id: string) => void;
 }
 
@@ -61,7 +67,7 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
       }
       return acc;
     },
-    {} as Record<string, Shoot[]>
+    {} as Record<string, EnrichedShoot[]>
   );
 
   return (
@@ -124,20 +130,48 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
                     {statusShoots.map((shoot) => (
                       <Card
                         key={shoot.id}
-                        className="hover-elevate cursor-pointer p-4"
+                        className="hover-elevate cursor-pointer overflow-hidden"
                         onClick={() => onShootClick(shoot.id)}
                         data-testid={`card-shoot-${shoot.id}`}
                       >
-                        <div className="space-y-3">
+                        {shoot.firstReferenceUrl && (
+                          <div className="relative h-32 w-full overflow-hidden bg-muted">
+                            <img
+                              src={shoot.firstReferenceUrl}
+                              alt={shoot.title}
+                              className="w-full h-full object-cover"
+                              data-testid={`image-shoot-thumbnail-${shoot.id}`}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="p-4 space-y-3">
                           <h3 className="font-semibold text-base line-clamp-2" data-testid={`text-shoot-title-${shoot.id}`}>
                             {shoot.title}
                           </h3>
+                          
+                          {shoot.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2" data-testid={`text-shoot-description-${shoot.id}`}>
+                              {shoot.description}
+                            </p>
+                          )}
                           
                           <div className="space-y-2 text-sm text-muted-foreground">
                             {shoot.date && (
                               <div className="flex items-center gap-2" data-testid={`text-shoot-date-${shoot.id}`}>
                                 <Calendar className="h-4 w-4" />
-                                <span>{new Date(shoot.date).toLocaleDateString()}</span>
+                                <div className="flex flex-col">
+                                  <span>{format(new Date(shoot.date), "MMM d, yyyy")}</span>
+                                  <span className="text-xs">
+                                    {format(new Date(shoot.date), "h:mm a")}
+                                    {shoot.durationMinutes && shoot.durationMinutes > 0 && (
+                                      <>
+                                        {" "}· {Math.floor(shoot.durationMinutes / 60) > 0 && `${Math.floor(shoot.durationMinutes / 60)}h `}
+                                        {shoot.durationMinutes % 60 > 0 && `${shoot.durationMinutes % 60}m`}
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
                               </div>
                             )}
                             
@@ -147,9 +181,16 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
                                 <span className="line-clamp-1">{shoot.locationNotes}</span>
                               </div>
                             )}
+                            
+                            {shoot.participantCount !== undefined && shoot.participantCount > 0 && (
+                              <div className="flex items-center gap-2" data-testid={`text-shoot-participants-${shoot.id}`}>
+                                <Users className="h-4 w-4" />
+                                <span>{shoot.participantCount} {shoot.participantCount === 1 ? 'participant' : 'participants'}</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-2 pt-1">
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
                             {shoot.calendarEventUrl && (
                               <Badge variant="outline" className="text-xs" data-testid={`badge-calendar-${shoot.id}`}>
                                 <Calendar className="h-3 w-3 mr-1" />
