@@ -897,10 +897,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/props", authenticateUser, async (req: AuthRequest, res) => {
+  app.post("/api/props", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const data = insertPropSchema.parse({ ...req.body, teamId });
+      const bodyData = { 
+        ...req.body, 
+        teamId,
+        available: req.body.available === "true" || req.body.available === true
+      };
+      const data = insertPropSchema.parse(bodyData);
       const prop = await storage.createProp(data);
       res.status(201).json(prop);
     } catch (error) {
@@ -909,17 +914,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/props/:id", authenticateUser, async (req: AuthRequest, res) => {
+  app.patch("/api/props/:id", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const updated = await storage.updateProp(req.params.id, teamId, req.body);
+      const bodyData = { 
+        ...req.body,
+        available: req.body.available === "true" || req.body.available === true
+      };
+      const validatedData = insertPropSchema.partial().parse(bodyData);
+      const updated = await storage.updateProp(req.params.id, teamId, validatedData);
       if (!updated) {
         return res.status(404).json({ error: "Prop not found" });
       }
       res.json(updated);
     } catch (error) {
       console.error("Error updating prop:", error);
-      res.status(500).json({ error: "Failed to update prop" });
+      res.status(400).json({ error: "Failed to update prop" });
     }
   });
 
