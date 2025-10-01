@@ -104,6 +104,7 @@ export const shoots = pgTable("shoots", {
   title: text("title").notNull(),
   status: text("status").notNull().default("idea"),
   date: timestamp("date"),
+  durationMinutes: integer("duration_minutes"),
   locationId: varchar("location_id").references(() => locations.id),
   locationNotes: text("location_notes"),
   description: text("description"),
