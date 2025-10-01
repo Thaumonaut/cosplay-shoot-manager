@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,13 +16,20 @@ import {
   Trash2,
   Mail,
   ArrowLeft,
+  Plus,
+  X,
 } from "lucide-react";
 import { SiGooglecalendar, SiGoogledocs, SiInstagram } from "react-icons/si";
 import { format } from "date-fns";
+import { AddParticipantDialog } from "@/components/AddParticipantDialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface Participant {
+  id: string;
   name: string;
   role: string;
+  email?: string;
   avatar?: string;
 }
 
@@ -59,8 +68,30 @@ const statusConfig = {
 };
 
 export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar, onSendReminders, isSendingReminders }: ShootDetailViewProps) {
+  const [addParticipantOpen, setAddParticipantOpen] = useState(false);
+  const { toast } = useToast();
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
+
+  const deleteParticipantMutation = useMutation({
+    mutationFn: async (participantId: string) => {
+      await apiRequest("DELETE", `/api/participants/${participantId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id, "participants"] });
+      toast({
+        title: "Participant removed",
+        description: "The participant has been removed successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove participant. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -319,30 +350,64 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
 
           <TabsContent value="participants">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                 <CardTitle>Team</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => setAddParticipantOpen(true)}
+                  data-testid="button-add-participant"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Participant
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {shoot.participants.map((participant, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-4 p-3 rounded-lg hover-elevate"
-                      data-testid={`participant-${index}`}
-                    >
-                      <Avatar>
-                        <AvatarImage src={participant.avatar} />
-                        <AvatarFallback>{participant.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{participant.name}</p>
-                        <p className="text-sm text-muted-foreground">{participant.role}</p>
+                {shoot.participants.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No participants added yet.</p>
+                    <p className="text-sm mt-1">Add models, photographers, and crew members to your shoot.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {shoot.participants.map((participant, index) => (
+                      <div
+                        key={participant.id}
+                        className="flex items-center justify-between gap-4 p-3 rounded-lg hover-elevate"
+                        data-testid={`participant-${index}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar>
+                            <AvatarImage src={participant.avatar} />
+                            <AvatarFallback>{participant.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{participant.name}</p>
+                            <p className="text-sm text-muted-foreground">{participant.role}</p>
+                            {participant.email && (
+                              <p className="text-xs text-muted-foreground">{participant.email}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteParticipantMutation.mutate(participant.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                          data-testid={`button-delete-participant-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
+            <AddParticipantDialog
+              open={addParticipantOpen}
+              onOpenChange={setAddParticipantOpen}
+              shootId={shoot.id}
+            />
           </TabsContent>
         </Tabs>
       </div>

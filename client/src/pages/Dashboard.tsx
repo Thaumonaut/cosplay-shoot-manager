@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { Shoot } from "@shared/schema";
+import { useLocation, useRoute } from "wouter";
+import type { Shoot, ShootParticipant } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCcw, Camera, Sparkles } from "lucide-react";
 import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
@@ -16,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
+  const [location] = useLocation();
+  const [, params] = useRoute("/status/:status");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -24,6 +27,11 @@ export default function Dashboard() {
     queryKey: ["/api/shoots"],
     retry: 2,
     retryDelay: 1000,
+  });
+
+  const { data: participants = [] } = useQuery<ShootParticipant[]>({
+    queryKey: ["/api/shoots", selectedShootId, "participants"],
+    enabled: !!selectedShootId,
   });
 
   const exportDocsMutation = useMutation({
@@ -153,12 +161,17 @@ export default function Dashboard() {
       status: getStatusFromShoot(shoot),
     }));
 
+  const statusFilter = params?.status as string | undefined;
+  const filteredShoots = statusFilter 
+    ? shoots.filter((shoot) => shoot.status === statusFilter)
+    : shoots;
+
   const kanbanColumns = [
     {
       id: 'idea',
       title: 'Ideas',
       icon: Lightbulb,
-      shoots: shoots
+      shoots: filteredShoots
         .filter((shoot) => shoot.status === 'idea')
         .map((shoot) => ({
           id: shoot.id,
@@ -171,7 +184,7 @@ export default function Dashboard() {
       id: 'planning',
       title: 'Planning',
       icon: Clock,
-      shoots: shoots
+      shoots: filteredShoots
         .filter((shoot) => shoot.status === 'planning')
         .map((shoot) => ({
           id: shoot.id,
@@ -187,7 +200,7 @@ export default function Dashboard() {
       id: 'scheduled',
       title: 'Scheduled',
       icon: Calendar,
-      shoots: shoots
+      shoots: filteredShoots
         .filter((shoot) => shoot.status === 'scheduled')
         .map((shoot) => ({
           id: shoot.id,
@@ -204,7 +217,7 @@ export default function Dashboard() {
       id: 'completed',
       title: 'Completed',
       icon: CheckCircle2,
-      shoots: shoots
+      shoots: filteredShoots
         .filter((shoot) => shoot.status === 'completed')
         .map((shoot) => ({
           id: shoot.id,
@@ -261,7 +274,12 @@ export default function Dashboard() {
           date: selectedShoot.date ? new Date(selectedShoot.date) : undefined,
           location: selectedShoot.location || undefined,
           description: selectedShoot.description || '',
-          participants: [],
+          participants: participants.map(p => ({
+            id: p.id,
+            name: p.name,
+            role: p.role,
+            email: p.email || undefined,
+          })),
           references: [],
           instagramLinks: selectedShoot.instagramLinks || [],
           calendarEventUrl: selectedShoot.calendarEventUrl || undefined,
@@ -283,13 +301,39 @@ export default function Dashboard() {
     );
   }
 
+  const getPageTitle = () => {
+    if (statusFilter) {
+      return statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+    }
+    if (location === '/calendar') {
+      return 'Calendar View';
+    }
+    if (location === '/shoots') {
+      return 'All Shoots';
+    }
+    return 'Upcoming Shoots';
+  };
+
+  const getPageDescription = () => {
+    if (statusFilter) {
+      return `View all ${statusFilter} shoots`;
+    }
+    if (location === '/calendar') {
+      return 'View your shoots in calendar format';
+    }
+    if (location === '/shoots') {
+      return 'Browse and manage all your shoots';
+    }
+    return 'Plan and track your cosplay photo sessions';
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Upcoming Shoots</h1>
+          <h1 className="text-4xl font-bold mb-2">{getPageTitle()}</h1>
           <p className="text-muted-foreground">
-            Plan and track your cosplay photo sessions
+            {getPageDescription()}
           </p>
         </div>
         <Button
@@ -302,29 +346,47 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <UpcomingShootsSection
-            shoots={upcomingShoots}
-            onShootClick={(id) => setSelectedShootId(id)}
-          />
-        </div>
-        
-        <div>
+      {location === '/calendar' ? (
+        <div className="max-w-4xl mx-auto">
           <ShootCalendar
             shoots={calendarShoots}
             onShootClick={(id) => setSelectedShootId(id)}
           />
         </div>
-      </div>
+      ) : location === '/' && !statusFilter ? (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <UpcomingShootsSection
+                shoots={upcomingShoots}
+                onShootClick={(id) => setSelectedShootId(id)}
+              />
+            </div>
+            
+            <div>
+              <ShootCalendar
+                shoots={calendarShoots}
+                onShootClick={(id) => setSelectedShootId(id)}
+              />
+            </div>
+          </div>
 
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">All Shoots</h2>
-        <KanbanBoard
-          columns={kanbanColumns}
-          onShootClick={(id) => setSelectedShootId(id)}
-        />
-      </div>
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold">All Shoots</h2>
+            <KanbanBoard
+              columns={kanbanColumns}
+              onShootClick={(id) => setSelectedShootId(id)}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <KanbanBoard
+            columns={kanbanColumns}
+            onShootClick={(id) => setSelectedShootId(id)}
+          />
+        </div>
+      )}
 
       <AddShootDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
     </div>
