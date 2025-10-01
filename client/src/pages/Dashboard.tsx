@@ -8,6 +8,7 @@ import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { AccordionShoots } from "@/components/AccordionShoots";
 import { AddShootDialog } from "@/components/AddShootDialog";
 import { ShootDetailView } from "@/components/ShootDetailView";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
@@ -373,8 +374,8 @@ export default function Dashboard() {
 
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold">All Shoots</h2>
-            <KanbanBoard
-              columns={kanbanColumns}
+            <AccordionShoots
+              shoots={shoots}
               onShootClick={(id) => setSelectedShootId(id)}
             />
           </div>
