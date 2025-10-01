@@ -303,6 +303,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get shoot resources
+  app.get("/api/shoots/:id/equipment", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.sendStatus(404);
+      }
+      const equipment = await storage.getShootEquipment(req.params.id);
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error fetching shoot equipment:", error);
+      res.sendStatus(500);
+    }
+  });
+
+  app.get("/api/shoots/:id/props", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.sendStatus(404);
+      }
+      const shootProps = await storage.getShootProps(req.params.id);
+      res.json(shootProps);
+    } catch (error) {
+      console.error("Error fetching shoot props:", error);
+      res.sendStatus(500);
+    }
+  });
+
+  app.get("/api/shoots/:id/costumes", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const shoot = await storage.getShoot(req.params.id, userId);
+      if (!shoot) {
+        return res.sendStatus(404);
+      }
+      const costumes = await storage.getShootCostumes(req.params.id);
+      res.json(costumes);
+    } catch (error) {
+      console.error("Error fetching shoot costumes:", error);
+      res.sendStatus(500);
+    }
+  });
+
   // Get all shoots for user with participant counts and first reference
   app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {

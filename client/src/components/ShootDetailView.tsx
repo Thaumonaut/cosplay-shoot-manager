@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,12 +22,16 @@ import {
   X,
   Users,
   Check,
+  Package,
+  Sparkles,
+  Shirt,
 } from "lucide-react";
 import { SiGooglecalendar, SiGoogledocs, SiInstagram } from "react-icons/si";
 import { format } from "date-fns";
 import { AddParticipantDialog } from "@/components/AddParticipantDialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { Equipment, Prop, CostumeProgress } from "@shared/schema";
 
 interface Participant {
   id: string;
@@ -87,6 +91,18 @@ export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExpor
   const { toast } = useToast();
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
+
+  const { data: equipment = [], isLoading: isLoadingEquipment } = useQuery<Equipment[]>({
+    queryKey: ["/api/shoots", shoot.id, "equipment"],
+  });
+
+  const { data: props = [], isLoading: isLoadingProps } = useQuery<Prop[]>({
+    queryKey: ["/api/shoots", shoot.id, "props"],
+  });
+
+  const { data: costumes = [], isLoading: isLoadingCostumes } = useQuery<CostumeProgress[]>({
+    queryKey: ["/api/shoots", shoot.id, "costumes"],
+  });
 
   const updateShootMutation = useMutation({
     mutationFn: async (updates: Partial<ShootDetail>) => {
@@ -563,6 +579,131 @@ export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExpor
                 </div>
               )}
             </div>
+
+            {/* Equipment */}
+            {(equipment.length > 0 || isLoadingEquipment) && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Equipment ({equipment.length})
+                  </h3>
+                  {isLoadingEquipment ? (
+                    <div className="text-center py-4 text-muted-foreground">Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {equipment.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-lg border"
+                          data-testid={`equipment-${item.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="font-medium">{item.name}</p>
+                              <p className="text-sm text-muted-foreground">{item.category}</p>
+                              {item.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                              )}
+                            </div>
+                            <Badge variant={item.available ? "default" : "secondary"}>
+                              {item.available ? "Available" : "Unavailable"}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Props */}
+            {(props.length > 0 || isLoadingProps) && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    Props ({props.length})
+                  </h3>
+                  {isLoadingProps ? (
+                    <div className="text-center py-4 text-muted-foreground">Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {props.map((prop) => (
+                        <div
+                          key={prop.id}
+                          className="p-3 rounded-lg border"
+                          data-testid={`prop-${prop.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="font-medium">{prop.name}</p>
+                              {prop.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{prop.description}</p>
+                              )}
+                            </div>
+                            <Badge variant={prop.available ? "default" : "secondary"}>
+                              {prop.available ? "Available" : "In Use"}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Costumes */}
+            {(costumes.length > 0 || isLoadingCostumes) && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Shirt className="h-5 w-5" />
+                    Costumes ({costumes.length})
+                  </h3>
+                  {isLoadingCostumes ? (
+                    <div className="text-center py-4 text-muted-foreground">Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {costumes.map((costume) => (
+                        <div
+                          key={costume.id}
+                          className="p-3 rounded-lg border"
+                          data-testid={`costume-${costume.id}`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <p className="font-medium">{costume.characterName}</p>
+                                <p className="text-sm text-muted-foreground">{costume.seriesName}</p>
+                              </div>
+                              <Badge variant="outline">{costume.status}</Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Progress</span>
+                                <span className="font-medium">{costume.completionPercentage}%</span>
+                              </div>
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary transition-all"
+                                  style={{ width: `${costume.completionPercentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* References */}
             {shoot.references.length > 0 && (

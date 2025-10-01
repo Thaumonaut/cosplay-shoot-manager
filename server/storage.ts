@@ -70,6 +70,9 @@ export interface IStorage {
   deleteShootParticipant(id: string): Promise<boolean>;
 
   // Shoot Resource Associations
+  getShootEquipment(shootId: string): Promise<Equipment[]>;
+  getShootProps(shootId: string): Promise<Prop[]>;
+  getShootCostumes(shootId: string): Promise<CostumeProgress[]>;
   createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment>;
   createShootProp(association: InsertShootProp): Promise<ShootProp>;
   createShootCostume(association: InsertShootCostume): Promise<ShootCostume>;
@@ -243,6 +246,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shoot Resource Association methods
+  async getShootEquipment(shootId: string): Promise<Equipment[]> {
+    const results = await db
+      .select({ equipment: equipment })
+      .from(shootEquipment)
+      .innerJoin(equipment, eq(shootEquipment.equipmentId, equipment.id))
+      .where(eq(shootEquipment.shootId, shootId));
+    return results.map(r => r.equipment);
+  }
+
+  async getShootProps(shootId: string): Promise<Prop[]> {
+    const results = await db
+      .select({ prop: props })
+      .from(shootProps)
+      .innerJoin(props, eq(shootProps.propId, props.id))
+      .where(eq(shootProps.shootId, shootId));
+    return results.map(r => r.prop);
+  }
+
+  async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
+    const results = await db
+      .select({ costume: costumeProgress })
+      .from(shootCostumes)
+      .innerJoin(costumeProgress, eq(shootCostumes.costumeId, costumeProgress.id))
+      .where(eq(shootCostumes.shootId, shootId));
+    return results.map(r => r.costume);
+  }
+
   async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
     const [newAssociation] = await db.insert(shootEquipment).values(association).returning();
     return newAssociation;
