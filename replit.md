@@ -7,10 +7,21 @@ A web application for managing and organizing cosplay photo shoots. The system p
 ## Recent Changes
 
 **October 1, 2025**
-- Implemented participant management system allowing users to add and remove models, photographers, and crew members to shoots
-- Each participant includes name, role, and optional email contact information
-- Real-time UI updates with proper cache invalidation
-- Fixed sidebar navigation routing to properly respond to URL changes and show appropriate dashboard views
+- Extended signup flow with first/last name, profile picture upload, and team invite code
+- Implemented user profile management with object storage for avatars
+- Added inline editing for all shoot fields (title, status, date/duration, location, description)
+- Enhanced accordion cards with placeholder images and improved data display
+- Implemented participant management system for shoots
+- Fixed sidebar navigation routing and URL synchronization
+- Set up object storage for avatar uploads with security best practices
+
+## Known Limitations
+
+**Signup Flow with Email Confirmation**
+- Current implementation requires Supabase email confirmation to be disabled
+- If email confirmation is enabled, profile creation will fail with 401
+- Future enhancement: Implement post-confirmation profile completion flow
+- Workaround: Complete profile after email confirmation via a dedicated profile page
 
 ## User Preferences
 

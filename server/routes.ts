@@ -5,6 +5,7 @@ import {
   insertShootSchema,
   insertShootReferenceSchema,
   insertShootParticipantSchema,
+  insertUserProfileSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
@@ -14,6 +15,8 @@ import { sendShootReminder } from "./services/email";
 import { supabase } from "./supabase";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import multer from "multer";
+import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const getUserId = (req: AuthRequest): string => {
@@ -91,6 +94,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.clearCookie("sb-access-token", { path: "/" });
     res.clearCookie("sb-refresh-token", { path: "/" });
     res.json({ success: true });
+  });
+
+  // Multer configuration for avatar uploads
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /jpeg|jpg|png|gif|webp/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      if (mimetype && extname) {
+        return cb(null, true);
+      }
+      cb(null, false); // Reject silently, will be handled in route
+    },
+  });
+
+  // Create or update user profile
+  app.post("/api/user/profile", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const firstName = req.body.firstName?.trim();
+      const lastName = req.body.lastName?.trim();
+      const inviteCode = req.body.inviteCode?.trim();
+
+      // Validate required fields (after trimming)
+      if (!firstName || !lastName) {
+        return res.status(400).json({ error: "First name and last name are required" });
+      }
+
+      // Upload avatar to object storage if provided
+      let avatarUrl: string | undefined;
+      if (req.file) {
+        const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+        if (!bucketId) {
+          throw new Error("Object storage not configured");
+        }
+
+        // Sanitize filename to prevent path traversal
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const { objectStorageClient } = await import("./objectStorage");
+        const bucket = objectStorageClient.bucket(bucketId);
+        const fileName = `public/avatars/${userId}/${Date.now()}-${safeFilename}`;
+        const file = bucket.file(fileName);
+        
+        await file.save(req.file.buffer, {
+          contentType: req.file.mimetype,
+          metadata: {
+            cacheControl: "public, max-age=31536000",
+          },
+        });
+
+        // Make the file publicly readable
+        await file.makePublic();
+        
+        // Get the public URL
+        avatarUrl = `https://storage.googleapis.com/${bucketId}/${fileName}`;
+      }
+
+      // Create or update user profile
+      const existingProfile = await storage.getUserProfile(userId);
+      let profile;
+      
+      if (existingProfile) {
+        profile = await storage.updateUserProfile(userId, {
+          firstName,
+          lastName,
+          ...(avatarUrl && { avatarUrl }),
+        });
+      } else {
+        const profileData = insertUserProfileSchema.parse({
+          userId,
+          firstName,
+          lastName,
+          ...(avatarUrl && { avatarUrl }),
+        });
+        profile = await storage.createUserProfile(profileData);
+      }
+
+      // Handle team invite if provided
+      if (inviteCode) {
+        const invite = await storage.getTeamInviteByCode(inviteCode);
+        if (invite) {
+          try {
+            await storage.createTeamMember({
+              teamId: invite.teamId,
+              userId,
+              role: "member",
+            });
+          } catch (error: any) {
+            // Check if it's a duplicate key error (user already a member)
+            if (error.code === '23505' || error.message?.includes('duplicate')) {
+              // Silently ignore duplicate team membership
+              console.log("User already a team member");
+            } else {
+              throw error; // Re-throw other errors
+            }
+          }
+        }
+      }
+
+      res.json({ profile });
+    } catch (error) {
+      console.error("Error creating/updating profile:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create profile" 
+      });
+    }
   });
 
   // Object Storage Routes

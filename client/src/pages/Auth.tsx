@@ -6,12 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Camera } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Camera, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
@@ -23,6 +29,18 @@ export default function Auth() {
       setLocation("/");
     }
   }, [user, setLocation]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,24 +62,87 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    const { error } = await signUp(email, password);
+    // Validate required fields with trimming
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
     
-    if (error) {
+    if (!trimmedFirstName || !trimmedLastName) {
       toast({
-        title: "Error signing up",
-        description: error.message,
+        title: "Missing information",
+        description: "Please enter your first and last name.",
         variant: "destructive",
       });
-    } else {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // First, create the auth user
+      const { error: authError } = await signUp(email, password);
+      
+      if (authError) {
+        toast({
+          title: "Error signing up",
+          description: authError.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Wait a moment for session to be established
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Then, create the user profile with additional data
+      const formData = new FormData();
+      formData.append("firstName", trimmedFirstName);
+      formData.append("lastName", trimmedLastName);
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+      const trimmedInviteCode = inviteCode.trim();
+      if (trimmedInviteCode) {
+        formData.append("inviteCode", trimmedInviteCode);
+      }
+
+      const profileRes = await fetch("/api/user/profile", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!profileRes.ok) {
+        const errorData = await profileRes.json();
+        
+        // If email confirmation is required, show appropriate message
+        if (profileRes.status === 401) {
+          toast({
+            title: "Email Confirmation Required",
+            description: "Please check your email to confirm your account before continuing.",
+          });
+        } else {
+          throw new Error(errorData.error || "Failed to create profile");
+        }
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Success!",
-        description: "Check your email to confirm your account.",
+        description: "Your account has been created.",
       });
+      
+      // The user will be redirected via useEffect when user state updates
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create account",
+        variant: "destructive",
+      });
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -119,6 +200,61 @@ export default function Auth() {
             </TabsContent>
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                {/* Profile Picture */}
+                <div className="flex justify-center">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={avatarPreview} />
+                      <AvatarFallback className="bg-muted">
+                        <Camera className="h-8 w-8 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <Label
+                      htmlFor="avatar-upload"
+                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary hover-elevate cursor-pointer flex items-center justify-center"
+                      data-testid="label-avatar-upload"
+                    >
+                      <Upload className="h-4 w-4 text-primary-foreground" />
+                      <Input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                        data-testid="input-avatar"
+                      />
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Name Fields */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="first-name">First Name</Label>
+                    <Input
+                      id="first-name"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      data-testid="input-first-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last-name">Last Name</Label>
+                    <Input
+                      id="last-name"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      data-testid="input-last-name"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
@@ -146,6 +282,23 @@ export default function Auth() {
                     Password must be at least 6 characters
                   </p>
                 </div>
+
+                {/* Team Invite Code */}
+                <div className="space-y-2">
+                  <Label htmlFor="invite-code">Team Invite Code (Optional)</Label>
+                  <Input
+                    id="invite-code"
+                    type="text"
+                    placeholder="Enter code to join a team"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    data-testid="input-invite-code"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to create your own team
+                  </p>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full"

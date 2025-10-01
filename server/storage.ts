@@ -17,6 +17,11 @@ import {
   type InsertCostumeProgress,
   type Team,
   type InsertTeam,
+  type UserProfile,
+  type InsertUserProfile,
+  type TeamInvite,
+  type TeamMember,
+  type InsertTeamMember,
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -29,6 +34,9 @@ import {
   props,
   costumeProgress,
   teams,
+  userProfiles,
+  teamInvites,
+  teamMembers,
 } from "@shared/schema";
 import { eq, and, desc, sql as rawSql } from "drizzle-orm";
 
@@ -92,6 +100,15 @@ export interface IStorage {
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined>;
   deleteTeam(id: string): Promise<boolean>;
+
+  // User Profiles
+  getUserProfile(userId: string): Promise<UserProfile | undefined>;
+  createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
+  updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
+
+  // Team Invites
+  getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
+  createTeamMember(member: InsertTeamMember): Promise<TeamMember>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -440,6 +457,44 @@ export class DatabaseStorage implements IStorage {
       .where(eq(teams.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // User Profile methods
+  async getUserProfile(userId: string): Promise<UserProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId));
+    return profile;
+  }
+
+  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    const [newProfile] = await db.insert(userProfiles).values(profile).returning();
+    return newProfile;
+  }
+
+  async updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
+    const { id: _, userId: __, ...allowedUpdates } = profile as any;
+    const [updated] = await db
+      .update(userProfiles)
+      .set({ ...allowedUpdates, updatedAt: new Date() })
+      .where(eq(userProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  // Team Invite methods
+  async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
+    const [invite] = await db
+      .select()
+      .from(teamInvites)
+      .where(eq(teamInvites.inviteCode, inviteCode));
+    return invite;
+  }
+
+  async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
+    const [newMember] = await db.insert(teamMembers).values(member).returning();
+    return newMember;
   }
 }
 
