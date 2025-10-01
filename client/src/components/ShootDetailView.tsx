@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calendar,
   MapPin,
@@ -18,6 +21,7 @@ import {
   Plus,
   X,
   Users,
+  Check,
 } from "lucide-react";
 import { SiGooglecalendar, SiGoogledocs, SiInstagram } from "react-icons/si";
 import { format } from "date-fns";
@@ -68,11 +72,43 @@ const statusConfig = {
   completed: { label: "Completed", variant: "outline" as const },
 };
 
-export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar, onSendReminders, isSendingReminders }: ShootDetailViewProps) {
+export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExporting, onCreateCalendar, isCreatingCalendar, onSendReminders, isSendingReminders }: ShootDetailViewProps) {
   const [addParticipantOpen, setAddParticipantOpen] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState({
+    title: shoot.title,
+    status: shoot.status,
+    date: shoot.date ? format(new Date(shoot.date), "yyyy-MM-dd'T'HH:mm") : "",
+    durationMinutes: shoot.durationMinutes || "",
+    location: shoot.location || "",
+    description: shoot.description || "",
+  });
+  
   const { toast } = useToast();
   const statusInfo = statusConfig[shoot.status];
   const heroImage = shoot.references[0];
+
+  const updateShootMutation = useMutation({
+    mutationFn: async (updates: Partial<ShootDetail>) => {
+      await apiRequest("PATCH", `/api/shoots/${shoot.id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id] });
+      setEditingField(null);
+      toast({
+        title: "Updated",
+        description: "Shoot details have been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update shoot. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const deleteParticipantMutation = useMutation({
     mutationFn: async (participantId: string) => {
@@ -94,6 +130,41 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
     },
   });
 
+  const handleSave = (field: string) => {
+    const updates: any = {};
+    
+    if (field === "title") {
+      updates.title = editValues.title;
+    } else if (field === "status") {
+      updates.status = editValues.status;
+    } else if (field === "datetime") {
+      if (editValues.date) {
+        updates.date = new Date(editValues.date);
+      }
+      if (editValues.durationMinutes !== "") {
+        updates.durationMinutes = Number(editValues.durationMinutes);
+      }
+    } else if (field === "location") {
+      updates.location = editValues.location;
+    } else if (field === "description") {
+      updates.description = editValues.description;
+    }
+    
+    updateShootMutation.mutate(updates);
+  };
+
+  const handleCancel = (field: string) => {
+    setEditValues({
+      title: shoot.title,
+      status: shoot.status,
+      date: shoot.date ? format(new Date(shoot.date), "yyyy-MM-dd'T'HH:mm") : "",
+      durationMinutes: shoot.durationMinutes || "",
+      location: shoot.location || "",
+      description: shoot.description || "",
+    });
+    setEditingField(null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -108,26 +179,21 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onEdit} data-testid="button-edit">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onDelete}
-              className="text-destructive hover:bg-destructive/10"
-              data-testid="button-delete"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDelete}
+            className="text-destructive hover:bg-destructive/10"
+            data-testid="button-delete"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
         </div>
 
         {/* Main Card */}
         <Card>
-          {heroImage && (
+          {heroImage ? (
             <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
               <img
                 src={heroImage}
@@ -135,62 +201,200 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
                 className="w-full h-full object-cover"
               />
             </div>
+          ) : (
+            <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+              <ImageIcon className="h-16 w-16 text-muted-foreground/40" />
+            </div>
           )}
           
           <CardHeader>
             <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-2 flex-1">
-                  <h1 className="text-3xl font-bold">{shoot.title}</h1>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={statusInfo.variant} data-testid="badge-status">{statusInfo.label}</Badge>
-                    {shoot.calendarEventUrl && (
-                      <Badge variant="outline" className="gap-1">
-                        <SiGooglecalendar className="h-3 w-3" />
-                        Calendar
-                      </Badge>
-                    )}
-                    {shoot.docsUrl && (
-                      <Badge variant="outline" className="gap-1">
-                        <SiGoogledocs className="h-3 w-3" />
-                        Docs
-                      </Badge>
-                    )}
+              {/* Title & Status */}
+              {editingField === "title" ? (
+                <div className="space-y-3">
+                  <Input
+                    value={editValues.title}
+                    onChange={(e) => setEditValues({ ...editValues, title: e.target.value })}
+                    placeholder="Shoot title"
+                    className="text-3xl font-bold h-auto py-2"
+                    data-testid="input-title"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleSave("title")} data-testid="button-save-title">
+                      <Check className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleCancel("title")} data-testid="button-cancel-title">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <h1 className="text-3xl font-bold">{shoot.title}</h1>
+                    {editingField === "status" ? (
+                      <div className="flex gap-2 items-center">
+                        <Select
+                          value={editValues.status}
+                          onValueChange={(value) => setEditValues({ ...editValues, status: value as any })}
+                        >
+                          <SelectTrigger className="w-40" data-testid="select-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="idea">Idea</SelectItem>
+                            <SelectItem value="planning">Planning</SelectItem>
+                            <SelectItem value="scheduled">Scheduled</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={() => handleSave("status")} data-testid="button-save-status">
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleCancel("status")} data-testid="button-cancel-status">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={statusInfo.variant} className="cursor-pointer hover-elevate" onClick={() => setEditingField("status")} data-testid="badge-status">
+                          {statusInfo.label}
+                        </Badge>
+                        {shoot.calendarEventUrl && (
+                          <Badge variant="outline" className="gap-1">
+                            <SiGooglecalendar className="h-3 w-3" />
+                            Calendar
+                          </Badge>
+                        )}
+                        {shoot.docsUrl && (
+                          <Badge variant="outline" className="gap-1">
+                            <SiGoogledocs className="h-3 w-3" />
+                            Docs
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditingField("title")}
+                    data-testid="button-edit-title"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
               {/* Quick Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                {shoot.date && (
-                  <div className="flex items-start gap-3">
+              {editingField === "datetime" ? (
+                <div className="space-y-3 border rounded-lg p-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Date & Time</label>
+                    <Input
+                      type="datetime-local"
+                      value={editValues.date}
+                      onChange={(e) => setEditValues({ ...editValues, date: e.target.value })}
+                      data-testid="input-datetime"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Duration (minutes)</label>
+                    <Input
+                      type="number"
+                      value={editValues.durationMinutes}
+                      onChange={(e) => setEditValues({ ...editValues, durationMinutes: e.target.value })}
+                      placeholder="60"
+                      data-testid="input-duration"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleSave("datetime")} data-testid="button-save-datetime">
+                      <Check className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleCancel("datetime")} data-testid="button-cancel-datetime">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : editingField === "location" ? (
+                <div className="space-y-3 border rounded-lg p-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Location</label>
+                    <Input
+                      value={editValues.location}
+                      onChange={(e) => setEditValues({ ...editValues, location: e.target.value })}
+                      placeholder="Location or address"
+                      data-testid="input-location"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleSave("location")} data-testid="button-save-location">
+                      <Check className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleCancel("location")} data-testid="button-cancel-location">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                  <div className="flex items-start gap-3 group">
                     <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                       <p className="text-sm font-medium">Date & Time</p>
-                      <p className="text-sm text-muted-foreground">{format(shoot.date, "MMM d, yyyy")}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(shoot.date, "h:mm a")}
-                        {shoot.durationMinutes && shoot.durationMinutes > 0 && (
-                          <>
-                            {" "}· {Math.floor(shoot.durationMinutes / 60) > 0 && `${Math.floor(shoot.durationMinutes / 60)}h `}
-                            {shoot.durationMinutes % 60 > 0 && `${shoot.durationMinutes % 60}m`}
-                          </>
-                        )}
-                      </p>
+                      {shoot.date ? (
+                        <>
+                          <p className="text-sm text-muted-foreground">{format(new Date(shoot.date), "MMM d, yyyy")}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(shoot.date), "h:mm a")}
+                            {shoot.durationMinutes && shoot.durationMinutes > 0 && (
+                              <>
+                                {" "}· {Math.floor(shoot.durationMinutes / 60) > 0 && `${Math.floor(shoot.durationMinutes / 60)}h `}
+                                {shoot.durationMinutes % 60 > 0 && `${shoot.durationMinutes % 60}m`}
+                              </>
+                            )}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Not scheduled</p>
+                      )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100"
+                      onClick={() => setEditingField("datetime")}
+                      data-testid="button-edit-datetime"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-                
-                {shoot.location && (
-                  <div className="flex items-start gap-3">
+                  
+                  <div className="flex items-start gap-3 group">
                     <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                       <p className="text-sm font-medium">Location</p>
-                      <p className="text-sm text-muted-foreground" data-testid="text-shoot-location">{shoot.location}</p>
+                      <p className="text-sm text-muted-foreground" data-testid="text-shoot-location">{shoot.location || 'No location set'}</p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100"
+                      onClick={() => setEditingField("location")}
+                      data-testid="button-edit-location"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2 pt-2">
@@ -258,16 +462,46 @@ export function ShootDetailView({ shoot, onBack, onEdit, onDelete, onExportDocs,
 
           <CardContent className="space-y-6">
             {/* Description */}
-            {shoot.description && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Description</h3>
-                  <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-description">
-                    {shoot.description}
-                  </p>
+            <Separator />
+            {editingField === "description" ? (
+              <div className="space-y-3">
+                <label className="text-sm font-semibold">Description</label>
+                <Textarea
+                  value={editValues.description}
+                  onChange={(e) => setEditValues({ ...editValues, description: e.target.value })}
+                  placeholder="Add a description..."
+                  rows={6}
+                  data-testid="textarea-description"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => handleSave("description")} data-testid="button-save-description">
+                    <Check className="h-4 w-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleCancel("description")} data-testid="button-cancel-description">
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
                 </div>
-              </>
+              </div>
+            ) : (
+              <div className="space-y-2 group">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Description</h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100"
+                    onClick={() => setEditingField("description")}
+                    data-testid="button-edit-description"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-description">
+                  {shoot.description || 'No description provided.'}
+                </p>
+              </div>
             )}
 
             {/* Team */}
