@@ -139,7 +139,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
       title,
       status,
       date: date ? date.toISOString() : null,
-      locationId: locationId || null,
+      locationId: locationId && locationId !== "" ? locationId : null,
       description: notes || null,
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
       calendarEventId: null,
@@ -224,7 +224,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                     <SelectValue placeholder="Choose a location..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No location selected</SelectItem>
+                    <SelectItem value="">No location selected</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
                         {loc.name}
