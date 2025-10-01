@@ -54,7 +54,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
-    const { userId: _, createdAt: __, ...allowedUpdates } = shoot;
+    const { userId: _, ...allowedUpdates } = shoot as any;
     const [updated] = await db
       .update(shoots)
       .set({ ...allowedUpdates, updatedAt: new Date() })
