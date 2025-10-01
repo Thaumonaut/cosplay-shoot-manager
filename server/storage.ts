@@ -65,8 +65,9 @@ export class DatabaseStorage implements IStorage {
   async deleteShoot(id: string, userId: string): Promise<boolean> {
     const result = await db
       .delete(shoots)
-      .where(and(eq(shoots.id, id), eq(shoots.userId, userId)));
-    return result.rowCount ? result.rowCount > 0 : false;
+      .where(and(eq(shoots.id, id), eq(shoots.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   async getShootReferences(shootId: string): Promise<ShootReference[]> {
@@ -90,8 +91,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteShootReference(id: string): Promise<boolean> {
-    const result = await db.delete(shootReferences).where(eq(shootReferences.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    const result = await db.delete(shootReferences).where(eq(shootReferences.id, id)).returning();
+    return result.length > 0;
   }
 
   async getShootParticipants(shootId: string): Promise<ShootParticipant[]> {
@@ -115,8 +116,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteShootParticipant(id: string): Promise<boolean> {
-    const result = await db.delete(shootParticipants).where(eq(shootParticipants.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    const result = await db.delete(shootParticipants).where(eq(shootParticipants.id, id)).returning();
+    return result.length > 0;
   }
 }
 

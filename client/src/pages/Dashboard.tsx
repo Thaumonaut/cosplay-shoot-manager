@@ -155,13 +155,11 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="max-w-md w-full" data-testid="card-error">
           <CardContent className="pt-6 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-              <AlertCircle className="h-6 w-6 text-destructive" />
-            </div>
+            <div className="text-6xl">📸✨</div>
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Failed to Load Shoots</h3>
+              <h3 className="text-lg font-semibold">Oops! Our Database is Taking a Cosplay Break</h3>
               <p className="text-sm text-muted-foreground" data-testid="text-error-message">
-                {error instanceof Error ? error.message : "Unable to connect to the database. Please try again."}
+                It seems our database wandered off to a photoshoot and forgot to leave a note. Don't worry, we'll track it down!
               </p>
             </div>
             <Button 
@@ -172,7 +170,7 @@ export default function Dashboard() {
               data-testid="button-retry"
             >
               <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-              {isFetching ? 'Retrying...' : 'Retry'}
+              {isFetching ? 'Searching for the database...' : 'Try Finding It Again'}
             </Button>
           </CardContent>
         </Card>
