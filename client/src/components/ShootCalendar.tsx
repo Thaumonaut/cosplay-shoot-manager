@@ -8,22 +8,25 @@ interface ShootEvent {
   title: string;
   date: Date;
   status: "idea" | "planning" | "scheduled" | "completed";
+  color?: string;
 }
 
 interface ShootCalendarProps {
   shoots: ShootEvent[];
   onShootClick?: (id: string) => void;
+  onDateSelect?: (date: Date) => void;
+  selectedDate?: Date;
   currentMonth?: Date;
 }
 
 const statusColors = {
-  idea: "bg-muted",
-  planning: "bg-primary",
-  scheduled: "bg-chart-2",
-  completed: "bg-chart-3",
+  idea: "hsl(var(--muted))",
+  planning: "hsl(var(--primary))",
+  scheduled: "hsl(var(--chart-2))",
+  completed: "hsl(var(--chart-3))",
 };
 
-export function ShootCalendar({ shoots, onShootClick, currentMonth = new Date() }: ShootCalendarProps) {
+export function ShootCalendar({ shoots, onShootClick, onDateSelect, selectedDate, currentMonth = new Date() }: ShootCalendarProps) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarStart = startOfWeek(monthStart);
@@ -56,32 +59,40 @@ export function ShootCalendar({ shoots, onShootClick, currentMonth = new Date() 
             const daysShoots = getShootsForDay(day);
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isToday = isSameDay(day, new Date());
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
             
             return (
               <div
                 key={index}
-                className={`min-h-20 p-2 rounded-lg border ${
+                onClick={() => onDateSelect?.(day)}
+                className={`min-h-16 p-2 rounded-lg border cursor-pointer hover-elevate transition-colors ${
                   isCurrentMonth ? 'bg-card' : 'bg-muted/30'
-                } ${isToday ? 'border-primary' : 'border-border'}`}
+                } ${isToday ? 'border-primary' : 'border-border'} ${
+                  isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
+                }`}
                 data-testid={`calendar-day-${format(day, 'yyyy-MM-dd')}`}
               >
-                <div className={`text-sm font-medium mb-1 ${
+                <div className={`text-sm font-medium mb-2 ${
                   isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
                 } ${isToday ? 'text-primary font-bold' : ''}`}>
                   {format(day, 'd')}
                 </div>
-                <div className="space-y-1">
-                  {daysShoots.map(shoot => (
-                    <div
-                      key={shoot.id}
-                      className={`text-xs p-1 rounded cursor-pointer hover-elevate ${statusColors[shoot.status]} text-white line-clamp-1`}
-                      onClick={() => onShootClick?.(shoot.id)}
-                      data-testid={`calendar-event-${shoot.id}`}
-                    >
-                      {shoot.title}
-                    </div>
-                  ))}
-                </div>
+                {daysShoots.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {daysShoots.slice(0, 4).map(shoot => (
+                      <div
+                        key={shoot.id}
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: shoot.color || statusColors[shoot.status] }}
+                        title={shoot.title}
+                        data-testid={`calendar-dot-${shoot.id}`}
+                      />
+                    ))}
+                    {daysShoots.length > 4 && (
+                      <span className="text-xs text-muted-foreground">+{daysShoots.length - 4}</span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

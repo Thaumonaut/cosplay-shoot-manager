@@ -5,6 +5,7 @@ import type { Shoot, ShootParticipant } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCcw, Camera, Sparkles } from "lucide-react";
 import { Lightbulb, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { isSameDay, format } from "date-fns";
 import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
@@ -15,13 +16,14 @@ import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import heroImage from "@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
   const [location] = useLocation();
   const [, params] = useRoute("/status/:status");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
   const {
@@ -210,7 +212,13 @@ export default function Dashboard() {
       title: shoot.title,
       date: new Date(shoot.date!),
       status: getStatusFromShoot(shoot),
+      color: shoot.color || undefined,
     }));
+
+  // Filter shoots for the selected day
+  const selectedDayShoots = shoots.filter(
+    (shoot) => shoot.date && isSameDay(new Date(shoot.date), selectedDate)
+  );
 
   const statusFilter = params?.status as string | undefined;
   const filteredShoots = statusFilter
@@ -370,27 +378,98 @@ export default function Dashboard() {
       </div>
 
       {location === "/calendar" ? (
-        <div className="max-w-4xl mx-auto">
-          <ShootCalendar
-            shoots={calendarShoots}
-            onShootClick={(id) => setSelectedShootId(id)}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <ShootCalendar
+              shoots={calendarShoots}
+              onShootClick={(id) => setSelectedShootId(id)}
+              onDateSelect={setSelectedDate}
+              selectedDate={selectedDate}
+            />
+          </div>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Events on {format(selectedDate, "MMMM d, yyyy")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedDayShoots.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedDayShoots.map((shoot) => (
+                      <div
+                        key={shoot.id}
+                        onClick={() => setSelectedShootId(shoot.id)}
+                        className="p-3 rounded-lg border cursor-pointer hover-elevate flex items-center gap-3"
+                        data-testid={`selected-day-shoot-${shoot.id}`}
+                      >
+                        {shoot.color && (
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: shoot.color }}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium truncate">{shoot.title}</h3>
+                          {shoot.locationNotes && (
+                            <p className="text-sm text-muted-foreground truncate">{shoot.locationNotes}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No events scheduled for this day</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : location === "/" && !statusFilter ? (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <UpcomingShootsSection
-                shoots={upcomingShoots}
-                onShootClick={(id) => setSelectedShootId(id)}
-              />
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <ShootCalendar
                 shoots={calendarShoots}
                 onShootClick={(id) => setSelectedShootId(id)}
+                onDateSelect={setSelectedDate}
+                selectedDate={selectedDate}
               />
+            </div>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Events on {format(selectedDate, "MMMM d, yyyy")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedDayShoots.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedDayShoots.map((shoot) => (
+                        <div
+                          key={shoot.id}
+                          onClick={() => setSelectedShootId(shoot.id)}
+                          className="p-3 rounded-lg border cursor-pointer hover-elevate flex items-center gap-3"
+                          data-testid={`selected-day-shoot-${shoot.id}`}
+                        >
+                          {shoot.color && (
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: shoot.color }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{shoot.title}</h3>
+                            {shoot.locationNotes && (
+                              <p className="text-sm text-muted-foreground truncate">{shoot.locationNotes}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">No events scheduled for this day</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
 
