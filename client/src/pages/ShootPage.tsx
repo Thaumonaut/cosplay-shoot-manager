@@ -23,12 +23,13 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink } from "lucide-react";
+import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2 } from "lucide-react";
 import { SiGoogledocs } from "react-icons/si";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 export default function ShootPage() {
   const { id } = useParams();
@@ -50,6 +51,7 @@ export default function ShootPage() {
   const [color, setColor] = useState<string>("#3B82F6");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
+  const [isPublic, setIsPublic] = useState<boolean>(false);
   
   const [selectedPersonnel, setSelectedPersonnel] = useState<string[]>([]);
   const [personnelRoles, setPersonnelRoles] = useState<Record<string, string>>({});
@@ -125,6 +127,7 @@ export default function ShootPage() {
       setNotes(existingShoot.notes || "");
       setColor(existingShoot.color || "#3B82F6");
       setInstagramLinks(existingShoot.instagramLinks || []);
+      setIsPublic(existingShoot.isPublic || false);
 
       if (existingShoot.participants) {
         setSelectedPersonnel(existingShoot.participants.map((p: any) => p.personnelId));
@@ -343,6 +346,44 @@ export default function ShootPage() {
       });
     },
   });
+
+  const togglePublicMutation = useMutation({
+    mutationFn: async (newIsPublic: boolean) => {
+      const response = await apiRequest("PATCH", `/api/shoots/${id}`, { isPublic: newIsPublic });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setIsPublic(data.isPublic);
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      toast({
+        title: "Success",
+        description: data.isPublic ? "Shoot is now public" : "Shoot is now private",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update visibility",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleTogglePublic = (checked: boolean) => {
+    if (!isNew) {
+      togglePublicMutation.mutate(checked);
+    }
+  };
+
+  const handleCopyPublicLink = () => {
+    const publicUrl = `${window.location.origin}/public/shoots/${id}`;
+    navigator.clipboard.writeText(publicUrl);
+    toast({
+      title: "Link copied!",
+      description: "Public shoot link copied to clipboard",
+    });
+  };
 
   const createDocsMutation = useMutation({
     mutationFn: async () => {
@@ -615,7 +656,40 @@ export default function ShootPage() {
       <Card>
         <CardContent className="p-6 space-y-6">
           <div>
-            <h2 className="text-lg font-semibold mb-4">Main Details</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Main Details</h2>
+              {!isNew && (
+                <div className="flex items-center gap-2">
+                  {isPublic && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyPublicLink}
+                      data-testid="button-copy-public-link"
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Copy Link
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!isNew && (
+              <div className="flex items-center justify-between p-4 rounded-md bg-muted/50 mb-4">
+                <div className="flex-1">
+                  <Label className="text-sm font-medium">Share Publicly</Label>
+                  <p className="text-sm text-muted-foreground">Anyone with the link can view this shoot</p>
+                </div>
+                <Switch 
+                  checked={isPublic} 
+                  onCheckedChange={handleTogglePublic}
+                  disabled={togglePublicMutation.isPending}
+                  data-testid="switch-public-toggle"
+                />
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Shoot Title *</Label>

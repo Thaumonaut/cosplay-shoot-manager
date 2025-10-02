@@ -21,6 +21,7 @@ import Locations from "@/pages/Locations";
 import Props from "@/pages/Props";
 import Costumes from "@/pages/Costumes";
 import ShootPage from "@/pages/ShootPage";
+import PublicShootPage from "@/pages/PublicShootPage";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
@@ -38,6 +39,7 @@ function AppContent() {
       <Switch>
         <Route path="/auth" component={Auth} />
         <Route path="/auth/callback" component={AuthCallback} />
+        <Route path="/public/shoots/:id" component={PublicShootPage} />
         <Route path="/">
           <ProtectedRoute>
             <Dashboard />
@@ -91,6 +93,7 @@ function AppContent() {
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-7xl mx-auto p-6 md:p-8">
               <Switch>
+                <Route path="/public/shoots/:id" component={PublicShootPage} />
                 <Route path="/">
                   <ProtectedRoute>
                     <Dashboard />

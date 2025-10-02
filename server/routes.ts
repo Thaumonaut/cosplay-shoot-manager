@@ -1,6 +1,7 @@
 import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import {
   insertShootSchema,
   insertShootReferenceSchema,
@@ -11,8 +12,11 @@ import {
   insertLocationSchema,
   insertPropSchema,
   insertCostumeProgressSchema,
+  locations,
+  personnel,
 } from "@shared/schema";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
@@ -2169,6 +2173,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting costume:", error);
       res.status(500).json({ error: "Failed to delete costume" });
+    }
+  });
+
+  // Public route to view shared shoots
+  app.get("/api/public/shoots/:id", async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Server configuration error" });
+      }
+
+      // Fetch shoot data using RPC function
+      const { data: shootData, error: rpcError } = await supabaseAdmin.rpc('get_shoot_with_details', { 
+        shoot_uuid: id 
+      });
+
+      if (rpcError || !shootData) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
+
+      const shoot = shootData.shoot;
+
+      // Check if shoot exists and is public
+      if (!shoot || !shoot.is_public) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
+
+      // Get location data if locationId exists
+      let location = null;
+      if (shoot.location_id) {
+        const [locationData] = await db
+          .select()
+          .from(locations)
+          .where(eq(locations.id, shoot.location_id));
+        location = locationData || null;
+      }
+
+      // Enrich participants with personnel info
+      const enrichedParticipants = await Promise.all(
+        (shootData.participants || []).map(async (participant: any) => {
+          if (participant.personnel_id) {
+            const [personnelData] = await db
+              .select()
+              .from(personnel)
+              .where(eq(personnel.id, participant.personnel_id));
+            return {
+              ...participant,
+              personnel: personnelData || null,
+            };
+          }
+          return participant;
+        })
+      );
+
+      // Return full shoot data with all related info
+      res.json({
+        ...shoot,
+        location,
+        participants: enrichedParticipants,
+        equipment: shootData.equipment || [],
+        props: shootData.props || [],
+        costumes: shootData.costumes || [],
+        references: shootData.references || [],
+      });
+    } catch (error) {
+      console.error("Error fetching public shoot:", error);
+      next(error);
     }
   });
 
