@@ -1,4 +1,4 @@
-import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt, Settings } from "lucide-react";
+import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -134,22 +134,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
-        <SidebarGroup>
-          <SidebarGroupLabel>Team</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/team/settings"}>
-                  <Link href="/team/settings" data-testid="link-team-settings">
-                    <Settings className="h-4 w-4" />
-                    <span>Team Settings</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

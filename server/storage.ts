@@ -127,6 +127,7 @@ export interface IStorage {
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
   getUserTeamMember(userId: string): Promise<TeamMember | undefined>;
   createTeamMember(member: InsertTeamMember): Promise<TeamMember>;
+  deleteTeamMember(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -565,6 +566,14 @@ export class DatabaseStorage implements IStorage {
   async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
     const [newMember] = await db.insert(teamMembers).values(member).returning();
     return newMember;
+  }
+
+  async deleteTeamMember(id: string): Promise<boolean> {
+    const result = await db
+      .delete(teamMembers)
+      .where(eq(teamMembers.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

@@ -250,6 +250,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's team membership
+  app.get("/api/user/team-member", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember) {
+        return res.status(404).json({ error: "No team membership found" });
+      }
+      res.json(teamMember);
+    } catch (error) {
+      console.error("Error fetching team member:", error);
+      res.status(500).json({ error: "Failed to fetch team membership" });
+    }
+  });
+
+  // Get team details
+  app.get("/api/team/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+      
+      // Verify user is a member of this team
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember || teamMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Unauthorized to access this team" });
+      }
+
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+
+      res.json(team);
+    } catch (error) {
+      console.error("Error fetching team:", error);
+      res.status(500).json({ error: "Failed to fetch team" });
+    }
+  });
+
+  // Update team
+  app.patch("/api/team/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+      
+      // Verify user is the owner of this team
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember || teamMember.teamId !== teamId || teamMember.role !== "owner") {
+        return res.status(403).json({ error: "Only team owners can update the team" });
+      }
+
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "Team name is required" });
+      }
+
+      const updatedTeam = await storage.updateTeam(teamId, { name });
+      if (!updatedTeam) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error updating team:", error);
+      res.status(500).json({ error: "Failed to update team" });
+    }
+  });
+
+  // Join a team using invite code
+  app.post("/api/team/join", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { inviteCode } = req.body;
+
+      if (!inviteCode) {
+        return res.status(400).json({ error: "Invite code is required" });
+      }
+
+      // Find the invite
+      const invite = await storage.getTeamInviteByCode(inviteCode);
+      if (!invite) {
+        return res.status(404).json({ error: "Invalid invite code" });
+      }
+
+      // Check if user is already in a team
+      const existingMembership = await storage.getUserTeamMember(userId);
+      if (existingMembership) {
+        return res.status(400).json({ error: "You are already part of a team. Please leave your current team first." });
+      }
+
+      // Join the team
+      const teamMember = await storage.createTeamMember({
+        teamId: invite.teamId,
+        userId,
+        role: "member",
+      });
+
+      res.json({ teamMember, message: "Successfully joined the team" });
+    } catch (error) {
+      console.error("Error joining team:", error);
+      res.status(500).json({ error: "Failed to join team" });
+    }
+  });
+
+  // Leave current team
+  app.delete("/api/team/leave", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+
+      // Get current team membership
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember) {
+        return res.status(404).json({ error: "You are not part of any team" });
+      }
+
+      // Delete team membership
+      await storage.deleteTeamMember(teamMember.id);
+
+      // Create a new personal team
+      const profile = await storage.getUserProfile(userId);
+      const teamName = profile?.firstName ? `${profile.firstName}'s Team` : "My Team";
+      const newTeam = await storage.createTeam({ name: teamName });
+
+      // Add user as owner of new team
+      await storage.createTeamMember({
+        teamId: newTeam.id,
+        userId,
+        role: "owner",
+      });
+
+      res.json({ message: "Left team successfully and created new personal team" });
+    } catch (error) {
+      console.error("Error leaving team:", error);
+      res.status(500).json({ error: "Failed to leave team" });
+    }
+  });
+
   // Object Storage Routes
   // Serve uploaded images with authentication and ACL
   app.get("/objects/:objectPath(*)", authenticateUser, async (req: AuthRequest, res) => {

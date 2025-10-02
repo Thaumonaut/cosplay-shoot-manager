@@ -19,45 +19,6 @@ import Locations from "@/pages/Locations";
 import Props from "@/pages/Props";
 import Costumes from "@/pages/Costumes";
 import NotFound from "@/pages/not-found";
-import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-function UserMenu() {
-  const { user, signOut } = useAuth();
-  
-  if (!user) return null;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" data-testid="button-user-menu">
-          <UserIcon className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span className="text-sm">Account</span>
-            <span className="text-xs text-muted-foreground">{user.email}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut()} data-testid="button-signout">
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign Out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 function AppContent() {
   const [location] = useLocation();
@@ -111,10 +72,7 @@ function AppContent() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <UserMenu />
-            </div>
+            <ThemeToggle />
           </header>
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-7xl mx-auto p-6 md:p-8">
