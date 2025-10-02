@@ -152,9 +152,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Upload avatar to object storage if provided
       let avatarUrl: string | undefined;
       if (req.file) {
-        const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-        if (!bucketId) {
-          throw new Error("Object storage not configured");
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
         }
 
         // Sanitize filename to prevent path traversal
@@ -164,23 +163,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .substring(0, 50);
         const safeFilename = `${basename}${ext}`;
 
-        const { objectStorageClient } = await import("./objectStorage");
-        const bucket = objectStorageClient.bucket(bucketId);
         const fileName = `public/avatars/${userId}/${Date.now()}-${safeFilename}`;
-        const file = bucket.file(fileName);
         
-        await file.save(req.file.buffer, {
-          contentType: req.file.mimetype,
-          metadata: {
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
             cacheControl: "public, max-age=31536000",
-          },
-        });
+            upsert: false,
+          });
 
-        // Make the file publicly readable
-        await file.makePublic();
+        if (error) {
+          throw new Error(`Failed to upload avatar: ${error.message}`);
+        }
         
         // Get the public URL
-        avatarUrl = `https://storage.googleapis.com/${bucketId}/${fileName}`;
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        avatarUrl = publicUrlData.publicUrl;
       }
 
       // Create or update user profile
@@ -1186,7 +1188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If imageUrl is from object storage, set ACL policy
         let imageUrl = req.body.imageUrl;
-        if (imageUrl && imageUrl.startsWith("https://storage.googleapis.com/")) {
+        if (imageUrl && (imageUrl.includes('/storage/v1/object/') || imageUrl.includes('supabase.co'))) {
           const objectStorageService = new ObjectStorageService();
           imageUrl = await objectStorageService.trySetObjectEntityAclPolicy(
             imageUrl,

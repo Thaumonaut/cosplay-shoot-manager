@@ -1554,6 +1554,42 @@ export class SupabaseStorage implements IStorage {
     
     return !error;
   }
+
+  async deleteShootParticipants(shootId: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    await supabaseAdmin
+      .from('shoot_participants')
+      .delete()
+      .eq('shoot_id', shootId);
+  }
+
+  async deleteShootEquipment(shootId: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    await supabaseAdmin
+      .from('shoot_equipment')
+      .delete()
+      .eq('shoot_id', shootId);
+  }
+
+  async deleteShootProps(shootId: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    await supabaseAdmin
+      .from('shoot_props')
+      .delete()
+      .eq('shoot_id', shootId);
+  }
+
+  async deleteShootCostumes(shootId: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    await supabaseAdmin
+      .from('shoot_costumes')
+      .delete()
+      .eq('shoot_id', shootId);
+  }
 }
 
 export const storage = new SupabaseStorage();
