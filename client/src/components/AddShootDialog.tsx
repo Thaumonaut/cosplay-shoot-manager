@@ -303,7 +303,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                   <Label>Search for Location</Label>
                   <MapboxLocationSearch
                     onLocationSelect={(location) => {
-                      setLocationNotes(`${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}`);
+                      setLocationNotes(location.address);
                     }}
                     placeholder="Search for a location near you..."
                   />

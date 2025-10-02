@@ -344,7 +344,7 @@ export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExpor
                     <label className="text-sm font-medium">Search for Location</label>
                     <MapboxLocationSearch
                       onLocationSelect={(location) => {
-                        setEditValues({ ...editValues, location: `${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}` });
+                        setEditValues({ ...editValues, location: location.address });
                       }}
                       placeholder="Search for a location..."
                       initialValue={editValues.location}

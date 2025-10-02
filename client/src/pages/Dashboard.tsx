@@ -10,7 +10,7 @@ import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { AccordionShoots } from "@/components/AccordionShoots";
 import { AddShootDialog } from "@/components/AddShootDialog";
-import { ShootDetailView } from "@/components/ShootDetailView";
+import { EditShootDialog } from "@/components/EditShootDialog";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import heroImage from "@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -140,6 +140,27 @@ export default function Dashboard() {
         title: "Failed to Send Reminders",
         description:
           error.message || "Failed to send email reminders. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteShootMutation = useMutation({
+    mutationFn: async (shootId: string) => {
+      await apiRequest("DELETE", `/api/shoots/${shootId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      setSelectedShootId(null);
+      toast({
+        title: "Shoot deleted",
+        description: "The shoot has been deleted successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete shoot",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -304,42 +325,6 @@ export default function Dashboard() {
     );
   }
 
-  if (selectedShootId && selectedShoot) {
-    return (
-      <ShootDetailView
-        shoot={{
-          id: selectedShoot.id,
-          title: selectedShoot.title,
-          status: getStatusFromShoot(selectedShoot),
-          date: selectedShoot.date ? new Date(selectedShoot.date) : undefined,
-          location: selectedShoot.locationNotes || undefined,
-          description: selectedShoot.description || "",
-          participants: participants.map((p) => ({
-            id: p.id,
-            name: p.name,
-            role: p.role,
-            email: p.email || undefined,
-          })),
-          references: [],
-          instagramLinks: selectedShoot.instagramLinks || [],
-          calendarEventUrl: selectedShoot.calendarEventUrl || undefined,
-          docsUrl: selectedShoot.docsUrl || undefined,
-        }}
-        onBack={() => setSelectedShootId(null)}
-        onEdit={() => console.log("Edit shoot")}
-        onDelete={() => {
-          console.log("Delete shoot");
-          setSelectedShootId(null);
-        }}
-        onExportDocs={() => exportDocsMutation.mutate(selectedShootId)}
-        isExporting={exportDocsMutation.isPending}
-        onCreateCalendar={() => createCalendarMutation.mutate(selectedShootId)}
-        isCreatingCalendar={createCalendarMutation.isPending}
-        onSendReminders={() => sendRemindersMutation.mutate(selectedShootId)}
-        isSendingReminders={sendRemindersMutation.isPending}
-      />
-    );
-  }
 
   const getPageTitle = () => {
     if (statusFilter) {
@@ -427,6 +412,21 @@ export default function Dashboard() {
       )}
 
       <AddShootDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+      
+      {selectedShootId && selectedShoot && (
+        <EditShootDialog
+          open={true}
+          onOpenChange={(open) => !open && setSelectedShootId(null)}
+          shoot={selectedShoot}
+          onDelete={() => deleteShootMutation.mutate(selectedShootId)}
+          onExportDocs={() => exportDocsMutation.mutate(selectedShootId)}
+          isExporting={exportDocsMutation.isPending}
+          onCreateCalendar={() => createCalendarMutation.mutate(selectedShootId)}
+          isCreatingCalendar={createCalendarMutation.isPending}
+          onSendReminders={() => sendRemindersMutation.mutate(selectedShootId)}
+          isSendingReminders={sendRemindersMutation.isPending}
+        />
+      )}
     </div>
   );
 }
