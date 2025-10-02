@@ -43,3 +43,11 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
 - Implemented automatic camelCase ↔ snake_case conversion for all database operations
 - All 15 database tables created in Supabase with RLS policies
 - Helper RPC functions added: `get_user_shoots_with_counts`, `get_shoot_with_details`, `ensure_user_team`
+
+### Page-Based Navigation & Codebase Cleanup (October 2025)
+- Merged ShootDialog and ShootDetailView into unified ShootPage component
+- Implemented page-based navigation (/shoots/new and /shoots/:id) replacing dialog-based workflow
+- Cleaned up unused components: ShootDialog.tsx, ShootDetailView.tsx, AddParticipantDialog.tsx
+- Removed examples/ folder (7 deprecated example files)
+- Renamed MapboxLocationSearch.tsx to GoogleMapsLocationSearch.tsx to accurately reflect Google Maps API usage
+- Updated all component imports and references across CreateLocationDialog and Locations pages
