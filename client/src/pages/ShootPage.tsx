@@ -669,7 +669,7 @@ export default function ShootPage() {
               setManualTitle(true);
             }}
             placeholder="Enter shoot title..."
-            className="text-3xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
+            className="text-3xl md:text-3xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
             data-testid="input-shoot-title"
           />
           <DropdownMenu>
@@ -797,23 +797,22 @@ export default function ShootPage() {
             </div>
           )}
 
-          {!isNew && (
-            <div className="flex items-center justify-between">
-              <Label>Public Sharing</Label>
-              <Switch
-                checked={isPublic}
-                onCheckedChange={handleTogglePublic}
-                disabled={togglePublicMutation.isPending}
-                data-testid="switch-public"
-              />
-            </div>
-          )}
+          <div className="flex items-center justify-between">
+            <Label>Public Sharing</Label>
+            <Switch
+              checked={isPublic}
+              onCheckedChange={handleTogglePublic}
+              disabled={isNew || togglePublicMutation.isPending}
+              data-testid="switch-public"
+            />
+          </div>
 
-          {!isNew && isPublic && (
+          {isPublic && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleCopyPublicLink}
+              disabled={isNew}
               className="w-full"
               data-testid="button-copy-link"
             >
@@ -904,7 +903,7 @@ export default function ShootPage() {
                       loading="lazy"
                       allowFullScreen
                       referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${selectedLocation.placeId}`}
+                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${selectedLocation?.placeId}`}
                     />
                   </div>
                 )}
@@ -1248,86 +1247,85 @@ export default function ShootPage() {
       </div>
 
       {/* Reference Images Gallery Section */}
-      {!isNew && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Reference Images</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.multiple = true;
-                input.onchange = async (e) => {
-                  const files = (e.target as HTMLInputElement).files;
-                  if (!files) return;
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Reference Images</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isNew}
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.multiple = true;
+              input.onchange = async (e) => {
+                const files = (e.target as HTMLInputElement).files;
+                if (!files) return;
+                
+                for (const file of Array.from(files)) {
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  formData.append('shootId', existingShoot?.id || '');
                   
-                  for (const file of Array.from(files)) {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('shootId', existingShoot?.id || '');
-                    
-                    try {
-                      await fetch('/api/shoot-references', {
-                        method: 'POST',
-                        body: formData,
-                      });
-                    } catch (error) {
-                      console.error('Failed to upload reference:', error);
-                    }
+                  try {
+                    await fetch('/api/shoot-references', {
+                      method: 'POST',
+                      body: formData,
+                    });
+                  } catch (error) {
+                    console.error('Failed to upload reference:', error);
                   }
-                  
-                  queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-                };
-                input.click();
-              }}
-              data-testid="button-add-reference"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Images
-            </Button>
-          </div>
-
-          {existingShoot?.references && existingShoot.references.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {existingShoot.references.map((ref: any) => (
-                <Card key={ref.id} className="overflow-hidden hover-elevate group relative">
-                  <CardContent className="p-0">
-                    <div className="aspect-square relative">
-                      <img 
-                        src={ref.imageUrl} 
-                        alt="Reference"
-                        className="w-full h-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={async () => {
-                          try {
-                            await fetch(`/api/shoot-references/${ref.id}`, {
-                              method: 'DELETE',
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-                          } catch (error) {
-                            console.error('Failed to delete reference:', error);
-                          }
-                        }}
-                        data-testid={`button-remove-reference-${ref.id}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                }
+                
+                queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+              };
+              input.click();
+            }}
+            data-testid="button-add-reference"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Images
+          </Button>
         </div>
-      )}
+
+        {existingShoot?.references && existingShoot.references.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {existingShoot.references.map((ref: any) => (
+              <Card key={ref.id} className="overflow-hidden hover-elevate group relative">
+                <CardContent className="p-0">
+                  <div className="aspect-square relative">
+                    <img 
+                      src={ref.imageUrl} 
+                      alt="Reference"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/shoot-references/${ref.id}`, {
+                            method: 'DELETE',
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                        } catch (error) {
+                          console.error('Failed to delete reference:', error);
+                        }
+                      }}
+                      data-testid={`button-remove-reference-${ref.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Instagram References Section */}
       <div className="space-y-4">
