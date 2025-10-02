@@ -596,7 +596,8 @@ export default function ShootPage() {
                     data-testid="button-view-calendar"
                   >
                     <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
-                      <SiGooglecalendar className="h-4 w-4" />
+                      <SiGooglecalendar className="h-4 w-4 mr-2" />
+                      View Calendar
                     </a>
                   </Button>
                 ) : (
@@ -607,7 +608,8 @@ export default function ShootPage() {
                     disabled={createCalendarEventMutation.isPending}
                     data-testid="button-create-calendar"
                   >
-                    <SiGooglecalendar className="h-4 w-4" />
+                    <SiGooglecalendar className="h-4 w-4 mr-2" />
+                    {createCalendarEventMutation.isPending ? "Adding..." : "Add to Calendar"}
                   </Button>
                 )}
 
@@ -619,7 +621,8 @@ export default function ShootPage() {
                     data-testid="button-view-docs"
                   >
                     <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
-                      <SiGoogledocs className="h-4 w-4" />
+                      <SiGoogledocs className="h-4 w-4 mr-2" />
+                      View Doc
                     </a>
                   </Button>
                 ) : (
@@ -630,7 +633,8 @@ export default function ShootPage() {
                     disabled={createDocsMutation.isPending}
                     data-testid="button-create-docs"
                   >
-                    <SiGoogledocs className="h-4 w-4" />
+                    <SiGoogledocs className="h-4 w-4 mr-2" />
+                    {createDocsMutation.isPending ? "Creating..." : "Create Doc"}
                   </Button>
                 )}
 
@@ -642,7 +646,8 @@ export default function ShootPage() {
                     disabled={sendRemindersMutation.isPending}
                     data-testid="button-send-reminders"
                   >
-                    <Mail className="h-4 w-4" />
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Reminders
                   </Button>
                 )}
                 <Button
@@ -652,7 +657,8 @@ export default function ShootPage() {
                   className="text-destructive"
                   data-testid="button-delete"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
                 </Button>
               </>
             )}
@@ -667,10 +673,30 @@ export default function ShootPage() {
               setManualTitle(true);
             }}
             placeholder="Enter shoot title..."
-            className="text-2xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
+            className="text-3xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
             data-testid="input-shoot-title"
           />
-          <StatusBadge status={status} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="cursor-pointer" data-testid="button-edit-status">
+                <StatusBadge status={status} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setStatus("idea" as any)} data-testid="status-option-idea">
+                Idea
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatus("planning" as any)} data-testid="status-option-planning">
+                Planning
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatus("ready to shoot" as any)} data-testid="status-option-ready">
+                Ready to Shoot
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatus("completed" as any)} data-testid="status-option-completed">
+                Completed
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {status !== "idea" && (
