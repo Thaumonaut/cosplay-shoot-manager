@@ -26,7 +26,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, MapPin, Map } from "lucide-react";
-import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
+import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
 import type { Location as LocationType } from "@shared/schema";
 
 const locationFormSchema = z.object({
@@ -296,7 +296,7 @@ export default function Locations() {
               <div className="space-y-3">
                 <div className="space-y-2">
                   <FormLabel>Search for Address</FormLabel>
-                  <MapboxLocationSearch
+                  <GoogleMapsLocationSearch
                     onLocationSelect={(location) => {
                       form.setValue("address", location.address);
                       if (!form.getValues("name")) {

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Loader2 } from "lucide-react";
 
-interface MapboxLocationSearchProps {
+interface GoogleMapsLocationSearchProps {
   onLocationSelect: (location: {
     name: string;
     address: string;
@@ -23,12 +23,12 @@ interface PlacePrediction {
   longitude: number;
 }
 
-export function MapboxLocationSearch({
+export function GoogleMapsLocationSearch({
   onLocationSelect,
   placeholder = "Search for a location...",
   label,
   initialValue = "",
-}: MapboxLocationSearchProps) {
+}: GoogleMapsLocationSearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);

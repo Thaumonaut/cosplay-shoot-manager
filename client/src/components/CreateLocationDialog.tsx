@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
+import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
 
 interface CreateLocationDialogProps {
   open: boolean;
@@ -104,7 +104,7 @@ export function CreateLocationDialog({
           <div className="space-y-3">
             <div className="space-y-2">
               <Label>Search for Address</Label>
-              <MapboxLocationSearch
+              <GoogleMapsLocationSearch
                 onLocationSelect={(location) => {
                   setAddress(location.address);
                   if (!name) {
