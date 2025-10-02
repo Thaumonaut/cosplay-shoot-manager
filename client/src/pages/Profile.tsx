@@ -587,7 +587,7 @@ export default function Profile() {
                       const canModifyMember = canManageTeam && !isCurrentUser && member.role !== "owner";
                       const memberName = member.profile?.firstName && member.profile?.lastName
                         ? `${member.profile.firstName} ${member.profile.lastName}`
-                        : member.profile?.firstName || member.user.email;
+                        : member.profile?.firstName || member.user?.email || 'Unknown User';
 
                       return (
                         <div
@@ -607,7 +607,7 @@ export default function Profile() {
                                 {memberName}
                                 {isCurrentUser && <span className="text-muted-foreground ml-2">(You)</span>}
                               </p>
-                              <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                              <p className="text-sm text-muted-foreground">{member.user?.email || ''}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
