@@ -16,6 +16,7 @@ export const userProfiles = pgTable("user_profiles", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   avatarUrl: text("avatar_url"),
+  activeTeamId: varchar("active_team_id").references(() => teams.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });

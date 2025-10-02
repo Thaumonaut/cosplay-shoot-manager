@@ -76,6 +76,7 @@ export default function Profile() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveTeamDialog, setShowLeaveTeamDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
 
   // Fetch user profile
   const { data: profile, isLoading: profileLoading } = useQuery<UserProfile>({
@@ -220,17 +221,18 @@ export default function Profile() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
+      queryClient.invalidateQueries();
       toast({
         title: "Team joined",
         description: "You have successfully joined the team.",
       });
       setInviteCode("");
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to join team. Please check the invite code and try again.";
       toast({
-        title: "Error",
-        description: "Failed to join team. Please check the invite code and try again.",
+        title: "Failed to join team",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -327,6 +329,28 @@ export default function Profile() {
       toast({
         title: "Error",
         description: "Failed to remove member. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/auth/delete-account");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      signOut();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete account. Please try again.",
         variant: "destructive",
       });
     },
@@ -454,6 +478,35 @@ export default function Profile() {
               </Button>
             </div>
           </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium">Account Actions</h4>
+              <p className="text-sm text-muted-foreground">
+                Manage your account and sessions
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => signOut()}
+                data-testid="button-signout"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteAccountDialog(true)}
+                data-testid="button-delete-account"
+              >
+                <UserX className="h-4 w-4 mr-2" />
+                Delete Account
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -517,29 +570,52 @@ export default function Profile() {
                     </div>
                     {teamInvite && (
                       <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Invite Link</span>
-                            <p className="text-xs text-muted-foreground font-mono">{teamInvite.code}</p>
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-sm font-medium">Invite Code</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-sm font-mono bg-background px-3 py-2 rounded-md border flex-1">{teamInvite.code}</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(teamInvite.code);
+                                  toast({
+                                    title: "Code copied",
+                                    description: "Invite code copied to clipboard",
+                                  });
+                                }}
+                                data-testid="button-copy-invite-code"
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Code
+                              </Button>
+                            </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(teamInvite.inviteUrl);
-                              toast({
-                                title: "Link copied",
-                                description: "Invite link copied to clipboard",
-                              });
-                            }}
-                            data-testid="button-copy-invite-link"
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy Link
-                          </Button>
+                          <div>
+                            <span className="text-sm font-medium">Share Link</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs font-mono bg-background px-3 py-2 rounded-md border flex-1 truncate">{teamInvite.inviteUrl}</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(teamInvite.inviteUrl);
+                                  toast({
+                                    title: "Link copied",
+                                    description: "Invite link copied to clipboard",
+                                  });
+                                }}
+                                data-testid="button-copy-invite-link"
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Link
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Share this link with people you want to invite to your team
+                          Share the code or link with people you want to invite to your team
                         </p>
                       </div>
                     )}
@@ -656,13 +732,16 @@ export default function Profile() {
                 <div className="space-y-2">
                   <h4 className="font-medium">Leave Team</h4>
                   <p className="text-sm text-muted-foreground">
-                    {isTeamOwner
-                      ? "As the team owner, leaving will create a new personal team for you."
-                      : "You will be removed from this team and a new personal team will be created for you."}
+                    {teamMembers.length === 1
+                      ? "You are the only member of this team. You cannot leave it."
+                      : isTeamOwner
+                        ? "As the team owner, leaving will create a new personal team for you."
+                        : "You will be removed from this team and a new personal team will be created for you."}
                   </p>
                   <Button
                     variant="destructive"
                     onClick={() => setShowLeaveTeamDialog(true)}
+                    disabled={teamMembers.length === 1}
                     data-testid="button-leave-team"
                   >
                     <UserMinus className="h-4 w-4 mr-2" />
@@ -704,42 +783,6 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Application Info & Sign Out */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Application</CardTitle>
-          <CardDescription>
-            Manage your application settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 p-4 rounded-lg border">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Camera className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium">CosPlay Tracker</h4>
-              <p className="text-sm text-muted-foreground">Photo Shoot Manager</p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h4 className="font-medium mb-2">Account Actions</h4>
-            <Button
-              variant="destructive"
-              onClick={() => signOut()}
-              data-testid="button-signout"
-              className="w-full sm:w-auto"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Leave Team Confirmation Dialog */}
       <AlertDialog open={showLeaveTeamDialog} onOpenChange={setShowLeaveTeamDialog}>
         <AlertDialogContent data-testid="dialog-leave-team">
@@ -758,6 +801,29 @@ export default function Profile() {
               data-testid="button-confirm-leave-team"
             >
               Leave Team
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
+        <AlertDialogContent data-testid="dialog-delete-account">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you absolutely sure? This will permanently delete your account, all your data, and remove you from all teams.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-account">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAccountMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-account"
+            >
+              Delete Account
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

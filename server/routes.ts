@@ -32,11 +32,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const getUserTeamId = async (userId: string): Promise<string> => {
+    const profile = await storage.getUserProfile(userId);
+    
+    // If user has an active team set, use that
+    if (profile?.activeTeamId) {
+      return profile.activeTeamId;
+    }
+    
+    // Otherwise, check if user has any team membership
     let member = await storage.getUserTeamMember(userId);
     
     // If user doesn't have a team, create a personal team for them
     if (!member) {
-      const profile = await storage.getUserProfile(userId);
       const teamName = profile?.firstName ? `${profile.firstName}'s Team` : "My Team";
       const team = await storage.createTeam({ name: teamName });
       
@@ -46,8 +53,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         role: "owner",
       });
+      
+      // Set as active team
+      await storage.setActiveTeam(userId, team.id);
+      
+      return team.id;
     }
     
+    // Set the first team as active and return it
+    await storage.setActiveTeam(userId, member.teamId);
     return member.teamId;
   };
 
@@ -119,6 +133,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.clearCookie("sb-access-token", { path: "/" });
     res.clearCookie("sb-refresh-token", { path: "/" });
     res.json({ success: true });
+  });
+
+  // Delete account
+  app.delete("/api/auth/delete-account", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+
+      // Delete user from Supabase Auth (this will cascade delete user_profiles and team_members due to RLS)
+      if (!supabaseAdmin) {
+        throw new Error("Supabase admin client not configured");
+      }
+
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      
+      if (error) {
+        console.error("Error deleting user:", error);
+        throw new Error("Failed to delete account");
+      }
+
+      // Clear cookies
+      res.clearCookie("sb-access-token", { path: "/" });
+      res.clearCookie("sb-refresh-token", { path: "/" });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
   });
 
   // Multer configuration for avatar uploads
@@ -339,10 +381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Invalid invite code" });
       }
 
-      // Check if user is already in a team
-      const existingMembership = await storage.getUserTeamMember(userId);
-      if (existingMembership) {
-        return res.status(400).json({ error: "You are already part of a team. Please leave your current team first." });
+      // Check if user is already a member of this specific team
+      const existingTeamMembership = await storage.getTeamMember(invite.teamId, userId);
+      if (existingTeamMembership) {
+        return res.status(400).json({ error: "You are already a member of this team" });
       }
 
       // Join the team
@@ -351,6 +393,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         role: "member",
       });
+
+      // Set this team as the active team
+      await storage.setActiveTeam(userId, invite.teamId);
 
       res.json({ teamMember, message: "Successfully joined the team" });
     } catch (error) {
@@ -389,6 +434,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error leaving team:", error);
       res.status(500).json({ error: "Failed to leave team" });
+    }
+  });
+
+  // Get all teams for the current user
+  app.get("/api/user/teams", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teams = await storage.getUserTeams(userId);
+      res.json(teams);
+    } catch (error) {
+      console.error("Error getting user teams:", error);
+      res.status(500).json({ error: "Failed to get user teams" });
+    }
+  });
+
+  // Set active team for the current user
+  app.post("/api/user/active-team", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { teamId } = req.body;
+
+      if (!teamId) {
+        return res.status(400).json({ error: "Team ID is required" });
+      }
+
+      // Verify user is a member of the team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
+        return res.status(403).json({ error: "You are not a member of this team" });
+      }
+
+      const profile = await storage.setActiveTeam(userId, teamId);
+      if (!profile) {
+        return res.status(500).json({ error: "Failed to set active team" });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error setting active team:", error);
+      res.status(500).json({ error: "Failed to set active team" });
     }
   });
 

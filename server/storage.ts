@@ -128,6 +128,8 @@ export interface IStorage {
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
   createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
   updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
+  getUserTeams(userId: string): Promise<any[]>;
+  setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined>;
 
   // Team Invites
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
@@ -604,6 +606,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userProfiles.userId, userId))
       .returning();
     return updated;
+  }
+
+  async getUserTeams(userId: string): Promise<any[]> {
+    // Not implemented for DatabaseStorage - this is a stub
+    return [];
+  }
+
+  async setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined> {
+    // Not implemented for DatabaseStorage - this is a stub
+    return undefined;
   }
 
   // Team Invite methods
@@ -1463,6 +1475,32 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
+    return toCamelCase(data) as UserProfile;
+  }
+
+  async getUserTeams(userId: string): Promise<any[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .rpc('get_user_teams', { p_user_id: userId });
+    
+    if (error) {
+      console.error('Error getting user teams:', error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .rpc('set_active_team', { p_user_id: userId, p_team_id: teamId });
+    
+    if (error) {
+      console.error('Error setting active team:', error);
+      return undefined;
+    }
     return toCamelCase(data) as UserProfile;
   }
 
