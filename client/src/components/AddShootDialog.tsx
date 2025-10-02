@@ -3,7 +3,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InsertShoot, Shoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation as useLocationRouter } from "wouter";
+import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
+import { CreateEquipmentDialog } from "@/components/CreateEquipmentDialog";
+import { CreateLocationDialog } from "@/components/CreateLocationDialog";
+import { CreatePropsDialog } from "@/components/CreatePropsDialog";
+import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +43,6 @@ interface AddShootDialogProps {
 
 export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const { toast } = useToast();
-  const [, setLocation] = useLocationRouter();
   const [title, setTitle] = useState("");
   const [manualTitle, setManualTitle] = useState(false);
   const [status, setStatus] = useState<string>("idea");
@@ -55,6 +58,13 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedProps, setSelectedProps] = useState<string[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
+
+  // Create resource dialog states
+  const [createPersonnelOpen, setCreatePersonnelOpen] = useState(false);
+  const [createEquipmentOpen, setCreateEquipmentOpen] = useState(false);
+  const [createLocationOpen, setCreateLocationOpen] = useState(false);
+  const [createPropsOpen, setCreatePropsOpen] = useState(false);
+  const [createCostumesOpen, setCreateCostumesOpen] = useState(false);
 
   // Fetch resources - always fetch, show empty states if needed
   const { data: personnel = [] } = useQuery<Personnel[]>({
@@ -316,10 +326,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        setLocation("/locations");
-                      }}
+                      onClick={() => setCreateLocationOpen(true)}
                       data-testid="button-create-location"
                     >
                       <Plus className="h-3 w-3 mr-1" />
@@ -379,10 +386,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  setLocation("/personnel");
-                }}
+                onClick={() => setCreatePersonnelOpen(true)}
                 data-testid="button-create-personnel"
               >
                 <Plus className="h-3 w-3 mr-1" />
@@ -430,10 +434,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  setLocation("/costumes");
-                }}
+                onClick={() => setCreateCostumesOpen(true)}
                 data-testid="button-create-costume"
               >
                 <Plus className="h-3 w-3 mr-1" />
@@ -481,10 +482,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  setLocation("/equipment");
-                }}
+                onClick={() => setCreateEquipmentOpen(true)}
                 data-testid="button-create-equipment"
               >
                 <Plus className="h-3 w-3 mr-1" />
@@ -532,10 +530,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  setLocation("/props");
-                }}
+                onClick={() => setCreatePropsOpen(true)}
                 data-testid="button-create-prop"
               >
                 <Plus className="h-3 w-3 mr-1" />
@@ -643,6 +638,43 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Create Resource Dialogs */}
+      <CreatePersonnelDialog
+        open={createPersonnelOpen}
+        onOpenChange={setCreatePersonnelOpen}
+        onSuccess={(newPersonnel) => {
+          setSelectedPersonnel([...selectedPersonnel, newPersonnel.id]);
+        }}
+      />
+      <CreateEquipmentDialog
+        open={createEquipmentOpen}
+        onOpenChange={setCreateEquipmentOpen}
+        onSuccess={(newEquipment) => {
+          setSelectedEquipment([...selectedEquipment, newEquipment.id]);
+        }}
+      />
+      <CreateLocationDialog
+        open={createLocationOpen}
+        onOpenChange={setCreateLocationOpen}
+        onSuccess={(newLocation) => {
+          setLocationId(newLocation.id);
+        }}
+      />
+      <CreatePropsDialog
+        open={createPropsOpen}
+        onOpenChange={setCreatePropsOpen}
+        onSuccess={(newProp) => {
+          setSelectedProps([...selectedProps, newProp.id]);
+        }}
+      />
+      <CreateCostumesDialog
+        open={createCostumesOpen}
+        onOpenChange={setCreateCostumesOpen}
+        onSuccess={(newCostume) => {
+          setSelectedCostumes([...selectedCostumes, newCostume.id]);
+        }}
+      />
     </Dialog>
   );
 }
