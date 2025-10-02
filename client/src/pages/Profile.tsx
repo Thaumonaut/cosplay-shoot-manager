@@ -576,7 +576,6 @@ export default function Profile() {
                               <SelectContent>
                                 <SelectItem value="member">Member</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
-                                {isTeamOwner && <SelectItem value="owner">Owner</SelectItem>}
                               </SelectContent>
                             </Select>
                           ) : (
