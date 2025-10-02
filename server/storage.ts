@@ -1594,6 +1594,19 @@ export class SupabaseStorage implements IStorage {
     return toCamelCase(data) as TeamMember;
   }
 
+  async getTeamMemberById(memberId: string): Promise<TeamMember | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .select()
+      .eq('id', memberId)
+      .single();
+    
+    if (error) return undefined;
+    return toCamelCase(data) as TeamMember;
+  }
+
   async getTeamMembers(teamId: string): Promise<TeamMember[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
