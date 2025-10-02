@@ -15,19 +15,12 @@ interface MapboxLocationSearchProps {
   initialValue?: string;
 }
 
-interface MapboxFeature {
-  properties: {
-    name?: string;
-    full_address?: string;
-    name_preferred?: string;
-    coordinates: {
-      latitude: number;
-      longitude: number;
-    };
-  };
-  geometry: {
-    coordinates: [number, number];
-  };
+interface PlacePrediction {
+  placeId: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
 }
 
 export function MapboxLocationSearch({
@@ -37,29 +30,45 @@ export function MapboxLocationSearch({
   initialValue = "",
 }: MapboxLocationSearchProps) {
   const [query, setQuery] = useState(initialValue);
-  const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
+  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const searchLocations = async () => {
       if (query.length < 3) {
         setSuggestions([]);
+        setError(null);
         return;
       }
 
       setLoading(true);
+      setError(null);
 
       try {
         // Use backend proxy to avoid exposing API key
-        const response = await fetch(`/api/mapbox/geocode?q=${encodeURIComponent(query)}&limit=5`);
+        const response = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
         const data = await response.json();
-        setSuggestions(data.features || []);
-        setShowSuggestions(true);
+        
+        // Check for errors in the response
+        if (data.error || !Array.isArray(data.predictions)) {
+          const errorMessage = data.error || "Unable to fetch locations";
+          console.error("Location service error:", errorMessage);
+          setError(errorMessage);
+          setSuggestions([]);
+          setShowSuggestions(false);
+        } else {
+          setError(null);
+          setSuggestions(data.predictions);
+          setShowSuggestions(true);
+        }
       } catch (error) {
         console.error("Error fetching locations:", error);
+        setError("Failed to fetch locations. Please try again.");
         setSuggestions([]);
+        setShowSuggestions(false);
       } finally {
         setLoading(false);
       }
@@ -83,21 +92,16 @@ export function MapboxLocationSearch({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (feature: MapboxFeature) => {
-    const name = feature.properties.name_preferred || feature.properties.name || "";
-    const address = feature.properties.full_address || "";
-    const latitude = feature.properties.coordinates?.latitude || feature.geometry.coordinates[1];
-    const longitude = feature.properties.coordinates?.longitude || feature.geometry.coordinates[0];
-
-    setQuery(name || address);
+  const handleSelect = (prediction: PlacePrediction) => {
+    setQuery(prediction.name || prediction.address);
     setShowSuggestions(false);
     setSuggestions([]);
 
     onLocationSelect({
-      name,
-      address,
-      latitude,
-      longitude,
+      name: prediction.name,
+      address: prediction.address,
+      latitude: prediction.latitude,
+      longitude: prediction.longitude,
     });
   };
 
@@ -121,23 +125,29 @@ export function MapboxLocationSearch({
           )}
         </div>
 
-        {showSuggestions && suggestions.length > 0 && (
+        {error && query.length >= 3 && (
+          <div className="absolute z-50 w-full mt-1 bg-popover border border-destructive/50 rounded-md shadow-lg px-4 py-3">
+            <p className="text-sm text-destructive" data-testid="location-error">{error}</p>
+          </div>
+        )}
+
+        {showSuggestions && suggestions.length > 0 && !error && (
           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
-            {suggestions.map((feature, index) => (
+            {suggestions.map((prediction, index) => (
               <button
-                key={index}
+                key={prediction.placeId || index}
                 type="button"
-                onClick={() => handleSelect(feature)}
+                onClick={() => handleSelect(prediction)}
                 className="w-full text-left px-4 py-2 hover-elevate flex items-start gap-2 border-b last:border-b-0"
                 data-testid={`suggestion-${index}`}
               >
                 <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">
-                    {feature.properties.name_preferred || feature.properties.name}
+                    {prediction.name}
                   </div>
                   <div className="text-sm text-muted-foreground truncate">
-                    {feature.properties.full_address}
+                    {prediction.address}
                   </div>
                 </div>
               </button>

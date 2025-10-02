@@ -32,9 +32,10 @@ A web application for managing and organizing cosplay photo shoots. The system p
 - Implemented participant management system for shoots
 - Fixed sidebar navigation routing and URL synchronization
 - Set up object storage for avatar uploads with security best practices
-- **Mapbox Integration**: Implemented location autocomplete in shoot creation using Mapbox Geocoding API
-  - Created MapboxLocationSearch component with real-time autocomplete
-  - Added backend proxy endpoint `/api/mapbox/geocode` to keep API key secure on server
+- **Google Maps Places API Integration**: Implemented location autocomplete in shoot creation using Google Maps Places API
+  - Created MapboxLocationSearch component with real-time autocomplete (component name kept for compatibility)
+  - Added backend proxy endpoint `/api/places/autocomplete` to keep API key secure on server
+  - Uses Google Places API (New) with automatic place details fetching for coordinates
   - Location search integrated into AddShootDialog with coordinates and address auto-fill
   - Users can search for locations or select from saved locations in team library
 - **Resource Display**: Added resource display on shoot detail page
@@ -168,9 +169,10 @@ shootParticipants: People involved in shoots with roles (cascade delete)
 - Google Calendar API (calendarEventId, calendarEventUrl fields present)
 - Google Docs integration (docsUrl field present)
 - Instagram (instagramLinks array for reference storage)
-- Mapbox Geocoding API for location search and autocomplete
-  - Backend proxy endpoint keeps API key secure
-  - Provides real-time location suggestions with coordinates
+- Google Maps Places API for location search and autocomplete
+  - Backend proxy endpoint `/api/places/autocomplete` keeps API key secure
+  - Uses Places API (New) with automatic place details fetching
+  - Provides real-time location suggestions with name, address, and coordinates
 
 **Development Tools**
 - Replit-specific plugins for enhanced development experience

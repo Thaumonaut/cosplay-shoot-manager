@@ -277,29 +277,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mapbox Geocoding Proxy
-  app.get("/api/mapbox/geocode", authenticateUser, async (req: AuthRequest, res) => {
+  // Google Maps Places API Autocomplete Proxy
+  app.get("/api/places/autocomplete", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      const { q, limit = 5 } = req.query;
+      const { q } = req.query;
       
       if (!q || typeof q !== 'string') {
         return res.status(400).json({ error: "Query parameter 'q' is required" });
       }
 
-      const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN;
-      if (!mapboxToken) {
-        return res.status(500).json({ error: "Mapbox token not configured" });
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Google Maps API key not configured" });
       }
 
-      const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(q)}&access_token=${mapboxToken}&limit=${limit}&autocomplete=true`;
+      // Use Places API (New) Autocomplete
+      const url = `https://places.googleapis.com/v1/places:autocomplete`;
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text',
+        },
+        body: JSON.stringify({
+          input: q,
+          includedPrimaryTypes: ['street_address', 'premise', 'point_of_interest', 'establishment'],
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error(`Google Places autocomplete failed: ${response.status} ${response.statusText}`);
+        return res.status(502).json({ error: "Location service unavailable", predictions: [] });
+      }
+      
       const data = await response.json();
       
-      res.json(data);
+      // Get place details for each suggestion to get coordinates
+      if (data.suggestions && data.suggestions.length > 0) {
+        const detailedSuggestions = await Promise.all(
+          data.suggestions.slice(0, 5).map(async (suggestion: any) => {
+            if (!suggestion.placePrediction?.placeId) return null;
+            
+            const detailsUrl = `https://places.googleapis.com/v1/places/${suggestion.placePrediction.placeId}`;
+            const detailsResponse = await fetch(detailsUrl, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': apiKey,
+                'X-Goog-FieldMask': 'id,displayName,formattedAddress,location',
+              },
+            });
+            
+            if (!detailsResponse.ok) {
+              console.error(`Google Place details failed for ${suggestion.placePrediction.placeId}: ${detailsResponse.status}`);
+              return null;
+            }
+            
+            const details = await detailsResponse.json();
+            
+            // Validate we have valid coordinates before returning
+            const hasValidCoordinates = 
+              typeof details.location?.latitude === 'number' && 
+              typeof details.location?.longitude === 'number' &&
+              Number.isFinite(details.location.latitude) &&
+              Number.isFinite(details.location.longitude);
+            
+            if (!hasValidCoordinates) {
+              console.warn(`Missing or invalid coordinates for place ${suggestion.placePrediction.placeId}`);
+              return null;
+            }
+            
+            return {
+              placeId: details.id,
+              name: details.displayName?.text || suggestion.placePrediction.text?.text || '',
+              address: details.formattedAddress || '',
+              latitude: details.location.latitude,
+              longitude: details.location.longitude,
+            };
+          })
+        );
+        
+        res.json({ 
+          predictions: detailedSuggestions.filter(p => p !== null) 
+        });
+      } else {
+        res.json({ predictions: [] });
+      }
     } catch (error) {
-      console.error("Mapbox geocoding error:", error);
-      res.status(500).json({ error: "Failed to fetch location data" });
+      console.error("Google Maps Places API error:", error);
+      res.status(500).json({ error: "Failed to fetch location data", predictions: [] });
     }
   });
 
