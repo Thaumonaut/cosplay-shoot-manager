@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithProvider: (provider: 'google' | 'facebook') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -136,6 +137,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = "/auth";
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      setUser(null);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -145,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signInWithProvider,
         signOut,
+        refreshUser,
       }}
     >
       {children}

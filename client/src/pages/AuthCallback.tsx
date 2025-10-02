@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
   const [, setLocation] = useLocation();
+  const { refreshUser } = useAuth();
   const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
@@ -27,6 +29,9 @@ export default function AuthCallback() {
           });
 
           if (res.ok) {
+            // Refresh the auth context to update user state
+            await refreshUser();
+            
             // Check if user has a profile
             const profileRes = await fetch("/api/user/profile", {
               credentials: "include",
@@ -55,6 +60,7 @@ export default function AuthCallback() {
                 credentials: "include",
               });
 
+              // Navigate to dashboard
               setLocation("/");
             } else {
               setLocation("/auth");
@@ -75,7 +81,7 @@ export default function AuthCallback() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setLocation]);
+  }, [setLocation, refreshUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
