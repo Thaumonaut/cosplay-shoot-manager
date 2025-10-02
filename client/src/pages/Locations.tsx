@@ -298,8 +298,7 @@ export default function Locations() {
                   <FormLabel>Search for Address</FormLabel>
                   <MapboxLocationSearch
                     onLocationSelect={(location) => {
-                      const fullAddress = `${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}`;
-                      form.setValue("address", fullAddress);
+                      form.setValue("address", location.address);
                       if (!form.getValues("name")) {
                         form.setValue("name", location.name || location.address.split(",")[0]);
                       }

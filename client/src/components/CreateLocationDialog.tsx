@@ -106,8 +106,7 @@ export function CreateLocationDialog({
               <Label>Search for Address</Label>
               <MapboxLocationSearch
                 onLocationSelect={(location) => {
-                  const fullAddress = `${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}`;
-                  setAddress(fullAddress);
+                  setAddress(location.address);
                   if (!name) {
                     setName(location.name || location.address.split(",")[0]);
                   }
