@@ -16,17 +16,30 @@ The frontend is built with React and TypeScript, utilizing Vite for development 
 
 ### Backend Architecture
 
-The backend is developed with Express.js and TypeScript. Authentication and authorization are handled by Supabase Auth, employing JWT-based, HTTP-only cookie sessions for security. A custom middleware ensures route protection and token refresh. The API is RESTful, with endpoints under `/api`, and uses Zod for request payload validation. Business logic is abstracted through a storage pattern, using Drizzle ORM for type-safe database operations and PostgreSQL as the primary data store. Security measures include user-scoped queries and prevention of direct `userId` manipulation.
+The backend is developed with Express.js and TypeScript. Authentication and authorization are handled by Supabase Auth, employing JWT-based, HTTP-only cookie sessions for security. A custom middleware ensures route protection and token refresh. The API is RESTful, with endpoints under `/api`, and uses Zod for request payload validation. Business logic is abstracted through a storage pattern (SupabaseStorage) that interfaces with Supabase's REST API (PostgREST) for all database operations. Security measures include user-scoped queries and prevention of direct `userId` manipulation.
 
 ### Data Storage Architecture
 
-PostgreSQL, hosted by Neon, serves as the primary database, accessed via Drizzle ORM. Key tables include `shoots`, `shootReferences`, and `shootParticipants`, all utilizing UUID primary keys. The schema is designed with user-scoped queries for data isolation and security, with cascading deletes to maintain referential integrity.
+PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Supabase's REST API (PostgREST). The application uses the Supabase admin client with service role key for server-side operations. All database operations include automatic conversion between TypeScript's camelCase conventions and PostgreSQL's snake_case column names using `toSnakeCase`/`toCamelCase` helper functions. Key tables include `shoots`, `shoot_references`, `shoot_participants`, and team-based resources (`personnel`, `equipment`, `locations`, `props`, `costume_progress`), all utilizing UUID primary keys. The schema is designed with Row Level Security (RLS) policies for data isolation and team-scoped access control, with cascading deletes to maintain referential integrity.
 
 ## External Dependencies
 
-- **Supabase**: For user authentication, authorization, and managed PostgreSQL database hosting.
+- **Supabase**: Comprehensive backend platform providing:
+  - User authentication and authorization (JWT-based sessions)
+  - PostgreSQL database hosting (accessed via REST API/PostgREST)
+  - File storage (Supabase Storage with 'shoot-images' bucket)
+  - Row Level Security (RLS) policies for data isolation
 - **Google Calendar API**: Integration for calendar event management (via `calendarEventUrl`).
 - **Google Docs**: Integration for document management (via `docsUrl`).
 - **Instagram**: Used for linking and storing reference images (`instagramLinks`).
 - **Google Maps Places API**: Provides location search and autocomplete functionality, with a backend proxy for API key security.
 - **Resend**: For sending email invitations.
+
+## Recent Architecture Changes (October 2025)
+
+### Supabase Migration Completed
+- Migrated from direct PostgreSQL/Drizzle ORM to Supabase REST API (PostgREST)
+- Replaced Google Cloud Storage with Supabase Storage
+- Implemented automatic camelCase ↔ snake_case conversion for all database operations
+- All 15 database tables created in Supabase with RLS policies
+- Helper RPC functions added: `get_user_shoots_with_counts`, `get_shoot_with_details`, `ensure_user_team`

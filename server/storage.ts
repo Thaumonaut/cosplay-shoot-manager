@@ -675,6 +675,34 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+// Helper function to convert camelCase to snake_case for Supabase
+function toSnakeCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(toSnakeCase);
+  if (typeof obj !== 'object') return obj;
+  
+  const snakeCaseObj: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snakeCaseObj[snakeKey] = value;
+  }
+  return snakeCaseObj;
+}
+
+// Helper function to convert snake_case to camelCase from Supabase
+function toCamelCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  if (typeof obj !== 'object') return obj;
+  
+  const camelCaseObj: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    camelCaseObj[camelKey] = toCamelCase(value);
+  }
+  return camelCaseObj;
+}
+
 export class SupabaseStorage implements IStorage {
   async getShoot(id: string, userId: string): Promise<Shoot | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
@@ -687,7 +715,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Shoot;
+    return toCamelCase(data) as Shoot;
   }
 
   async getUserShoots(userId: string): Promise<Shoot[]> {
@@ -700,7 +728,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Shoot[]) || [];
+    return (data || []).map(toCamelCase) as Shoot[];
   }
 
   async getTeamShoots(teamId: string): Promise<Shoot[]> {
@@ -713,7 +741,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Shoot[]) || [];
+    return (data || []).map(toCamelCase) as Shoot[];
   }
 
   async getTeamShoot(id: string, teamId: string): Promise<Shoot | undefined> {
@@ -727,7 +755,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Shoot;
+    return toCamelCase(data) as Shoot;
   }
 
   async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
@@ -736,7 +764,7 @@ export class SupabaseStorage implements IStorage {
     const { data, error } = await supabaseAdmin.rpc('get_user_shoots_with_counts', { user_uuid: userId });
     
     if (error) return [];
-    return (data as Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>) || [];
+    return (data || []).map(toCamelCase) as Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>;
   }
 
   async createShoot(shoot: InsertShoot): Promise<Shoot> {
@@ -744,12 +772,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoots')
-      .insert(shoot)
+      .insert(toSnakeCase(shoot))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot: ${error.message}`);
-    return data as Shoot;
+    return toCamelCase(data) as Shoot;
   }
 
   async updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
@@ -758,14 +786,14 @@ export class SupabaseStorage implements IStorage {
     const { userId: _, ...allowedUpdates } = shoot as any;
     const { data, error } = await supabaseAdmin
       .from('shoots')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('user_id', userId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Shoot;
+    return toCamelCase(data) as Shoot;
   }
 
   async updateTeamShoot(id: string, teamId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
@@ -774,14 +802,14 @@ export class SupabaseStorage implements IStorage {
     const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
     const { data, error } = await supabaseAdmin
       .from('shoots')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Shoot;
+    return toCamelCase(data) as Shoot;
   }
 
   async deleteShoot(id: string, userId: string): Promise<boolean> {
@@ -817,7 +845,7 @@ export class SupabaseStorage implements IStorage {
       .eq('shoot_id', shootId);
     
     if (error) return [];
-    return (data as ShootReference[]) || [];
+    return (data || []).map(toCamelCase) as ShootReference[];
   }
 
   async getShootReferenceById(id: string): Promise<ShootReference | undefined> {
@@ -830,7 +858,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as ShootReference;
+    return toCamelCase(data) as ShootReference;
   }
 
   async createShootReference(reference: InsertShootReference): Promise<ShootReference> {
@@ -838,12 +866,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoot_references')
-      .insert(reference)
+      .insert(toSnakeCase(reference))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot reference: ${error.message}`);
-    return data as ShootReference;
+    return toCamelCase(data) as ShootReference;
   }
 
   async deleteShootReference(id: string): Promise<boolean> {
@@ -866,7 +894,7 @@ export class SupabaseStorage implements IStorage {
       .eq('shoot_id', shootId);
     
     if (error) return [];
-    return (data as ShootParticipant[]) || [];
+    return (data || []).map(toCamelCase) as ShootParticipant[];
   }
 
   async getShootParticipantById(id: string): Promise<ShootParticipant | undefined> {
@@ -879,7 +907,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as ShootParticipant;
+    return toCamelCase(data) as ShootParticipant;
   }
 
   async createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant> {
@@ -887,12 +915,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoot_participants')
-      .insert(participant)
+      .insert(toSnakeCase(participant))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot participant: ${error.message}`);
-    return data as ShootParticipant;
+    return toCamelCase(data) as ShootParticipant;
   }
 
   async deleteShootParticipant(id: string): Promise<boolean> {
@@ -923,7 +951,7 @@ export class SupabaseStorage implements IStorage {
       .in('id', equipmentIds);
     
     if (error) return [];
-    return (data as Equipment[]) || [];
+    return (data || []).map(toCamelCase) as Equipment[];
   }
 
   async getShootProps(shootId: string): Promise<Prop[]> {
@@ -943,7 +971,7 @@ export class SupabaseStorage implements IStorage {
       .in('id', propIds);
     
     if (error) return [];
-    return (data as Prop[]) || [];
+    return (data || []).map(toCamelCase) as Prop[];
   }
 
   async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
@@ -963,7 +991,7 @@ export class SupabaseStorage implements IStorage {
       .in('id', costumeIds);
     
     if (error) return [];
-    return (data as CostumeProgress[]) || [];
+    return (data || []).map(toCamelCase) as CostumeProgress[];
   }
 
   async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
@@ -971,12 +999,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoot_equipment')
-      .insert(association)
+      .insert(toSnakeCase(association))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot equipment: ${error.message}`);
-    return data as ShootEquipment;
+    return toCamelCase(data) as ShootEquipment;
   }
 
   async createShootProp(association: InsertShootProp): Promise<ShootProp> {
@@ -984,12 +1012,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoot_props')
-      .insert(association)
+      .insert(toSnakeCase(association))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot prop: ${error.message}`);
-    return data as ShootProp;
+    return toCamelCase(data) as ShootProp;
   }
 
   async createShootCostume(association: InsertShootCostume): Promise<ShootCostume> {
@@ -997,12 +1025,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('shoot_costumes')
-      .insert(association)
+      .insert(toSnakeCase(association))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create shoot costume: ${error.message}`);
-    return data as ShootCostume;
+    return toCamelCase(data) as ShootCostume;
   }
 
   async getPersonnel(id: string, teamId: string): Promise<Personnel | undefined> {
@@ -1016,7 +1044,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Personnel;
+    return toCamelCase(data) as Personnel;
   }
 
   async getTeamPersonnel(teamId: string): Promise<Personnel[]> {
@@ -1029,7 +1057,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Personnel[]) || [];
+    return (data || []).map(toCamelCase) as Personnel[];
   }
 
   async createPersonnel(person: InsertPersonnel): Promise<Personnel> {
@@ -1037,12 +1065,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('personnel')
-      .insert(person)
+      .insert(toSnakeCase(person))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create personnel: ${error.message}`);
-    return data as Personnel;
+    return toCamelCase(data) as Personnel;
   }
 
   async updatePersonnel(id: string, teamId: string, person: Partial<InsertPersonnel>): Promise<Personnel | undefined> {
@@ -1051,14 +1079,14 @@ export class SupabaseStorage implements IStorage {
     const { teamId: _, ...allowedUpdates } = person as any;
     const { data, error } = await supabaseAdmin
       .from('personnel')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Personnel;
+    return toCamelCase(data) as Personnel;
   }
 
   async deletePersonnel(id: string, teamId: string): Promise<boolean> {
@@ -1084,7 +1112,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Equipment;
+    return toCamelCase(data) as Equipment;
   }
 
   async getTeamEquipment(teamId: string): Promise<Equipment[]> {
@@ -1097,7 +1125,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Equipment[]) || [];
+    return (data || []).map(toCamelCase) as Equipment[];
   }
 
   async createEquipment(item: InsertEquipment): Promise<Equipment> {
@@ -1105,12 +1133,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('equipment')
-      .insert(item)
+      .insert(toSnakeCase(item))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create equipment: ${error.message}`);
-    return data as Equipment;
+    return toCamelCase(data) as Equipment;
   }
 
   async updateEquipment(id: string, teamId: string, item: Partial<InsertEquipment>): Promise<Equipment | undefined> {
@@ -1119,14 +1147,14 @@ export class SupabaseStorage implements IStorage {
     const { teamId: _, ...allowedUpdates } = item as any;
     const { data, error } = await supabaseAdmin
       .from('equipment')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Equipment;
+    return toCamelCase(data) as Equipment;
   }
 
   async deleteEquipment(id: string, teamId: string): Promise<boolean> {
@@ -1152,7 +1180,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Location;
+    return toCamelCase(data) as Location;
   }
 
   async getTeamLocations(teamId: string): Promise<Location[]> {
@@ -1165,7 +1193,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Location[]) || [];
+    return (data || []).map(toCamelCase) as Location[];
   }
 
   async createLocation(location: InsertLocation): Promise<Location> {
@@ -1173,12 +1201,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('locations')
-      .insert(location)
+      .insert(toSnakeCase(location))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create location: ${error.message}`);
-    return data as Location;
+    return toCamelCase(data) as Location;
   }
 
   async updateLocation(id: string, teamId: string, location: Partial<InsertLocation>): Promise<Location | undefined> {
@@ -1187,14 +1215,14 @@ export class SupabaseStorage implements IStorage {
     const { teamId: _, ...allowedUpdates } = location as any;
     const { data, error } = await supabaseAdmin
       .from('locations')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Location;
+    return toCamelCase(data) as Location;
   }
 
   async deleteLocation(id: string, teamId: string): Promise<boolean> {
@@ -1220,7 +1248,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Prop;
+    return toCamelCase(data) as Prop;
   }
 
   async getTeamProps(teamId: string): Promise<Prop[]> {
@@ -1233,7 +1261,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as Prop[]) || [];
+    return (data || []).map(toCamelCase) as Prop[];
   }
 
   async createProp(prop: InsertProp): Promise<Prop> {
@@ -1241,12 +1269,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('props')
-      .insert(prop)
+      .insert(toSnakeCase(prop))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create prop: ${error.message}`);
-    return data as Prop;
+    return toCamelCase(data) as Prop;
   }
 
   async updateProp(id: string, teamId: string, prop: Partial<InsertProp>): Promise<Prop | undefined> {
@@ -1255,14 +1283,14 @@ export class SupabaseStorage implements IStorage {
     const { teamId: _, ...allowedUpdates } = prop as any;
     const { data, error } = await supabaseAdmin
       .from('props')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Prop;
+    return toCamelCase(data) as Prop;
   }
 
   async deleteProp(id: string, teamId: string): Promise<boolean> {
@@ -1288,7 +1316,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as CostumeProgress;
+    return toCamelCase(data) as CostumeProgress;
   }
 
   async getTeamCostumes(teamId: string): Promise<CostumeProgress[]> {
@@ -1301,7 +1329,7 @@ export class SupabaseStorage implements IStorage {
       .order('created_at', { ascending: false });
     
     if (error) return [];
-    return (data as CostumeProgress[]) || [];
+    return (data || []).map(toCamelCase) as CostumeProgress[];
   }
 
   async createCostumeProgress(costume: InsertCostumeProgress): Promise<CostumeProgress> {
@@ -1309,12 +1337,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('costume_progress')
-      .insert(costume)
+      .insert(toSnakeCase(costume))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create costume progress: ${error.message}`);
-    return data as CostumeProgress;
+    return toCamelCase(data) as CostumeProgress;
   }
 
   async updateCostumeProgress(id: string, teamId: string, costume: Partial<InsertCostumeProgress>): Promise<CostumeProgress | undefined> {
@@ -1323,14 +1351,14 @@ export class SupabaseStorage implements IStorage {
     const { teamId: _, ...allowedUpdates } = costume as any;
     const { data, error } = await supabaseAdmin
       .from('costume_progress')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as CostumeProgress;
+    return toCamelCase(data) as CostumeProgress;
   }
 
   async deleteCostumeProgress(id: string, teamId: string): Promise<boolean> {
@@ -1355,7 +1383,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as Team;
+    return toCamelCase(data) as Team;
   }
 
   async createTeam(team: InsertTeam): Promise<Team> {
@@ -1363,12 +1391,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('teams')
-      .insert(team)
+      .insert(toSnakeCase(team))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create team: ${error.message}`);
-    return data as Team;
+    return toCamelCase(data) as Team;
   }
 
   async updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined> {
@@ -1377,13 +1405,13 @@ export class SupabaseStorage implements IStorage {
     const { id: _, ...allowedUpdates } = team as any;
     const { data, error } = await supabaseAdmin
       .from('teams')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as Team;
+    return toCamelCase(data) as Team;
   }
 
   async deleteTeam(id: string): Promise<boolean> {
@@ -1407,7 +1435,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as UserProfile;
+    return toCamelCase(data) as UserProfile;
   }
 
   async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
@@ -1415,12 +1443,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
-      .insert(profile)
+      .insert(toSnakeCase(profile))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create user profile: ${error.message}`);
-    return data as UserProfile;
+    return toCamelCase(data) as UserProfile;
   }
 
   async updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
@@ -1429,13 +1457,13 @@ export class SupabaseStorage implements IStorage {
     const { id: _, userId: __, ...allowedUpdates } = profile as any;
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
-      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('user_id', userId)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as UserProfile;
+    return toCamelCase(data) as UserProfile;
   }
 
   async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
@@ -1448,7 +1476,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as TeamInvite;
+    return toCamelCase(data) as TeamInvite;
   }
 
   async getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined> {
@@ -1461,7 +1489,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as TeamInvite;
+    return toCamelCase(data) as TeamInvite;
   }
 
   async createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite> {
@@ -1469,12 +1497,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('team_invites')
-      .insert(invite)
+      .insert(toSnakeCase(invite))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create team invite: ${error.message}`);
-    return data as TeamInvite;
+    return toCamelCase(data) as TeamInvite;
   }
 
   async getUserTeamMember(userId: string): Promise<TeamMember | undefined> {
@@ -1488,7 +1516,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as TeamMember;
+    return toCamelCase(data) as TeamMember;
   }
 
   async getTeamMember(teamId: string, userId: string): Promise<TeamMember | undefined> {
@@ -1502,7 +1530,7 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) return undefined;
-    return data as TeamMember;
+    return toCamelCase(data) as TeamMember;
   }
 
   async getTeamMembers(teamId: string): Promise<TeamMember[]> {
@@ -1514,7 +1542,7 @@ export class SupabaseStorage implements IStorage {
       .eq('team_id', teamId);
     
     if (error) return [];
-    return (data as TeamMember[]) || [];
+    return (data || []).map(toCamelCase) as TeamMember[];
   }
 
   async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
@@ -1522,12 +1550,12 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('team_members')
-      .insert(member)
+      .insert(toSnakeCase(member))
       .select()
       .single();
     
     if (error) throw new Error(`Failed to create team member: ${error.message}`);
-    return data as TeamMember;
+    return toCamelCase(data) as TeamMember;
   }
 
   async updateTeamMember(id: string, updates: Partial<InsertTeamMember>): Promise<TeamMember | undefined> {
@@ -1535,13 +1563,13 @@ export class SupabaseStorage implements IStorage {
     
     const { data, error } = await supabaseAdmin
       .from('team_members')
-      .update(updates)
+      .update(toSnakeCase(updates))
       .eq('id', id)
       .select()
       .single();
     
     if (error) return undefined;
-    return data as TeamMember;
+    return toCamelCase(data) as TeamMember;
   }
 
   async deleteTeamMember(id: string): Promise<boolean> {
