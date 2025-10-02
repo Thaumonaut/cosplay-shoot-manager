@@ -295,10 +295,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const teamId = req.params.id;
       
-      // Verify user is the owner of this team
+      // Verify user is owner or admin of this team
       const teamMember = await storage.getUserTeamMember(userId);
-      if (!teamMember || teamMember.teamId !== teamId || teamMember.role !== "owner") {
-        return res.status(403).json({ error: "Only team owners can update the team" });
+      if (!teamMember || teamMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Unauthorized to update this team" });
+      }
+      if (teamMember.role !== "owner" && teamMember.role !== "admin") {
+        return res.status(403).json({ error: "Only team owners and admins can update the team" });
       }
 
       const { name } = req.body;
@@ -525,6 +528,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get team members list
+  app.get("/api/team/:id/members", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+      
+      // Verify user is part of the team
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember || teamMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Unauthorized to access this team" });
+      }
+
+      const members = await storage.getTeamMembers(teamId);
+      
+      // Fetch user profiles for all members
+      const membersWithProfiles = await Promise.all(
+        members.map(async (member) => {
+          const profile = await storage.getUserProfile(member.userId);
+          return {
+            ...member,
+            profile,
+          };
+        })
+      );
+
+      res.json(membersWithProfiles);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      res.status(500).json({ error: "Failed to fetch team members" });
+    }
+  });
+
+  // Update team member role
+  app.patch("/api/team/:teamId/members/:memberId/role", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { teamId, memberId } = req.params;
+      const { role } = req.body;
+
+      if (!role || !['owner', 'admin', 'member'].includes(role)) {
+        return res.status(400).json({ error: "Valid role is required (owner, admin, or member)" });
+      }
+
+      // Get actor's team membership and role
+      const actorMember = await storage.getUserTeamMember(userId);
+      if (!actorMember || actorMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Unauthorized to modify this team" });
+      }
+
+      // Only owners and admins can change roles
+      if (actorMember.role !== "owner" && actorMember.role !== "admin") {
+        return res.status(403).json({ error: "Only owners and admins can change member roles" });
+      }
+
+      // Get target member's current details
+      const targetMember = await storage.getTeamMember(teamId, memberId);
+      if (!targetMember) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      // Check if actor can modify this target member
+      const { canModifyTeamMember } = await import("./middleware/permissions");
+      const canModify = await canModifyTeamMember(
+        actorMember.role as "owner" | "admin" | "member",
+        targetMember.role as "owner" | "admin" | "member"
+      );
+
+      if (!canModify) {
+        return res.status(403).json({ 
+          error: "You cannot modify this member's role. Admins can only modify regular members." 
+        });
+      }
+
+      // Update the role
+      const updatedMember = await storage.updateTeamMember(targetMember.id, { role });
+      res.json(updatedMember);
+    } catch (error) {
+      console.error("Error updating team member role:", error);
+      res.status(500).json({ error: "Failed to update member role" });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/team/:teamId/members/:memberId", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { teamId, memberId } = req.params;
+
+      // Get actor's team membership and role
+      const actorMember = await storage.getUserTeamMember(userId);
+      if (!actorMember || actorMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Unauthorized to modify this team" });
+      }
+
+      // Only owners and admins can remove members
+      if (actorMember.role !== "owner" && actorMember.role !== "admin") {
+        return res.status(403).json({ error: "Only owners and admins can remove members" });
+      }
+
+      // Get target member by ID
+      const members = await storage.getTeamMembers(teamId);
+      const targetMember = members.find(m => m.id === memberId);
+      
+      if (!targetMember) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      // Check if actor can modify this target member
+      const { canModifyTeamMember } = await import("./middleware/permissions");
+      const canModify = await canModifyTeamMember(
+        actorMember.role as "owner" | "admin" | "member",
+        targetMember.role as "owner" | "admin" | "member"
+      );
+
+      if (!canModify) {
+        return res.status(403).json({ 
+          error: "You cannot remove this member. Admins can only remove regular members." 
+        });
+      }
+
+      // Don't allow removing yourself
+      if (targetMember.userId === userId) {
+        return res.status(400).json({ error: "Use the leave team endpoint to leave the team" });
+      }
+
+      // Remove the member
+      await storage.deleteTeamMember(targetMember.id);
+      res.json({ message: "Team member removed successfully" });
+    } catch (error) {
+      console.error("Error removing team member:", error);
+      res.status(500).json({ error: "Failed to remove team member" });
+    }
+  });
+
   // Object Storage Routes
   // Serve uploaded images with authentication and ACL
   app.get("/objects/:objectPath(*)", authenticateUser, async (req: AuthRequest, res) => {
@@ -662,7 +799,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/shoots/:id/equipment", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const shoot = await storage.getShoot(req.params.id, userId);
+      const teamId = await getUserTeamId(userId);
+      const shoot = await storage.getTeamShoot(req.params.id, teamId);
       if (!shoot) {
         return res.sendStatus(404);
       }
@@ -677,7 +815,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/shoots/:id/props", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const shoot = await storage.getShoot(req.params.id, userId);
+      const teamId = await getUserTeamId(userId);
+      const shoot = await storage.getTeamShoot(req.params.id, teamId);
       if (!shoot) {
         return res.sendStatus(404);
       }
@@ -692,7 +831,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/shoots/:id/costumes", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const shoot = await storage.getShoot(req.params.id, userId);
+      const teamId = await getUserTeamId(userId);
+      const shoot = await storage.getTeamShoot(req.params.id, teamId);
       if (!shoot) {
         return res.sendStatus(404);
       }
@@ -704,11 +844,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all shoots for user with participant counts and first reference
+  // Get all shoots for user's team
   app.get("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const shoots = await storage.getUserShootsWithCounts(userId);
+      const teamId = await getUserTeamId(userId);
+      const shoots = await storage.getTeamShoots(teamId);
       res.json(shoots);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load shoots" });
@@ -722,7 +863,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -742,9 +884,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const teamId = await getUserTeamId(userId);
+      
+      // Check user's role - only owner/admin can create shoots
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+        return res.status(403).json({ error: "Only team owners and admins can create shoots" });
+      }
+      
       const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [] } = req.body;
       
-      const data = insertShootSchema.parse({ ...shoot, userId });
+      const data = insertShootSchema.parse({ ...shoot, userId, teamId });
       const createdShoot = await storage.createShoot(data);
       
       // Create personnel/participant associations
@@ -812,9 +961,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const updateSchema = insertShootSchema.omit({ userId: true }).partial();
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can update shoots
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can update shoots" });
+        }
+        
+        const updateSchema = insertShootSchema.omit({ userId: true, teamId: true }).partial();
         const data = updateSchema.parse(req.body);
-        const shoot = await storage.updateShoot(req.params.id, userId, data);
+        const shoot = await storage.updateTeamShoot(req.params.id, teamId, data);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -839,7 +996,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const deleted = await storage.deleteShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can delete shoots
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can delete shoots" });
+        }
+        
+        const deleted = await storage.deleteTeamShoot(req.params.id, teamId);
         if (!deleted) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -863,8 +1028,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userId = getUserId(req);
         const teamId = await getUserTeamId(userId);
         
-        // Verify shoot ownership
-        const shoot = await storage.getShoot(req.params.id, userId);
+        // Check user's role - only owner/admin can update shoot resources
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can update shoot resources" });
+        }
+        
+        // Verify shoot exists in team
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -949,7 +1120,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -972,7 +1144,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can add references
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can add references" });
+        }
+        
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -1017,11 +1197,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can delete references
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can delete references" });
+        }
+        
         const reference = await storage.getShootReferenceById(req.params.id);
         if (!reference) {
           return res.status(404).json({ error: "Reference not found" });
         }
-        const shoot = await storage.getShoot(reference.shootId, userId);
+        const shoot = await storage.getTeamShoot(reference.shootId, teamId);
         if (!shoot) {
           return res.status(403).json({ error: "Forbidden" });
         }
@@ -1044,7 +1232,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -1067,7 +1256,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can add participants
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can add participants" });
+        }
+        
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -1097,13 +1294,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can delete participants
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can delete participants" });
+        }
+        
         const participant = await storage.getShootParticipantById(
           req.params.id,
         );
         if (!participant) {
           return res.status(404).json({ error: "Participant not found" });
         }
-        const shoot = await storage.getShoot(participant.shootId, userId);
+        const shoot = await storage.getTeamShoot(participant.shootId, teamId);
         if (!shoot) {
           return res.status(403).json({ error: "Forbidden" });
         }
@@ -1126,7 +1331,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can export docs
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can export documents" });
+        }
+        
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -1140,7 +1353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           references,
         });
 
-        const updatedShoot = await storage.updateShoot(req.params.id, userId, {
+        const updatedShoot = await storage.updateTeamShoot(req.params.id, teamId, {
           docsUrl: docUrl,
         });
 
@@ -1164,7 +1377,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can create calendar events
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can create calendar events" });
+        }
+        
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
@@ -1195,7 +1416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shoot.locationNotes || null
         );
 
-        const updatedShoot = await storage.updateShoot(req.params.id, userId, {
+        const updatedShoot = await storage.updateTeamShoot(req.params.id, teamId, {
           calendarEventId: eventId,
           calendarEventUrl: eventUrl,
         });
@@ -1228,7 +1449,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: AuthRequest, res) => {
       try {
         const userId = getUserId(req);
-        const shoot = await storage.getShoot(req.params.id, userId);
+        const teamId = await getUserTeamId(userId);
+        
+        // Check user's role - only owner/admin can send reminders
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can send reminders" });
+        }
+        
+        const shoot = await storage.getTeamShoot(req.params.id, teamId);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
