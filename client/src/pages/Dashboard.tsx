@@ -12,7 +12,7 @@ import { AccordionShoots } from "@/components/AccordionShoots";
 import { AddShootDialog } from "@/components/AddShootDialog";
 import { ShootDetailView } from "@/components/ShootDetailView";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
-import heroImage from '@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png';
+import heroImage from "@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +24,14 @@ export default function Dashboard() {
   const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: shoots = [], isLoading, isError, error, refetch, isFetching } = useQuery<Shoot[]>({
+  const {
+    data: shoots = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery<Shoot[]>({
     queryKey: ["/api/shoots"],
     retry: 2,
     retryDelay: 1000,
@@ -38,7 +45,7 @@ export default function Dashboard() {
   const exportDocsMutation = useMutation({
     mutationFn: async (shootId: string) => {
       const res = await apiRequest("POST", `/api/shoots/${shootId}/export-doc`);
-      return await res.json() as { docId: string; docUrl: string };
+      return (await res.json()) as { docId: string; docUrl: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
@@ -47,13 +54,14 @@ export default function Dashboard() {
         description: "Your shoot has been exported to Google Docs.",
       });
       if (data?.docUrl) {
-        window.open(data.docUrl, '_blank');
+        window.open(data.docUrl, "_blank");
       }
     },
     onError: (error: Error) => {
       toast({
         title: "Export Failed",
-        description: error.message || "Failed to export to Google Docs. Please try again.",
+        description:
+          error.message || "Failed to export to Google Docs. Please try again.",
         variant: "destructive",
       });
     },
@@ -61,23 +69,26 @@ export default function Dashboard() {
 
   const createCalendarMutation = useMutation({
     mutationFn: async (shootId: string) => {
-      const res = await apiRequest("POST", `/api/shoots/${shootId}/create-calendar-event`);
+      const res = await apiRequest(
+        "POST",
+        `/api/shoots/${shootId}/create-calendar-event`,
+      );
       const data = await res.json();
-      
+
       // Handle 409 (conflict - event already exists) as success
       if (res.status === 409) {
         return { ...data, alreadyExists: true };
       }
-      
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create calendar event');
+        throw new Error(data.error || "Failed to create calendar event");
       }
-      
+
       return data as { eventId: string; eventUrl: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
-      
+
       if (data.alreadyExists) {
         toast({
           title: "Calendar Event Exists",
@@ -89,15 +100,16 @@ export default function Dashboard() {
           description: "Your shoot has been added to Google Calendar.",
         });
       }
-      
+
       if (data?.eventUrl) {
-        window.open(data.eventUrl, '_blank');
+        window.open(data.eventUrl, "_blank");
       }
     },
     onError: (error: Error) => {
       toast({
         title: "Calendar Creation Failed",
-        description: error.message || "Failed to create calendar event. Please try again.",
+        description:
+          error.message || "Failed to create calendar event. Please try again.",
         variant: "destructive",
       });
     },
@@ -105,13 +117,16 @@ export default function Dashboard() {
 
   const sendRemindersMutation = useMutation({
     mutationFn: async (shootId: string) => {
-      const res = await apiRequest("POST", `/api/shoots/${shootId}/send-reminders`);
+      const res = await apiRequest(
+        "POST",
+        `/api/shoots/${shootId}/send-reminders`,
+      );
       const data = await res.json();
-      
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to send reminders');
+        throw new Error(data.error || "Failed to send reminders");
       }
-      
+
       return data as { success: boolean; count: number; message: string };
     },
     onSuccess: (data) => {
@@ -123,7 +138,8 @@ export default function Dashboard() {
     onError: (error: Error) => {
       toast({
         title: "Failed to Send Reminders",
-        description: error.message || "Failed to send email reminders. Please try again.",
+        description:
+          error.message || "Failed to send email reminders. Please try again.",
         variant: "destructive",
       });
     },
@@ -131,25 +147,38 @@ export default function Dashboard() {
 
   const selectedShoot = shoots.find((shoot) => shoot.id === selectedShootId);
 
-  const getStatusFromShoot = (shoot: Shoot): 'idea' | 'planning' | 'scheduled' | 'completed' => {
-    return shoot.status as 'idea' | 'planning' | 'scheduled' | 'completed';
+  const getStatusFromShoot = (
+    shoot: Shoot,
+  ): "idea" | "planning" | "scheduled" | "completed" => {
+    return shoot.status as "idea" | "planning" | "scheduled" | "completed";
   };
 
   const upcomingShoots = shoots
-    .filter((shoot) => shoot.status === 'scheduled' && shoot.date)
+    .filter(
+      (shoot) =>
+        (shoot.status === "scheduled" || shoot.status === "planning") &&
+        shoot.date,
+    )
     .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
     .slice(0, 3)
     .map((shoot) => {
-      const daysUntil = Math.ceil((new Date(shoot.date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const daysUntil = Math.ceil(
+        (new Date(shoot.date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
       return {
         id: shoot.id,
         title: shoot.title,
         date: new Date(shoot.date!),
-        location: shoot.locationNotes || 'TBD',
+        location: shoot.locationNotes || "TBD",
         image: heroImage,
         hasCalendar: !!shoot.calendarEventUrl,
         hasDocs: !!shoot.docsUrl,
-        countdown: daysUntil === 1 ? '1 day' : daysUntil < 7 ? `${daysUntil} days` : `${Math.ceil(daysUntil / 7)} week${Math.ceil(daysUntil / 7) === 1 ? '' : 's'}`,
+        countdown:
+          daysUntil === 1
+            ? "1 day"
+            : daysUntil < 7
+              ? `${daysUntil} days`
+              : `${Math.ceil(daysUntil / 7)} week${Math.ceil(daysUntil / 7) === 1 ? "" : "s"}`,
       };
     });
 
@@ -163,17 +192,17 @@ export default function Dashboard() {
     }));
 
   const statusFilter = params?.status as string | undefined;
-  const filteredShoots = statusFilter 
+  const filteredShoots = statusFilter
     ? shoots.filter((shoot) => shoot.status === statusFilter)
     : shoots;
 
   const kanbanColumns = [
     {
-      id: 'idea',
-      title: 'Ideas',
+      id: "idea",
+      title: "Ideas",
       icon: Lightbulb,
       shoots: filteredShoots
-        .filter((shoot) => shoot.status === 'idea')
+        .filter((shoot) => shoot.status === "idea")
         .map((shoot) => ({
           id: shoot.id,
           title: shoot.title,
@@ -182,11 +211,11 @@ export default function Dashboard() {
         })),
     },
     {
-      id: 'planning',
-      title: 'Planning',
+      id: "planning",
+      title: "Planning",
       icon: Clock,
       shoots: filteredShoots
-        .filter((shoot) => shoot.status === 'planning')
+        .filter((shoot) => shoot.status === "planning")
         .map((shoot) => ({
           id: shoot.id,
           title: shoot.title,
@@ -198,11 +227,11 @@ export default function Dashboard() {
         })),
     },
     {
-      id: 'scheduled',
-      title: 'Scheduled',
+      id: "scheduled",
+      title: "Scheduled",
       icon: Calendar,
       shoots: filteredShoots
-        .filter((shoot) => shoot.status === 'scheduled')
+        .filter((shoot) => shoot.status === "scheduled")
         .map((shoot) => ({
           id: shoot.id,
           title: shoot.title,
@@ -215,11 +244,11 @@ export default function Dashboard() {
         })),
     },
     {
-      id: 'completed',
-      title: 'Completed',
+      id: "completed",
+      title: "Completed",
       icon: CheckCircle2,
       shoots: filteredShoots
-        .filter((shoot) => shoot.status === 'completed')
+        .filter((shoot) => shoot.status === "completed")
         .map((shoot) => ({
           id: shoot.id,
           title: shoot.title,
@@ -244,20 +273,30 @@ export default function Dashboard() {
               <Sparkles className="h-10 w-10 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Oops! Our Database is Taking a Cosplay Break</h3>
-              <p className="text-sm text-muted-foreground" data-testid="text-error-message">
-                It seems our database wandered off to a photoshoot and forgot to leave a note. Don't worry, we'll track it down!
+              <h3 className="text-lg font-semibold">
+                Oops! Our Database is Taking a Cosplay Break
+              </h3>
+              <p
+                className="text-sm text-muted-foreground"
+                data-testid="text-error-message"
+              >
+                It seems our database wandered off to a photoshoot and forgot to
+                leave a note. Don't worry, we'll track it down!
               </p>
             </div>
-            <Button 
-              onClick={() => refetch()} 
-              variant="outline" 
+            <Button
+              onClick={() => refetch()}
+              variant="outline"
               className="gap-2"
               disabled={isFetching}
               data-testid="button-retry"
             >
-              <RefreshCcw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-              {isFetching ? 'Searching for the database...' : 'Try Finding It Again'}
+              <RefreshCcw
+                className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+              />
+              {isFetching
+                ? "Searching for the database..."
+                : "Try Finding It Again"}
             </Button>
           </CardContent>
         </Card>
@@ -274,8 +313,8 @@ export default function Dashboard() {
           status: getStatusFromShoot(selectedShoot),
           date: selectedShoot.date ? new Date(selectedShoot.date) : undefined,
           location: selectedShoot.locationNotes || undefined,
-          description: selectedShoot.description || '',
-          participants: participants.map(p => ({
+          description: selectedShoot.description || "",
+          participants: participants.map((p) => ({
             id: p.id,
             name: p.name,
             role: p.role,
@@ -287,9 +326,9 @@ export default function Dashboard() {
           docsUrl: selectedShoot.docsUrl || undefined,
         }}
         onBack={() => setSelectedShootId(null)}
-        onEdit={() => console.log('Edit shoot')}
+        onEdit={() => console.log("Edit shoot")}
         onDelete={() => {
-          console.log('Delete shoot');
+          console.log("Delete shoot");
           setSelectedShootId(null);
         }}
         onExportDocs={() => exportDocsMutation.mutate(selectedShootId)}
@@ -306,26 +345,26 @@ export default function Dashboard() {
     if (statusFilter) {
       return statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
     }
-    if (location === '/calendar') {
-      return 'Calendar View';
+    if (location === "/calendar") {
+      return "Calendar View";
     }
-    if (location === '/shoots') {
-      return 'All Shoots';
+    if (location === "/shoots") {
+      return "All Shoots";
     }
-    return 'Upcoming Shoots';
+    return "Upcoming Shoots";
   };
 
   const getPageDescription = () => {
     if (statusFilter) {
       return `View all ${statusFilter} shoots`;
     }
-    if (location === '/calendar') {
-      return 'View your shoots in calendar format';
+    if (location === "/calendar") {
+      return "View your shoots in calendar format";
     }
-    if (location === '/shoots') {
-      return 'Browse and manage all your shoots';
+    if (location === "/shoots") {
+      return "Browse and manage all your shoots";
     }
-    return 'Plan and track your cosplay photo sessions';
+    return "Plan and track your cosplay photo sessions";
   };
 
   return (
@@ -333,9 +372,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold mb-2">{getPageTitle()}</h1>
-          <p className="text-muted-foreground">
-            {getPageDescription()}
-          </p>
+          <p className="text-muted-foreground">{getPageDescription()}</p>
         </div>
         <Button
           size="lg"
@@ -347,14 +384,14 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {location === '/calendar' ? (
+      {location === "/calendar" ? (
         <div className="max-w-4xl mx-auto">
           <ShootCalendar
             shoots={calendarShoots}
             onShootClick={(id) => setSelectedShootId(id)}
           />
         </div>
-      ) : location === '/' && !statusFilter ? (
+      ) : location === "/" && !statusFilter ? (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -363,7 +400,7 @@ export default function Dashboard() {
                 onShootClick={(id) => setSelectedShootId(id)}
               />
             </div>
-            
+
             <div>
               <ShootCalendar
                 shoots={calendarShoots}
