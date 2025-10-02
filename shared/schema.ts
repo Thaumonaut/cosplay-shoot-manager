@@ -24,7 +24,7 @@ export const teamMembers = pgTable("team_members", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
-  role: text("role").notNull().default("member"),
+  role: text("role", { enum: ["owner", "admin", "member"] }).notNull().default("member"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -99,7 +99,7 @@ export const costumeProgress = pgTable("costume_progress", {
 
 export const shoots = pgTable("shoots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  teamId: varchar("team_id").references(() => teams.id, { onDelete: "cascade" }),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   status: text("status").notNull().default("idea"),

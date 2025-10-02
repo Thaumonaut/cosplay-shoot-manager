@@ -15,6 +15,13 @@
       "when": 1759375943950,
       "tag": "0001_nervous_archangel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759378292395,
+      "tag": "0002_furry_titanium_man",
+      "breakpoints": true
     }
   ]
 }
