@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { InsertShoot, Shoot, Equipment, Location, Prop, CostumeProgress } from "@shared/schema";
+import type { InsertShoot, Shoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation as useLocationRouter } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -25,10 +26,11 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, Link as LinkIcon, X } from "lucide-react";
+import { CalendarIcon, Upload, Link as LinkIcon, X, Edit, Plus, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
+import { Separator } from "@/components/ui/separator";
 
 interface AddShootDialogProps {
   open: boolean;
@@ -37,7 +39,9 @@ interface AddShootDialogProps {
 
 export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocationRouter();
   const [title, setTitle] = useState("");
+  const [manualTitle, setManualTitle] = useState(false);
   const [status, setStatus] = useState<string>("idea");
   const [date, setDate] = useState<Date>();
   const [locationId, setLocationId] = useState<string>("");
@@ -47,11 +51,17 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [currentLink, setCurrentLink] = useState("");
   
   // Resource selections
+  const [selectedPersonnel, setSelectedPersonnel] = useState<string[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedProps, setSelectedProps] = useState<string[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
 
-  // Fetch resources
+  // Fetch resources - always fetch, show empty states if needed
+  const { data: personnel = [] } = useQuery<Personnel[]>({
+    queryKey: ["/api/personnel"],
+    enabled: open,
+  });
+
   const { data: equipment = [] } = useQuery<Equipment[]>({
     queryKey: ["/api/equipment"],
     enabled: open,
@@ -72,8 +82,43 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     enabled: open,
   });
 
+  // Auto-generate title from selected costumes
+  useEffect(() => {
+    if (!manualTitle && costumes.length > 0) {
+      const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
+      if (selectedCostumeData.length > 0) {
+        const characters = selectedCostumeData.map(c => c.characterName);
+        const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
+        const series = Array.from(seriesSet);
+        
+        let generatedTitle = "";
+        if (characters.length === 1) {
+          generatedTitle = characters[0];
+          if (series.length > 0 && series[0]) {
+            generatedTitle += ` - ${series[0]}`;
+          }
+        } else if (characters.length > 1) {
+          generatedTitle = characters.slice(0, 2).join(" & ");
+          if (characters.length > 2) {
+            generatedTitle += ` +${characters.length - 2}`;
+          }
+          if (series.length > 0 && series[0]) {
+            generatedTitle += ` - ${series[0]}`;
+          }
+        }
+        
+        if (generatedTitle) {
+          setTitle(generatedTitle + " Shoot");
+        }
+      } else if (title.endsWith(" Shoot")) {
+        // Clear auto-generated title if no costumes selected
+        setTitle("");
+      }
+    }
+  }, [selectedCostumes, costumes, manualTitle]);
+
   const createShootMutation = useMutation({
-    mutationFn: async (data: { shoot: InsertShoot; equipmentIds: string[]; propIds: string[]; costumeIds: string[] }) => {
+    mutationFn: async (data: { shoot: InsertShoot; personnelIds: string[]; equipmentIds: string[]; propIds: string[]; costumeIds: string[] }) => {
       const response = await apiRequest("POST", "/api/shoots", data);
       return await response.json() as Shoot;
     },
@@ -97,12 +142,14 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
 
   const resetForm = () => {
     setTitle("");
+    setManualTitle(false);
     setStatus("idea");
     setDate(undefined);
     setLocationId("");
     setLocationNotes("");
     setNotes("");
     setInstagramLinks([]);
+    setSelectedPersonnel([]);
     setSelectedEquipment([]);
     setSelectedProps([]);
     setSelectedCostumes([]);
@@ -117,6 +164,12 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
 
   const handleRemoveLink = (index: number) => {
     setInstagramLinks(instagramLinks.filter((_, i) => i !== index));
+  };
+
+  const togglePersonnel = (id: string) => {
+    setSelectedPersonnel(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const toggleEquipment = (id: string) => {
@@ -153,6 +206,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     
     createShootMutation.mutate({
       shoot: shoot as InsertShoot,
+      personnelIds: selectedPersonnel,
       equipmentIds: selectedEquipment,
       propIds: selectedProps,
       costumeIds: selectedCostumes,
@@ -161,7 +215,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-shoot">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-shoot">
         <DialogHeader>
           <DialogTitle>Add New Shoot</DialogTitle>
           <DialogDescription>
@@ -170,15 +224,38 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Title with manual override */}
           <div className="space-y-2">
-            <Label htmlFor="title">Shoot Title *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="title">Shoot Title *</Label>
+              {!manualTitle && selectedCostumes.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setManualTitle(true)}
+                  data-testid="button-manual-title"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit manually
+                </Button>
+              )}
+            </div>
             <Input
               id="title"
               placeholder="e.g., Cyberpunk 2077 - V Character"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setManualTitle(true);
+              }}
               data-testid="input-shoot-title"
             />
+            {!manualTitle && selectedCostumes.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Auto-generated from selected characters
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -232,24 +309,36 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                   />
                 </div>
 
-                {locations.length > 0 && (
-                  <div className="space-y-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="location">Or select from saved locations</Label>
-                    <Select value={locationId} onValueChange={setLocationId}>
-                      <SelectTrigger data-testid="select-location">
-                        <SelectValue placeholder="Choose a saved location..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">No location selected</SelectItem>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        onOpenChange(false);
+                        setLocation("/locations");
+                      }}
+                      data-testid="button-create-location"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Create new
+                    </Button>
                   </div>
-                )}
+                  <Select value={locationId} onValueChange={setLocationId}>
+                    <SelectTrigger data-testid="select-location">
+                      <SelectValue placeholder={locations.length > 0 ? "Choose a saved location..." : "No locations yet - create one"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id} data-testid={`select-location-${loc.id}`}>
+                          {loc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {locationNotes && (
                   <div className="space-y-2">
@@ -280,95 +369,213 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
             />
           </div>
 
-          {/* Equipment Selection */}
-          {equipment.length > 0 && (
-            <div className="space-y-2">
-              <Label>Equipment</Label>
-              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
-                {equipment.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`equipment-${item.id}`}
-                      checked={selectedEquipment.includes(item.id)}
-                      onCheckedChange={() => toggleEquipment(item.id)}
-                      data-testid={`checkbox-equipment-${item.id}`}
-                    />
-                    <label
-                      htmlFor={`equipment-${item.id}`}
-                      className="text-sm cursor-pointer flex-1"
-                    >
-                      {item.name} {item.category && `(${item.category})`}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {selectedEquipment.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedEquipment.length} item{selectedEquipment.length !== 1 ? 's' : ''} selected
-                </p>
-              )}
+          <Separator />
+
+          {/* Personnel Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Personnel</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  setLocation("/personnel");
+                }}
+                data-testid="button-create-personnel"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Create new
+              </Button>
             </div>
-          )}
+            {personnel.length > 0 ? (
+              <>
+                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                  {personnel.map((person) => (
+                    <div key={person.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`personnel-${person.id}`}
+                        checked={selectedPersonnel.includes(person.id)}
+                        onCheckedChange={() => togglePersonnel(person.id)}
+                        data-testid={`checkbox-personnel-${person.id}`}
+                      />
+                      <label
+                        htmlFor={`personnel-${person.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {person.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedPersonnel.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedPersonnel.length} person{selectedPersonnel.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="border border-dashed rounded-md p-4 text-center text-sm text-muted-foreground">
+                No personnel yet. Create your first team member to select them for shoots.
+              </div>
+            )}
+          </div>
+
+          {/* Costumes Selection - shows first for auto-title generation */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Costumes & Characters</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  setLocation("/costumes");
+                }}
+                data-testid="button-create-costume"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Create new
+              </Button>
+            </div>
+            {costumes.length > 0 ? (
+              <>
+                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                  {costumes.map((costume) => (
+                    <div key={costume.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`costume-${costume.id}`}
+                        checked={selectedCostumes.includes(costume.id)}
+                        onCheckedChange={() => toggleCostume(costume.id)}
+                        data-testid={`checkbox-costume-${costume.id}`}
+                      />
+                      <label
+                        htmlFor={`costume-${costume.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {costume.characterName} {costume.seriesName && `(${costume.seriesName})`}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedCostumes.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedCostumes.length} costume{selectedCostumes.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="border border-dashed rounded-md p-4 text-center text-sm text-muted-foreground">
+                No costumes yet. Create your first costume to select it for shoots.
+              </div>
+            )}
+          </div>
+
+          {/* Equipment Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Equipment</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  setLocation("/equipment");
+                }}
+                data-testid="button-create-equipment"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Create new
+              </Button>
+            </div>
+            {equipment.length > 0 ? (
+              <>
+                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                  {equipment.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`equipment-${item.id}`}
+                        checked={selectedEquipment.includes(item.id)}
+                        onCheckedChange={() => toggleEquipment(item.id)}
+                        data-testid={`checkbox-equipment-${item.id}`}
+                      />
+                      <label
+                        htmlFor={`equipment-${item.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {item.name} {item.category && `(${item.category})`}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedEquipment.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedEquipment.length} item{selectedEquipment.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="border border-dashed rounded-md p-4 text-center text-sm text-muted-foreground">
+                No equipment yet. Create your first equipment item to select it for shoots.
+              </div>
+            )}
+          </div>
 
           {/* Props Selection */}
-          {props.length > 0 && (
-            <div className="space-y-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <Label>Props</Label>
-              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
-                {props.map((prop) => (
-                  <div key={prop.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`prop-${prop.id}`}
-                      checked={selectedProps.includes(prop.id)}
-                      onCheckedChange={() => toggleProp(prop.id)}
-                      data-testid={`checkbox-prop-${prop.id}`}
-                    />
-                    <label
-                      htmlFor={`prop-${prop.id}`}
-                      className="text-sm cursor-pointer flex-1"
-                    >
-                      {prop.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {selectedProps.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedProps.length} prop{selectedProps.length !== 1 ? 's' : ''} selected
-                </p>
-              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  setLocation("/props");
+                }}
+                data-testid="button-create-prop"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Create new
+              </Button>
             </div>
-          )}
+            {props.length > 0 ? (
+              <>
+                <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                  {props.map((prop) => (
+                    <div key={prop.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`prop-${prop.id}`}
+                        checked={selectedProps.includes(prop.id)}
+                        onCheckedChange={() => toggleProp(prop.id)}
+                        data-testid={`checkbox-prop-${prop.id}`}
+                      />
+                      <label
+                        htmlFor={`prop-${prop.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {prop.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedProps.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedProps.length} prop{selectedProps.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="border border-dashed rounded-md p-4 text-center text-sm text-muted-foreground">
+                No props yet. Create your first prop to select it for shoots.
+              </div>
+            )}
+          </div>
 
-          {/* Costumes Selection */}
-          {costumes.length > 0 && (
-            <div className="space-y-2">
-              <Label>Costumes</Label>
-              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
-                {costumes.map((costume) => (
-                  <div key={costume.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`costume-${costume.id}`}
-                      checked={selectedCostumes.includes(costume.id)}
-                      onCheckedChange={() => toggleCostume(costume.id)}
-                      data-testid={`checkbox-costume-${costume.id}`}
-                    />
-                    <label
-                      htmlFor={`costume-${costume.id}`}
-                      className="text-sm cursor-pointer flex-1"
-                    >
-                      {costume.characterName} {costume.seriesName && `(${costume.seriesName})`}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {selectedCostumes.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedCostumes.length} costume{selectedCostumes.length !== 1 ? 's' : ''} selected
-                </p>
-              )}
-            </div>
-          )}
+          <Separator />
 
           <div className="space-y-2">
             <Label>Instagram References</Label>

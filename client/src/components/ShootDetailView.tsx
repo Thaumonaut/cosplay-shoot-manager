@@ -29,6 +29,7 @@ import {
 import { SiGooglecalendar, SiGoogledocs, SiInstagram } from "react-icons/si";
 import { format } from "date-fns";
 import { AddParticipantDialog } from "@/components/AddParticipantDialog";
+import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Equipment, Prop, CostumeProgress } from "@shared/schema";
@@ -340,7 +341,17 @@ export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExpor
               ) : editingField === "location" ? (
                 <div className="space-y-3 border rounded-lg p-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Location</label>
+                    <label className="text-sm font-medium">Search for Location</label>
+                    <MapboxLocationSearch
+                      onLocationSelect={(location) => {
+                        setEditValues({ ...editValues, location: `${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}` });
+                      }}
+                      placeholder="Search for a location..."
+                      initialValue={editValues.location}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Or enter manually</label>
                     <Input
                       value={editValues.location}
                       onChange={(e) => setEditValues({ ...editValues, location: e.target.value })}

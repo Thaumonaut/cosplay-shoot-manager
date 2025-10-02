@@ -32,10 +32,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const getUserTeamId = async (userId: string): Promise<string> => {
-    const member = await storage.getUserTeamMember(userId);
+    let member = await storage.getUserTeamMember(userId);
+    
+    // If user doesn't have a team, create a personal team for them
     if (!member) {
-      throw new Error("User not part of any team");
+      const profile = await storage.getUserProfile(userId);
+      const teamName = profile?.firstName ? `${profile.firstName}'s Team` : "My Team";
+      const team = await storage.createTeam({ name: teamName });
+      
+      // Add user as team owner
+      member = await storage.createTeamMember({
+        teamId: team.id,
+        userId,
+        role: "owner",
+      });
     }
+    
     return member.teamId;
   };
 
@@ -454,10 +466,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/shoots", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const { shoot, equipmentIds = [], propIds = [], costumeIds = [] } = req.body;
+      const teamId = await getUserTeamId(userId);
+      const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [] } = req.body;
       
       const data = insertShootSchema.parse({ ...shoot, userId });
       const createdShoot = await storage.createShoot(data);
+      
+      // Create personnel/participant associations
+      if (personnelIds.length > 0) {
+        for (const personnelId of personnelIds) {
+          const personnel = await storage.getPersonnel(personnelId, teamId);
+          if (personnel) {
+            await storage.createShootParticipant({
+              shootId: createdShoot.id,
+              name: personnel.name,
+              role: "Participant",
+              email: personnel.email,
+              personnelId: personnel.id,
+            });
+          }
+        }
+      }
       
       // Create resource associations
       if (equipmentIds.length > 0) {

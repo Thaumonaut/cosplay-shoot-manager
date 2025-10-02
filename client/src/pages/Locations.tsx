@@ -26,6 +26,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, MapPin, Map } from "lucide-react";
+import { MapboxLocationSearch } from "@/components/MapboxLocationSearch";
 import type { Location as LocationType } from "@shared/schema";
 
 const locationFormSchema = z.object({
@@ -292,23 +293,39 @@ export default function Locations() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="123 Main St, New York, NY 10001"
-                        {...field}
-                        data-testid="input-location-address"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <FormLabel>Search for Address</FormLabel>
+                  <MapboxLocationSearch
+                    onLocationSelect={(location) => {
+                      const fullAddress = `${location.name || location.address}\nLat: ${location.latitude}, Lng: ${location.longitude}`;
+                      form.setValue("address", fullAddress);
+                      if (!form.getValues("name")) {
+                        form.setValue("name", location.name || location.address.split(",")[0]);
+                      }
+                    }}
+                    placeholder="Search for a location..."
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Or enter manually</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="123 Main St, New York, NY 10001"
+                          {...field}
+                          rows={2}
+                          data-testid="input-location-address"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="notes"

@@ -6,6 +6,27 @@ A web application for managing and organizing cosplay photo shoots. The system p
 
 ## Recent Changes
 
+**October 2, 2025**
+- **Enhanced AddShootDialog with smart title generation**: Shoot titles now auto-generate from selected costumes/characters with manual override option
+  - Single costume: "Character Name - Series Shoot"
+  - Multiple costumes: "Character1 & Character2 - Series Shoot" or "Character1 & Character2 +N Shoot"
+  - Manual override: Toggle to customize title freely
+- **Always-visible resource sections**: All resource types (personnel, equipment, locations, props, costumes) now always display in AddShootDialog, even when empty
+  - Each section includes "Create New" navigation button for quick resource creation
+  - Improved UX by eliminating confusion about where to add resources
+- **Personnel selection in shoot creation**: Users can now select personnel/participants when creating shoots
+  - Backend creates ShootParticipant records linking selected personnel to the new shoot
+  - Proper team-scoped queries ensure data security
+- **Google Places API consistency**: Extended Places API integration across all location inputs
+  - ShootDetailView location editing now uses Places API search with manual entry fallback
+  - Locations resource page uses Places API for address search with coordinate capture
+  - Consistent UX pattern: search-first with manual entry option
+- **Team creation fallback**: Automatic personal team creation for authenticated users without teams
+  - Prevents "User not part of any team" errors for existing users created before automatic team creation
+  - getUserTeamId now creates a personal team on-the-fly if user lacks team membership
+  - Ensures all authenticated users have team context for resource access
+- **UI fixes**: Removed empty SelectItem value that caused browser validation errors
+
 **October 1, 2025**
 - Extended signup flow with first/last name, profile picture upload, and team invite code
 - Implemented social login (Google, Apple, Microsoft) with OAuth callback handling
