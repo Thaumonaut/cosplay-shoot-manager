@@ -32,7 +32,16 @@ export function TeamSwitcher() {
       return apiRequest("POST", "/api/user/active-team", { teamId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ["/api/user/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/props"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
       toast({
         title: "Team switched",
         description: "You're now viewing resources from the selected team.",
