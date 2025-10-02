@@ -902,13 +902,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only team owners and admins can create shoots" });
       }
       
-      const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [] } = req.body;
+      const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [], participants = [] } = req.body;
       
       const data = insertShootSchema.parse({ ...shoot, userId, teamId });
       const createdShoot = await storage.createShoot(data);
       
-      // Create personnel/participant associations
-      if (personnelIds.length > 0) {
+      // Create participant associations from participants array (with roles)
+      if (participants.length > 0) {
+        for (const participant of participants) {
+          const personnel = await storage.getPersonnel(participant.personnelId, teamId);
+          if (personnel) {
+            await storage.createShootParticipant({
+              shootId: createdShoot.id,
+              name: personnel.name,
+              role: participant.role || "Participant",
+              email: personnel.email,
+              personnelId: personnel.id,
+            });
+          }
+        }
+      }
+      
+      // Fallback: Create personnel/participant associations from personnelIds (for backward compatibility)
+      if (personnelIds.length > 0 && participants.length === 0) {
         for (const personnelId of personnelIds) {
           const personnel = await storage.getPersonnel(personnelId, teamId);
           if (personnel) {
