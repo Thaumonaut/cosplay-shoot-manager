@@ -586,82 +586,78 @@ export default function ShootPage() {
             Back
           </Button>
           <div className="flex gap-2">
-            {!isNew && (
-              <>
-                {existingShoot?.calendarEventUrl ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    data-testid="button-view-calendar"
-                  >
-                    <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
-                      <SiGooglecalendar className="h-4 w-4 mr-2" />
-                      View Calendar
-                    </a>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => createCalendarEventMutation.mutate()}
-                    disabled={createCalendarEventMutation.isPending}
-                    data-testid="button-create-calendar"
-                  >
-                    <SiGooglecalendar className="h-4 w-4 mr-2" />
-                    {createCalendarEventMutation.isPending ? "Adding..." : "Add to Calendar"}
-                  </Button>
-                )}
-
-                {existingShoot?.docsUrl ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    data-testid="button-view-docs"
-                  >
-                    <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
-                      <SiGoogledocs className="h-4 w-4 mr-2" />
-                      View Doc
-                    </a>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => createDocsMutation.mutate()}
-                    disabled={createDocsMutation.isPending}
-                    data-testid="button-create-docs"
-                  >
-                    <SiGoogledocs className="h-4 w-4 mr-2" />
-                    {createDocsMutation.isPending ? "Creating..." : "Create Doc"}
-                  </Button>
-                )}
-
-                {selectedPersonnel.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => sendRemindersMutation.mutate()}
-                    disabled={sendRemindersMutation.isPending}
-                    data-testid="button-send-reminders"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Send Reminders
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => deleteMutation.mutate()}
-                  className="text-destructive"
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </>
+            {existingShoot?.calendarEventUrl ? (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                data-testid="button-view-calendar"
+              >
+                <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
+                  <SiGooglecalendar className="h-4 w-4 mr-2" />
+                  Calendar
+                </a>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => createCalendarEventMutation.mutate()}
+                disabled={isNew || createCalendarEventMutation.isPending}
+                data-testid="button-create-calendar"
+              >
+                <SiGooglecalendar className="h-4 w-4 mr-2" />
+                Calendar
+              </Button>
             )}
+
+            {existingShoot?.docsUrl ? (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                data-testid="button-view-docs"
+              >
+                <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
+                  <SiGoogledocs className="h-4 w-4 mr-2" />
+                  Docs
+                </a>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => createDocsMutation.mutate()}
+                disabled={isNew || createDocsMutation.isPending}
+                data-testid="button-create-docs"
+              >
+                <SiGoogledocs className="h-4 w-4 mr-2" />
+                Docs
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => sendRemindersMutation.mutate()}
+              disabled={isNew || selectedPersonnel.length === 0 || sendRemindersMutation.isPending}
+              data-testid="button-send-reminders"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Reminders
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => deleteMutation.mutate()}
+              disabled={isNew}
+              className="text-destructive"
+              data-testid="button-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
           </div>
         </div>
 
@@ -750,54 +746,56 @@ export default function ShootPage() {
       {/* Quick Details Section */}
       <Card>
         <CardContent className="space-y-4 p-3">
-          <div className="space-y-2">
-            <Label>Reminder</Label>
-            <Select value={reminderPreset} onValueChange={setReminderPreset}>
-              <SelectTrigger data-testid="select-reminder">
-                <SelectValue placeholder="Set a reminder..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No reminder</SelectItem>
-                <SelectItem value="15min">15 minutes before</SelectItem>
-                <SelectItem value="30min">30 minutes before</SelectItem>
-                <SelectItem value="1hour">1 hour before</SelectItem>
-                <SelectItem value="1day">1 day before</SelectItem>
-                <SelectItem value="custom">Custom...</SelectItem>
-              </SelectContent>
-            </Select>
+          {shootDate && shootTime && (
+            <div className="space-y-2">
+              <Label>Reminder</Label>
+              <Select value={reminderPreset} onValueChange={setReminderPreset}>
+                <SelectTrigger data-testid="select-reminder">
+                  <SelectValue placeholder="Set a reminder..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No reminder</SelectItem>
+                  <SelectItem value="15min">15 minutes before</SelectItem>
+                  <SelectItem value="30min">30 minutes before</SelectItem>
+                  <SelectItem value="1hour">1 hour before</SelectItem>
+                  <SelectItem value="1day">1 day before</SelectItem>
+                  <SelectItem value="custom">Custom...</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {reminderPreset === "custom" && (
-              <div className="flex gap-2 mt-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 justify-start text-left font-normal"
-                      data-testid="button-custom-reminder-date"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customReminderDate ? format(customReminderDate, "PPP") : <span>Pick date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={customReminderDate}
-                      onSelect={setCustomReminderDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Input
-                  type="time"
-                  value={customReminderTime}
-                  onChange={(e) => setCustomReminderTime(e.target.value)}
-                  className="flex-1"
-                  data-testid="input-custom-reminder-time"
-                />
-              </div>
-            )}
-          </div>
+              {reminderPreset === "custom" && (
+                <div className="flex gap-2 mt-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex-1 justify-start text-left font-normal"
+                        data-testid="button-custom-reminder-date"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customReminderDate ? format(customReminderDate, "PPP") : <span>Pick date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={customReminderDate}
+                        onSelect={setCustomReminderDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    type="time"
+                    value={customReminderTime}
+                    onChange={(e) => setCustomReminderTime(e.target.value)}
+                    className="flex-1"
+                    data-testid="input-custom-reminder-time"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {!isNew && (
             <div className="flex items-center justify-between">
@@ -848,7 +846,7 @@ export default function ShootPage() {
                 {selectedLocation ? "Change" : "Add"}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-96">
               <DropdownMenuItem onSelect={() => setCreateLocationOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New...
@@ -920,7 +918,7 @@ export default function ShootPage() {
                 Add
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-96">
               <DropdownMenuItem onSelect={() => setCreateCostumesOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New...
@@ -941,49 +939,38 @@ export default function ShootPage() {
         </div>
 
         {selectedCostumes.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
             {selectedCostumes.map((costumeId) => {
               const costume = costumes.find(c => c.id === costumeId);
               if (!costume) return null;
               return (
-                <Card key={costumeId} className="overflow-hidden hover-elevate group">
+                <Card key={costumeId} className="overflow-hidden hover-elevate">
                   <CardContent className="p-0 relative">
-                    {costume.imageUrl && (
-                      <div className="w-full aspect-square relative">
-                        <img 
-                          src={costume.imageUrl} 
-                          alt={costume.characterName}
-                          className="w-full h-full object-cover"
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removeCostume(costumeId)}
-                          data-testid={`button-remove-costume-${costumeId}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    <div className="flex items-start gap-4 p-4">
+                      {costume.imageUrl && (
+                        <div className="w-24 h-24 flex-shrink-0 rounded overflow-hidden">
+                          <img 
+                            src={costume.imageUrl} 
+                            alt={costume.characterName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg">{costume.characterName}</h3>
+                        {costume.seriesName && (
+                          <p className="text-sm text-muted-foreground mt-1">{costume.seriesName}</p>
+                        )}
                       </div>
-                    )}
-                    <div className="p-3">
-                      <p className="font-semibold truncate">{costume.characterName}</p>
-                      {costume.seriesName && (
-                        <p className="text-sm text-muted-foreground truncate">{costume.seriesName}</p>
-                      )}
-                      {!costume.imageUrl && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={() => removeCostume(costumeId)}
-                          data-testid={`button-remove-costume-${costumeId}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCostume(costumeId)}
+                        data-testid={`button-remove-costume-${costumeId}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1004,7 +991,7 @@ export default function ShootPage() {
                 Add
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-96">
               <DropdownMenuItem onSelect={() => setCreatePropsOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New...
@@ -1025,50 +1012,38 @@ export default function ShootPage() {
         </div>
 
         {selectedProps.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
             {selectedProps.map((propId) => {
               const prop = props.find(p => p.id === propId);
               if (!prop) return null;
               return (
-                <Card key={propId} className="overflow-hidden hover-elevate group">
+                <Card key={propId} className="overflow-hidden hover-elevate">
                   <CardContent className="p-0 relative">
-                    {prop.imageUrl && (
-                      <div className="w-full aspect-square relative">
-                        <img 
-                          src={prop.imageUrl} 
-                          alt={prop.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removeProp(propId)}
-                          data-testid={`button-remove-prop-${propId}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    <div className="flex items-start gap-4 p-4">
+                      {prop.imageUrl && (
+                        <div className="w-24 h-24 flex-shrink-0 rounded overflow-hidden">
+                          <img 
+                            src={prop.imageUrl} 
+                            alt={prop.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg">{prop.name}</h3>
+                        <Badge variant={prop.available ? "default" : "secondary"} className="mt-2">
+                          {prop.available ? "Available" : "In Use"}
+                        </Badge>
                       </div>
-                    )}
-                    <div className="p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold truncate flex-1">{prop.name}</p>
-                        {!prop.imageUrl && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeProp(propId)}
-                            data-testid={`button-remove-prop-${propId}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      <Badge variant={prop.available ? "default" : "secondary"} className="mt-2">
-                        {prop.available ? "Available" : "In Use"}
-                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeProp(propId)}
+                        data-testid={`button-remove-prop-${propId}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1089,7 +1064,7 @@ export default function ShootPage() {
                 Add
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-96">
               <DropdownMenuItem onSelect={() => setCreatePersonnelOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New...
@@ -1110,20 +1085,20 @@ export default function ShootPage() {
         </div>
 
         {selectedPersonnel.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
             {selectedPersonnel.map((personnelId) => {
               const person = personnel.find(p => p.id === personnelId);
               if (!person) return null;
               return (
                 <Card key={personnelId} className="hover-elevate">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12 flex-shrink-0">
                         <AvatarImage src={person.avatarUrl || undefined} alt={person.name} />
                         <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{person.name}</p>
+                        <p className="font-semibold text-lg">{person.name}</p>
                         <EditableField
                           value={personnelRoles[personnelId] || ""}
                           onChange={(value) => setPersonnelRoles({...personnelRoles, [personnelId]: value})}
@@ -1161,7 +1136,7 @@ export default function ShootPage() {
                 Add
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-96">
               <DropdownMenuItem onSelect={() => setCreateEquipmentOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New...
@@ -1182,17 +1157,17 @@ export default function ShootPage() {
         </div>
 
         {selectedEquipment.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
             {selectedEquipment.map((equipmentId) => {
               const item = equipment.find(e => e.id === equipmentId);
               if (!item) return null;
               return (
                 <Card key={equipmentId} className="hover-elevate">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between gap-2">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{item.name}</p>
-                        <p className="text-sm text-muted-foreground truncate">{item.category}</p>
+                        <h3 className="font-semibold text-lg">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
                         <Badge variant={item.available ? "default" : "secondary"} className="mt-2">
                           {item.available ? "Available" : "In Use"}
                         </Badge>
