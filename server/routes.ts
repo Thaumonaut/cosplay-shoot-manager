@@ -17,7 +17,7 @@ import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
 import { sendShootReminder } from "./services/email";
-import { supabase } from "./supabase";
+import { supabase, supabaseAdmin } from "./supabase";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import multer from "multer";
@@ -542,13 +542,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const members = await storage.getTeamMembers(teamId);
       
-      // Fetch user profiles for all members
+      // Fetch user profiles and emails for all members
       const membersWithProfiles = await Promise.all(
         members.map(async (member) => {
           const profile = await storage.getUserProfile(member.userId);
+          
+          // Get user email from Supabase Auth using admin client
+          let userEmail = '';
+          if (supabaseAdmin) {
+            const { data: userData } = await supabaseAdmin.auth.admin.getUserById(member.userId);
+            userEmail = userData?.user?.email || '';
+          }
+          
           return {
             ...member,
             profile,
+            user: {
+              email: userEmail,
+            },
           };
         })
       );
