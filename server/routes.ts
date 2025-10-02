@@ -412,7 +412,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      res.json(invite);
+      // Create invite URL
+      const baseUrl = process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : req.protocol + '://' + req.get('host');
+      const inviteUrl = `${baseUrl}/auth?inviteCode=${invite.inviteCode}`;
+
+      res.json({
+        code: invite.inviteCode,
+        inviteUrl,
+      });
     } catch (error) {
       console.error("Error getting team invite:", error);
       res.status(500).json({ error: "Failed to get team invite" });
