@@ -161,14 +161,14 @@ export default function Dashboard() {
 
   const getStatusFromShoot = (
     shoot: Shoot,
-  ): "idea" | "planning" | "scheduled" | "completed" => {
-    return shoot.status as "idea" | "planning" | "scheduled" | "completed";
+  ): "idea" | "planning" | "ready to shoot" | "completed" => {
+    return shoot.status as "idea" | "planning" | "ready to shoot" | "completed";
   };
 
   const upcomingShoots = shoots
     .filter(
       (shoot) =>
-        (shoot.status === "scheduled" || shoot.status === "planning") &&
+        (shoot.status === "ready to shoot" || shoot.status === "planning") &&
         shoot.date,
     )
     .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
@@ -245,11 +245,11 @@ export default function Dashboard() {
         })),
     },
     {
-      id: "scheduled",
-      title: "Scheduled",
+      id: "ready to shoot",
+      title: "Ready to Shoot",
       icon: Calendar,
       shoots: filteredShoots
-        .filter((shoot) => shoot.status === "scheduled")
+        .filter((shoot) => shoot.status === "ready to shoot")
         .map((shoot) => ({
           id: shoot.id,
           title: shoot.title,

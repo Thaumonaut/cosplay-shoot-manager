@@ -33,8 +33,8 @@ const statusConfig = {
     icon: Clock,
     color: "text-blue-600 dark:text-blue-400",
   },
-  scheduled: {
-    label: "Scheduled",
+  "ready to shoot": {
+    label: "Ready to Shoot",
     icon: Calendar,
     color: "text-purple-600 dark:text-purple-400",
   },
@@ -49,7 +49,7 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
   const [statusFilters, setStatusFilters] = useState<string[]>([
     "idea",
     "planning",
-    "scheduled",
+    "ready to shoot",
     "completed",
   ]);
 

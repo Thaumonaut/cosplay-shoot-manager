@@ -5,7 +5,7 @@ import { Calendar, MapPin, Users, MoreVertical, FileText, Image as ImageIcon } f
 import { SiGooglecalendar, SiGoogledocs } from "react-icons/si";
 import { formatDistanceToNow } from "date-fns";
 
-type ShootStatus = "idea" | "planning" | "scheduled" | "completed";
+type ShootStatus = "idea" | "planning" | "ready to shoot" | "completed";
 
 interface ShootCardProps {
   id: string;
@@ -24,7 +24,7 @@ interface ShootCardProps {
 const statusConfig: Record<ShootStatus, { label: string; variant: "secondary" | "default" | "outline" }> = {
   idea: { label: "Idea", variant: "secondary" },
   planning: { label: "Planning", variant: "default" },
-  scheduled: { label: "Scheduled", variant: "default" },
+  "ready to shoot": { label: "Ready to Shoot", variant: "default" },
   completed: { label: "Completed", variant: "outline" },
 };
 

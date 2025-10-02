@@ -777,7 +777,7 @@ export default function ShootPage() {
                   <SelectContent>
                     <SelectItem value="idea">Idea</SelectItem>
                     <SelectItem value="planning">Planning</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="ready to shoot">Ready to Shoot</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>

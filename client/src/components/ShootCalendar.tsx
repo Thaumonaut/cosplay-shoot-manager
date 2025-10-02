@@ -7,7 +7,7 @@ interface ShootEvent {
   id: string;
   title: string;
   date: Date;
-  status: "idea" | "planning" | "scheduled" | "completed";
+  status: "idea" | "planning" | "ready to shoot" | "completed";
   color?: string;
 }
 
@@ -22,7 +22,7 @@ interface ShootCalendarProps {
 const statusColors = {
   idea: "hsl(var(--muted))",
   planning: "hsl(var(--primary))",
-  scheduled: "hsl(var(--chart-2))",
+  "ready to shoot": "hsl(var(--chart-2))",
   completed: "hsl(var(--chart-3))",
 };
 

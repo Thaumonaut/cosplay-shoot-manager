@@ -107,7 +107,7 @@ export function ImageUploadWithCrop({
             <img
               src={value}
               alt="Upload preview"
-              className="w-full h-64 object-cover rounded-lg"
+              className="w-full h-40 object-cover rounded-lg"
             />
             <Button
               type="button"
@@ -123,10 +123,10 @@ export function ImageUploadWithCrop({
         ) : (
           <label
             htmlFor="image-upload"
-            className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
+            className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
             data-testid="label-image-upload"
           >
-            <Upload className="h-12 w-12 text-muted-foreground mb-2" />
+            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
             <span className="text-sm text-muted-foreground">Click to upload image</span>
           </label>
         )}
