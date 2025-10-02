@@ -598,7 +598,7 @@ export default function ShootPage() {
                   asChild
                   data-testid="button-view-calendar"
                 >
-                  <a href={existingShoot.calendarEventUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
                     <SiGooglecalendar className="h-4 w-4 mr-2" />
                     View in Calendar
                   </a>
@@ -669,79 +669,15 @@ export default function ShootPage() {
         </div>
       </div>
 
-      {/* Main Header with Title and Status */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold" data-testid="text-shoot-title">
-            {isNew ? "New Shoot" : title || "Untitled Shoot"}
-          </h1>
-          {!isNew && (
-            <div className="flex items-center gap-2">
-              <StatusBadge status={status as any} />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-8 w-8"
-                    data-testid="button-edit-status"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => setStatus("idea")} data-testid="status-option-idea">
-                    Idea
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatus("planning")} data-testid="status-option-planning">
-                    Planning
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatus("ready to shoot")} data-testid="status-option-ready">
-                    Ready to Shoot
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStatus("completed")} data-testid="status-option-completed">
-                    Completed
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Instagram Links */}
-      {instagramLinks.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {instagramLinks.map((link, index) => (
-            <Badge key={index} variant="secondary" className="px-3 py-1.5">
-              <a 
-                href={link} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm hover:underline mr-2"
-              >
-                Instagram Reference
-              </a>
-              <button
-                onClick={() => removeInstagramLink(index)}
-                data-testid={`button-remove-link-${index}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
       {/* Main Details Card */}
       <Card>
         <CardHeader className="p-4">
-          <CardTitle>Details</CardTitle>
+          <CardTitle>{isNew ? "New Shoot" : "Shoot Details"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 p-4">
           {/* Title Input */}
           <div className="space-y-2">
-            <Label htmlFor="title">Shoot Title</Label>
+            <Label htmlFor="title">Title</Label>
             <Input
               id="title"
               value={title}
@@ -759,23 +695,21 @@ export default function ShootPage() {
             )}
           </div>
 
-          {/* Status (for new shoots) */}
-          {isNew && (
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger data-testid="select-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="idea">Idea</SelectItem>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="ready to shoot">Ready to Shoot</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          {/* Status */}
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger data-testid="select-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="idea">Idea</SelectItem>
+                <SelectItem value="planning">Planning</SelectItem>
+                <SelectItem value="ready to shoot">Ready to Shoot</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Date, Time, Duration - Compact Layout */}
           {status !== "idea" && (
