@@ -125,7 +125,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get current user from cookie
   app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
-    res.json({ user: req.user });
+    try {
+      if (req.user?.id && req.user?.email) {
+        // Ensure user has a team (creates one if they don't)
+        await storage.ensureUserTeam(req.user.id, req.user.email);
+      }
+      res.json({ user: req.user });
+    } catch (error) {
+      console.error('Error in /api/auth/me:', error);
+      res.json({ user: req.user });
+    }
   });
 
   // Sign out - clear cookies

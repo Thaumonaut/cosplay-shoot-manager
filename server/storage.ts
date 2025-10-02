@@ -130,6 +130,7 @@ export interface IStorage {
   updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
   getUserTeams(userId: string): Promise<any[]>;
   setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined>;
+  ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }>;
 
   // Team Invites
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
@@ -616,6 +617,11 @@ export class DatabaseStorage implements IStorage {
   async setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined> {
     // Not implemented for DatabaseStorage - this is a stub
     return undefined;
+  }
+
+  async ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }> {
+    // Not implemented for DatabaseStorage - this is a stub
+    throw new Error("ensureUserTeam not implemented for DatabaseStorage");
   }
 
   // Team Invite methods
@@ -1502,6 +1508,23 @@ export class SupabaseStorage implements IStorage {
       return undefined;
     }
     return toCamelCase(data) as UserProfile;
+  }
+
+  async ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .rpc('ensure_user_team', { p_user_id: userId, p_user_email: userEmail });
+    
+    if (error) {
+      console.error('Error ensuring user team:', error);
+      throw new Error('Failed to ensure user has a team');
+    }
+    
+    return {
+      teamId: data.teamId,
+      created: data.created
+    };
   }
 
   async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
