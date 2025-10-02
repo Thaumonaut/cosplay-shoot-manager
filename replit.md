@@ -81,3 +81,26 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
   - Backend: Multer-based file upload to Supabase Storage at `public/personnel/{teamId}/`
   - Returns public URL stored in `personnel.avatar_url` field
   - Follows same pattern as props/costumes image uploads
+
+### Resource Pages Refactor (October 2025)
+- **Unified Create Dialog Pattern**: All resource pages (Locations, Equipment, Props, Costumes, Personnel) now use dedicated Create dialog components
+  - Creation: Uses standalone Create dialogs (CreateLocationDialog, CreateEquipmentDialog, etc.)
+  - Editing: Retains embedded edit dialogs for inline editing experience
+  - Consistent UX across all resource management pages
+
+### ShootPage Layout Cleanup (October 2025)
+- **Fixed Duplicate Title Issue**: Removed redundant title display section
+  - Previously showed large "New Shoot" title at top AND "Shoot Title" input in Details card
+  - Now only shows title input inside Details card with dynamic CardTitle ("New Shoot" or "Shoot Details")
+- **Removed Floating Elements**: Eliminated Instagram badge section that appeared between title and Details card
+  - Instagram references now only appear in their dedicated card section at bottom
+- **Simplified Status Management**: Status selector now shows for both new and existing shoots
+  - Consistent interface regardless of shoot state
+  - Removed separate status badge + dropdown pattern for existing shoots
+- **Cleaner Visual Hierarchy**: Streamlined card structure for better readability
+  - Back button + action buttons (Calendar, Docs, Reminders, Delete)
+  - Details card: title, status, date/time/duration, reminder, public sharing
+  - Resources card: location, costumes, props, personnel, equipment
+  - Instagram References card: link management
+  - Notes card: additional details
+  - Submit/Cancel buttons
