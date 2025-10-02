@@ -50,6 +50,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
   const [locationId, setLocationId] = useState<string>("");
   const [locationNotes, setLocationNotes] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [color, setColor] = useState<string>("#3B82F6");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
   
@@ -158,6 +159,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
     setLocationId("");
     setLocationNotes("");
     setNotes("");
+    setColor("#3B82F6");
     setInstagramLinks([]);
     setSelectedPersonnel([]);
     setSelectedEquipment([]);
@@ -208,6 +210,7 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
       locationId: locationId && locationId !== "" ? locationId : null,
       locationNotes: locationNotes || null,
       description: notes || null,
+      color: color || null,
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
       calendarEventId: null,
       calendarEventUrl: null,
@@ -377,6 +380,21 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
               rows={3}
               data-testid="textarea-notes"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="color">Event Color</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                id="color"
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-20 h-10 p-1 cursor-pointer"
+                data-testid="input-color"
+              />
+              <span className="text-sm text-muted-foreground">{color}</span>
+            </div>
           </div>
 
           <Separator />

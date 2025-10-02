@@ -70,6 +70,7 @@ export function EditShootDialog({
   const [locationId, setLocationId] = useState<string>(shoot.locationId || "");
   const [locationNotes, setLocationNotes] = useState<string>(shoot.locationNotes || "");
   const [notes, setNotes] = useState(shoot.description || "");
+  const [color, setColor] = useState<string>(shoot.color || "#3B82F6");
   const [instagramLinks, setInstagramLinks] = useState<string[]>(shoot.instagramLinks || []);
   const [currentLink, setCurrentLink] = useState("");
   
@@ -219,6 +220,7 @@ export function EditShootDialog({
         locationId: locationId || null,
         locationNotes: locationNotes.trim() || null,
         description: notes.trim() || null,
+        color: color || null,
         instagramLinks: instagramLinks.length > 0 ? instagramLinks : null,
       });
 
@@ -397,6 +399,22 @@ export function EditShootDialog({
                   rows={4}
                   data-testid="textarea-edit-notes"
                 />
+              </div>
+
+              {/* Event Color */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-color">Event Color</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="edit-color"
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-20 h-10 p-1 cursor-pointer"
+                    data-testid="input-edit-color"
+                  />
+                  <span className="text-sm text-muted-foreground">{color}</span>
+                </div>
               </div>
 
               {/* Instagram Links */}

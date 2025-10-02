@@ -108,6 +108,7 @@ export const shoots = pgTable("shoots", {
   locationId: varchar("location_id").references(() => locations.id),
   locationNotes: text("location_notes"),
   description: text("description"),
+  color: text("color"),
   instagramLinks: text("instagram_links").array(),
   calendarEventId: text("calendar_event_id"),
   calendarEventUrl: text("calendar_event_url"),
