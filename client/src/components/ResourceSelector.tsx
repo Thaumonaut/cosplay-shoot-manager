@@ -36,11 +36,19 @@ interface CostumeResource extends BaseResource {
   characterName: string;
   seriesName?: string | null;
   status?: string;
-  completionPercentage?: number;
+  completionPercentage?: number | null;
   imageUrl?: string | null;
 }
 
-type Resource = PersonnelResource | EquipmentResource | PropResource | CostumeResource;
+interface LocationResource extends BaseResource {
+  name: string;
+  address?: string | null;
+  notes?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+type Resource = PersonnelResource | EquipmentResource | PropResource | CostumeResource | LocationResource;
 
 interface ResourceSelectorProps<T extends Resource> {
   title: string;
@@ -52,7 +60,8 @@ interface ResourceSelectorProps<T extends Resource> {
   showRoles?: boolean;
   onCreateNew: () => void;
   emptyMessage: string;
-  type: 'personnel' | 'equipment' | 'props' | 'costumes';
+  type: 'personnel' | 'equipment' | 'props' | 'costumes' | 'locations';
+  singleSelect?: boolean;
 }
 
 export function ResourceSelector<T extends Resource>({
@@ -66,14 +75,25 @@ export function ResourceSelector<T extends Resource>({
   onCreateNew,
   emptyMessage,
   type,
+  singleSelect = false,
 }: ResourceSelectorProps<T>) {
   const isSelected = (id: string) => selectedIds.includes(id);
 
   const toggleSelection = (id: string) => {
-    if (isSelected(id)) {
-      onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
+    if (singleSelect) {
+      // For single select (like locations), toggle or replace selection
+      if (isSelected(id)) {
+        onSelectionChange([]);
+      } else {
+        onSelectionChange([id]);
+      }
     } else {
-      onSelectionChange([...selectedIds, id]);
+      // For multi-select
+      if (isSelected(id)) {
+        onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
+      } else {
+        onSelectionChange([...selectedIds, id]);
+      }
     }
   };
 
@@ -180,6 +200,18 @@ export function ResourceSelector<T extends Resource>({
     </div>
   );
 
+  const renderLocationDetails = (resource: LocationResource) => (
+    <div className="flex-1 min-w-0">
+      <p className="font-medium truncate">{resource.name}</p>
+      {resource.address && (
+        <p className="text-xs text-muted-foreground truncate">{resource.address}</p>
+      )}
+      {!resource.address && resource.notes && (
+        <p className="text-xs text-muted-foreground truncate">{resource.notes}</p>
+      )}
+    </div>
+  );
+
   const renderResourceDetails = (resource: T) => {
     switch (type) {
       case 'personnel':
@@ -190,6 +222,8 @@ export function ResourceSelector<T extends Resource>({
         return renderPropDetails(resource as PropResource);
       case 'costumes':
         return renderCostumeDetails(resource as CostumeResource);
+      case 'locations':
+        return renderLocationDetails(resource as LocationResource);
       default:
         return <p className="font-medium">{getResourceName(resource)}</p>;
     }
@@ -241,7 +275,7 @@ export function ResourceSelector<T extends Resource>({
         </div>
       )}
 
-      {selectedIds.length > 0 && (
+      {selectedIds.length > 0 && !singleSelect && (
         <p className="text-xs text-muted-foreground">
           {selectedIds.length} {type === 'personnel' ? 'person' : type === 'equipment' ? 'item' : type}{selectedIds.length !== 1 ? 's' : ''} selected
         </p>
