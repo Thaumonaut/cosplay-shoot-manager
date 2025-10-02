@@ -333,7 +333,15 @@ export function EditShootDialog({
               <div className="space-y-2">
                 <Label>Location</Label>
                 {locations.length > 0 ? (
-                  <Select value={locationId} onValueChange={setLocationId}>
+                  <Select value={locationId} onValueChange={(value) => {
+                    setLocationId(value);
+                    const selectedLocation = locations.find(loc => loc.id === value);
+                    if (selectedLocation) {
+                      // Use address if available, otherwise fall back to notes, then name
+                      const locationDetails = selectedLocation.address || selectedLocation.notes || selectedLocation.name;
+                      setLocationNotes(locationDetails);
+                    }
+                  }}>
                     <SelectTrigger data-testid="select-edit-location">
                       <SelectValue placeholder="Select a saved location" />
                     </SelectTrigger>
@@ -356,12 +364,14 @@ export function EditShootDialog({
                     initialValue={locationNotes}
                   />
                 </div>
-                <Input
-                  value={locationNotes}
-                  onChange={(e) => setLocationNotes(e.target.value)}
-                  placeholder="Or enter location manually"
-                  data-testid="input-edit-location-notes"
-                />
+                {locationNotes && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Selected Address</Label>
+                    <div className="p-3 bg-muted rounded-md text-sm" data-testid="text-edit-location-address">
+                      {locationNotes}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     type="button"

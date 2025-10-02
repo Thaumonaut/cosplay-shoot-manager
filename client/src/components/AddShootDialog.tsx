@@ -333,7 +333,15 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
                       Create new
                     </Button>
                   </div>
-                  <Select value={locationId} onValueChange={setLocationId}>
+                  <Select value={locationId} onValueChange={(value) => {
+                    setLocationId(value);
+                    const selectedLocation = locations.find(loc => loc.id === value);
+                    if (selectedLocation) {
+                      // Use address if available, otherwise fall back to notes, then name
+                      const locationDetails = selectedLocation.address || selectedLocation.notes || selectedLocation.name;
+                      setLocationNotes(locationDetails);
+                    }
+                  }}>
                     <SelectTrigger data-testid="select-location">
                       <SelectValue placeholder={locations.length > 0 ? "Choose a saved location..." : "No locations yet - create one"} />
                     </SelectTrigger>
@@ -349,15 +357,10 @@ export function AddShootDialog({ open, onOpenChange }: AddShootDialogProps) {
 
                 {locationNotes && (
                   <div className="space-y-2">
-                    <Label htmlFor="location-notes">Location Details</Label>
-                    <Textarea
-                      id="location-notes"
-                      value={locationNotes}
-                      onChange={(e) => setLocationNotes(e.target.value)}
-                      rows={2}
-                      className="text-sm"
-                      data-testid="textarea-location-notes"
-                    />
+                    <Label>Selected Address</Label>
+                    <div className="p-3 bg-muted rounded-md text-sm" data-testid="text-location-address">
+                      {locationNotes}
+                    </div>
                   </div>
                 )}
               </div>
