@@ -488,24 +488,14 @@ export default function Profile() {
                 Manage your account and sessions
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => signOut()}
-                data-testid="button-signout"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteAccountDialog(true)}
-                data-testid="button-delete-account"
-              >
-                <UserX className="h-4 w-4 mr-2" />
-                Delete Account
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => signOut()}
+              data-testid="button-signout"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -779,6 +769,32 @@ export default function Profile() {
                 Join Team
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone Section */}
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription>
+            Irreversible and destructive actions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <h4 className="font-medium">Delete Account</h4>
+            <p className="text-sm text-muted-foreground">
+              Permanently delete your account, all your data, and remove you from all teams. This action cannot be undone.
+            </p>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteAccountDialog(true)}
+              data-testid="button-delete-account"
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              Delete Account
+            </Button>
           </div>
         </CardContent>
       </Card>

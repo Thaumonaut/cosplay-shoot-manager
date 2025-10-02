@@ -34,12 +34,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const getUserTeamId = async (userId: string): Promise<string> => {
     const profile = await storage.getUserProfile(userId);
     
-    // If user has an active team set, use that
+    // If user has an active team set, verify membership still exists
     if (profile?.activeTeamId) {
-      return profile.activeTeamId;
+      const activeMembership = await storage.getTeamMember(profile.activeTeamId, userId);
+      if (activeMembership) {
+        return profile.activeTeamId;
+      }
+      // Active team membership no longer exists, fall through to find/create another
     }
     
-    // Otherwise, check if user has any team membership
+    // Check if user has any team membership
     let member = await storage.getUserTeamMember(userId);
     
     // If user doesn't have a team, create a personal team for them
@@ -303,11 +307,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's team membership
+  // Get user's team membership for active team
   app.get("/api/user/team-member", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = getUserId(req);
-      const teamMember = await storage.getUserTeamMember(userId);
+      
+      // Get user's active team ID
+      const teamId = await getUserTeamId(userId);
+      
+      // Get the team membership for the active team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      
       if (!teamMember) {
         return res.status(404).json({ error: "No team membership found" });
       }
@@ -324,9 +334,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const teamId = req.params.id;
       
-      // Verify user is a member of this team
-      const teamMember = await storage.getUserTeamMember(userId);
-      if (!teamMember || teamMember.teamId !== teamId) {
+      // Verify user is a member of this specific team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
         return res.status(403).json({ error: "Unauthorized to access this team" });
       }
 
@@ -348,9 +358,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const teamId = req.params.id;
       
-      // Verify user is owner or admin of this team
-      const teamMember = await storage.getUserTeamMember(userId);
-      if (!teamMember || teamMember.teamId !== teamId) {
+      // Verify user is owner or admin of this specific team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
         return res.status(403).json({ error: "Unauthorized to update this team" });
       }
       if (teamMember.role !== "owner" && teamMember.role !== "admin") {
@@ -418,8 +428,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
 
-      // Get current team membership
-      const teamMember = await storage.getUserTeamMember(userId);
+      // Get active team membership
+      const teamId = await getUserTeamId(userId);
+      const teamMember = await storage.getTeamMember(teamId, userId);
       if (!teamMember) {
         return res.status(404).json({ error: "You are not part of any team" });
       }
@@ -438,6 +449,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         role: "owner",
       });
+
+      // Set the new team as active
+      await storage.setActiveTeam(userId, newTeam.id);
 
       res.json({ message: "Left team successfully and created new personal team" });
     } catch (error) {
@@ -492,9 +506,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const teamId = req.params.id;
 
-      // Verify user is part of the team
-      const teamMember = await storage.getUserTeamMember(userId);
-      if (!teamMember || teamMember.teamId !== teamId) {
+      // Verify user is part of this specific team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
         return res.status(403).json({ error: "You are not authorized to access this team" });
       }
 
@@ -630,9 +644,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const teamId = req.params.id;
       
-      // Verify user is part of the team
-      const teamMember = await storage.getUserTeamMember(userId);
-      if (!teamMember || teamMember.teamId !== teamId) {
+      // Verify user is part of this specific team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
         return res.status(403).json({ error: "Unauthorized to access this team" });
       }
 
@@ -678,9 +692,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Valid role is required (owner, admin, or member)" });
       }
 
-      // Get actor's team membership and role
-      const actorMember = await storage.getUserTeamMember(userId);
-      if (!actorMember || actorMember.teamId !== teamId) {
+      // Get actor's team membership and role for this specific team
+      const actorMember = await storage.getTeamMember(teamId, userId);
+      if (!actorMember) {
         return res.status(403).json({ error: "Unauthorized to modify this team" });
       }
 
@@ -723,9 +737,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { teamId, memberId } = req.params;
 
-      // Get actor's team membership and role
-      const actorMember = await storage.getUserTeamMember(userId);
-      if (!actorMember || actorMember.teamId !== teamId) {
+      // Get actor's team membership and role for this specific team
+      const actorMember = await storage.getTeamMember(teamId, userId);
+      if (!actorMember) {
         return res.status(403).json({ error: "Unauthorized to modify this team" });
       }
 
