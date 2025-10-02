@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, LogOut, UserPlus, UserMinus, Save, Upload } from "lucide-react";
+import { Camera, LogOut, UserPlus, UserMinus, Save, Upload, Copy } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -382,6 +382,41 @@ export default function Profile() {
                   <div>
                     <h4 className="font-medium">Your Role</h4>
                     <p className="text-sm text-muted-foreground capitalize">{teamMember.role}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium">Team Invitations</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Share your team's invite code or send invitations via email
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Invite Code</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const baseUrl = window.location.origin;
+                          navigator.clipboard.writeText(`${baseUrl}/auth?inviteCode=TEAM_INVITE_CODE`);
+                          toast({
+                            title: "Link copied",
+                            description: "Invite link copied to clipboard",
+                          });
+                        }}
+                        data-testid="button-copy-invite-link"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Invite Link
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Share this link with people you want to invite to your team
+                    </p>
                   </div>
                 </div>
 

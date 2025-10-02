@@ -26,6 +26,7 @@ import {
   type UserProfile,
   type InsertUserProfile,
   type TeamInvite,
+  type InsertTeamInvite,
   type TeamMember,
   type InsertTeamMember,
 } from "@shared/schema";
@@ -125,6 +126,8 @@ export interface IStorage {
 
   // Team Invites
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
+  getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined>;
+  createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite>;
   getUserTeamMember(userId: string): Promise<TeamMember | undefined>;
   createTeamMember(member: InsertTeamMember): Promise<TeamMember>;
   deleteTeamMember(id: string): Promise<boolean>;
@@ -574,6 +577,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(teamMembers.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined> {
+    const [invite] = await db
+      .select()
+      .from(teamInvites)
+      .where(eq(teamInvites.teamId, teamId));
+    return invite;
+  }
+
+  async createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite> {
+    const [newInvite] = await db.insert(teamInvites).values(invite).returning();
+    return newInvite;
   }
 }
 

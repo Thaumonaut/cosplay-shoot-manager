@@ -387,6 +387,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get or create team invite code
+  app.get("/api/team/:id/invite", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+
+      // Verify user is part of the team
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember || teamMember.teamId !== teamId) {
+        return res.status(403).json({ error: "You are not authorized to access this team" });
+      }
+
+      // Check if invite already exists
+      let invite = await storage.getTeamInviteByTeamId(teamId);
+      
+      // If not, create one
+      if (!invite) {
+        const inviteCode = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        invite = await storage.createTeamInvite({
+          teamId,
+          inviteCode,
+          createdBy: userId,
+        });
+      }
+
+      res.json(invite);
+    } catch (error) {
+      console.error("Error getting team invite:", error);
+      res.status(500).json({ error: "Failed to get team invite" });
+    }
+  });
+
+  // Send team invite email
+  app.post("/api/team/:id/invite/send", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Verify user is part of the team
+      const teamMember = await storage.getUserTeamMember(userId);
+      if (!teamMember || teamMember.teamId !== teamId) {
+        return res.status(403).json({ error: "You are not authorized to invite users to this team" });
+      }
+
+      // Get team and invite code
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+
+      let invite = await storage.getTeamInviteByTeamId(teamId);
+      if (!invite) {
+        const inviteCode = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        invite = await storage.createTeamInvite({
+          teamId,
+          inviteCode,
+          createdBy: userId,
+        });
+      }
+
+      // Send email using Resend
+      const { Resend } = await import('resend');
+      
+      const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+      const xReplitToken = process.env.REPL_IDENTITY 
+        ? 'repl ' + process.env.REPL_IDENTITY 
+        : process.env.WEB_REPL_RENEWAL 
+        ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+        : null;
+
+      if (!xReplitToken) {
+        throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+      }
+
+      const connectionSettings = await fetch(
+        'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+        {
+          headers: {
+            'Accept': 'application/json',
+            'X_REPLIT_TOKEN': xReplitToken
+          }
+        }
+      ).then(res => res.json()).then(data => data.items?.[0]);
+
+      if (!connectionSettings || !connectionSettings.settings.api_key) {
+        throw new Error('Resend not connected');
+      }
+
+      const resend = new Resend(connectionSettings.settings.api_key);
+      const fromEmail = connectionSettings.settings.from_email;
+
+      // Get user profile
+      const profile = await storage.getUserProfile(userId);
+      const inviterName = profile ? `${profile.firstName} ${profile.lastName}` : "A team member";
+
+      // Create invite link
+      const baseUrl = process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : req.protocol + '://' + req.get('host');
+      const inviteLink = `${baseUrl}/auth?inviteCode=${invite.inviteCode}`;
+
+      // Send email
+      await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: `You're invited to join ${team.name} on Cosplay Photo Shoot Tracker`,
+        html: `
+          <h2>You've been invited!</h2>
+          <p>${inviterName} has invited you to join <strong>${team.name}</strong> on Cosplay Photo Shoot Tracker.</p>
+          <p>Click the link below to accept the invitation:</p>
+          <p><a href="${inviteLink}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Join ${team.name}</a></p>
+          <p>Or copy and paste this link into your browser:</p>
+          <p>${inviteLink}</p>
+          <p>Your invite code is: <strong>${invite.inviteCode}</strong></p>
+        `,
+      });
+
+      res.json({ message: "Invite email sent successfully" });
+    } catch (error) {
+      console.error("Error sending invite email:", error);
+      res.status(500).json({ error: "Failed to send invite email" });
+    }
+  });
+
   // Object Storage Routes
   // Serve uploaded images with authentication and ACL
   app.get("/objects/:objectPath(*)", authenticateUser, async (req: AuthRequest, res) => {
