@@ -42,8 +42,9 @@ export default function ShootPage() {
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
-  const [reminderDate, setReminderDate] = useState<Date>();
-  const [reminderTime, setReminderTime] = useState("");
+  const [reminderPreset, setReminderPreset] = useState<string>("");
+  const [customReminderDate, setCustomReminderDate] = useState<Date>();
+  const [customReminderTime, setCustomReminderTime] = useState("");
   const [locationId, setLocationId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [color, setColor] = useState<string>("#3B82F6");
@@ -98,11 +99,28 @@ export default function ShootPage() {
       setDate(existingShoot.date ? new Date(existingShoot.date) : undefined);
       setTime(existingShoot.time || "");
       setDurationMinutes(existingShoot.durationMinutes || 60);
-      setReminderDate(existingShoot.reminderTime ? new Date(existingShoot.reminderTime) : undefined);
-      if (existingShoot.reminderTime) {
+      
+      if (existingShoot.reminderTime && existingShoot.date) {
+        const shootDateTime = new Date(existingShoot.date);
         const reminderDateTime = new Date(existingShoot.reminderTime);
-        setReminderTime(`${String(reminderDateTime.getHours()).padStart(2, '0')}:${String(reminderDateTime.getMinutes()).padStart(2, '0')}`);
+        const diffMs = shootDateTime.getTime() - reminderDateTime.getTime();
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        
+        if (diffMinutes === 15) {
+          setReminderPreset("15min");
+        } else if (diffMinutes === 30) {
+          setReminderPreset("30min");
+        } else if (diffMinutes === 60) {
+          setReminderPreset("1hour");
+        } else if (diffMinutes === 1440) {
+          setReminderPreset("1day");
+        } else {
+          setReminderPreset("custom");
+          setCustomReminderDate(reminderDateTime);
+          setCustomReminderTime(`${String(reminderDateTime.getHours()).padStart(2, '0')}:${String(reminderDateTime.getMinutes()).padStart(2, '0')}`);
+        }
       }
+      
       setLocationId(existingShoot.locationId || "");
       setNotes(existingShoot.notes || "");
       setColor(existingShoot.color || "#3B82F6");
@@ -378,6 +396,47 @@ export default function ShootPage() {
     setInstagramLinks(instagramLinks.filter((_, i) => i !== index));
   };
 
+  const calculateReminderTime = (): string | null => {
+    if (!date) return null;
+    
+    if (reminderPreset === "custom") {
+      if (customReminderDate && customReminderTime) {
+        const [hours, minutes] = customReminderTime.split(':').map(Number);
+        const reminderDateTime = new Date(customReminderDate);
+        reminderDateTime.setHours(hours, minutes, 0, 0);
+        return reminderDateTime.toISOString();
+      }
+      return null;
+    }
+    
+    if (!reminderPreset) return null;
+    
+    const shootDateTime = new Date(date);
+    if (time) {
+      const [hours, minutes] = time.split(':').map(Number);
+      shootDateTime.setHours(hours, minutes, 0, 0);
+    }
+    
+    const reminderDateTime = new Date(shootDateTime);
+    
+    switch (reminderPreset) {
+      case "15min":
+        reminderDateTime.setMinutes(reminderDateTime.getMinutes() - 15);
+        break;
+      case "30min":
+        reminderDateTime.setMinutes(reminderDateTime.getMinutes() - 30);
+        break;
+      case "1hour":
+        reminderDateTime.setHours(reminderDateTime.getHours() - 1);
+        break;
+      case "1day":
+        reminderDateTime.setDate(reminderDateTime.getDate() - 1);
+        break;
+    }
+    
+    return reminderDateTime.toISOString();
+  };
+
   const handleSubmit = () => {
     if (!title.trim()) {
       toast({
@@ -388,13 +447,7 @@ export default function ShootPage() {
       return;
     }
 
-    let reminderTimeValue = null;
-    if (reminderDate && reminderTime) {
-      const [hours, minutes] = reminderTime.split(':').map(Number);
-      const reminderDateTime = new Date(reminderDate);
-      reminderDateTime.setHours(hours, minutes, 0, 0);
-      reminderTimeValue = reminderDateTime.toISOString();
-    }
+    const reminderTimeValue = calculateReminderTime();
 
     const shootData: any = {
       title: title.trim(),
@@ -524,623 +577,676 @@ export default function ShootPage() {
         </p>
       </div>
 
-      {/* Form */}
-      <Card>
-        <CardContent className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Shoot Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Cyberpunk 2077 - V Character"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setManualTitle(true);
-                }}
-                data-testid="input-shoot-title"
-              />
-              {!manualTitle && selectedCostumes.length > 0 && isNew && (
-                <p className="text-xs text-muted-foreground">
-                  Auto-generated from selected characters
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger data-testid="select-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="idea">Idea</SelectItem>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {status !== "idea" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                        data-testid="button-date-picker"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="time">Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      data-testid="input-time"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Duration (minutes)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="15"
-                      step="15"
-                      value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
-                      data-testid="input-duration"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Reminder</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          data-testid="button-reminder-date-picker"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {reminderDate ? format(reminderDate, "PP") : "Reminder date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={reminderDate}
-                          onSelect={setReminderDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-
-                    <Input
-                      type="time"
-                      value={reminderTime}
-                      onChange={(e) => setReminderTime(e.target.value)}
-                      placeholder="Time"
-                      data-testid="input-reminder-time"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    When to send email reminders to participants
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Event Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      className="w-20 h-10"
-                      data-testid="input-color"
-                    />
-                    <Input
-                      type="text"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      placeholder="#3B82F6"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                placeholder="Add any details about the shoot..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                data-testid="textarea-notes"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Location */}
-          <div className="space-y-3">
-            <Label>Location</Label>
-
-            {locationId && locations.find(l => l.id === locationId) ? (
-              <Card>
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">{locations.find(l => l.id === locationId)?.name}</p>
-                      {locations.find(l => l.id === locationId)?.address && (
-                        <p className="text-sm text-muted-foreground">{locations.find(l => l.id === locationId)?.address}</p>
-                      )}
-                    </div>
+      {/* Instagram Links */}
+      {instagramLinks.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {instagramLinks.map((link, index) => (
+              <Card key={index} className="inline-block">
+                <CardContent className="p-2">
+                  <div className="flex items-center gap-2">
+                    <a 
+                      href={link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline max-w-xs truncate"
+                    >
+                      {link}
+                    </a>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => setLocationId("")}
-                      data-testid="button-remove-location"
+                      className="h-6 w-6"
+                      onClick={() => removeInstagramLink(index)}
+                      data-testid={`button-remove-link-${index}`}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Select value={locationId} onValueChange={(value) => {
-                if (value === "_create_new") {
-                  setCreateLocationOpen(true);
-                  return;
-                }
-                setLocationId(value);
-              }}>
-                <SelectTrigger data-testid="select-location">
-                  <SelectValue placeholder="Select a location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_create_new">
-                    <div className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      <span>Create New...</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main Details Section */}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Main Details</h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Shoot Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Cyberpunk 2077 - V Character"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setManualTitle(true);
+                  }}
+                  data-testid="input-shoot-title"
+                />
+                {!manualTitle && selectedCostumes.length > 0 && isNew && (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated from selected characters
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-date-picker"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {status !== "idea" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="time">Time</Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        data-testid="input-time"
+                      />
                     </div>
-                  </SelectItem>
-                  {availableLocations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                  {availableLocations.length === 0 && (
-                    <SelectItem value="_none" disabled>No locations available</SelectItem>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="duration">Duration (hours)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="0.25"
+                        step="0.25"
+                        value={durationMinutes ? durationMinutes / 60 : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setDurationMinutes(value ? Math.round(parseFloat(value) * 60) : 60);
+                        }}
+                        placeholder="1"
+                        data-testid="input-duration"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger data-testid="select-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="idea">Idea</SelectItem>
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {status !== "idea" && date && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Reminder</Label>
+                    <Select value={reminderPreset} onValueChange={setReminderPreset}>
+                      <SelectTrigger data-testid="select-reminder">
+                        <SelectValue placeholder="Set a reminder..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15min">15 minutes before</SelectItem>
+                        <SelectItem value="30min">30 minutes before</SelectItem>
+                        <SelectItem value="1hour">1 hour before</SelectItem>
+                        <SelectItem value="1day">1 day before</SelectItem>
+                        <SelectItem value="custom">Custom...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {reminderPreset && (
+                      <p className="text-xs text-muted-foreground">
+                        Email reminders will be sent to participants
+                      </p>
+                    )}
+                  </div>
+
+                  {reminderPreset === "custom" && (
+                    <div className="space-y-2">
+                      <Label>Custom Reminder Time</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                              data-testid="button-reminder-date-picker"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {customReminderDate ? format(customReminderDate, "PP") : "Reminder date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={customReminderDate}
+                              onSelect={setCustomReminderDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        <Input
+                          type="time"
+                          value={customReminderTime}
+                          onChange={(e) => setCustomReminderTime(e.target.value)}
+                          placeholder="Time"
+                          data-testid="input-reminder-time"
+                        />
+                      </div>
+                    </div>
                   )}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
 
-          <Separator />
-
-          {/* Characters/Costumes */}
-          <div className="space-y-3">
-            <Label>Characters/Costumes</Label>
-
-            {selectedCostumes.length > 0 && (
-              <div className="space-y-2">
-                {selectedCostumes.map((costumeId) => {
-                  const costume = costumes.find(c => c.id === costumeId);
-                  if (!costume) return null;
-                  return (
-                    <Card key={costumeId}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          {costume.imageUrl && (
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={costume.imageUrl} />
-                              <AvatarFallback>{getInitials(costume.characterName)}</AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{costume.characterName}</p>
-                            {costume.seriesName && (
-                              <p className="text-sm text-muted-foreground truncate">{costume.seriesName}</p>
-                            )}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeCostume(costumeId)}
-                            data-testid={`button-remove-costume-${costumeId}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreateCostumesOpen(true);
-                return;
-              }
-              setSelectedCostumes([...selectedCostumes, value]);
-            }}>
-              <SelectTrigger data-testid="select-costume">
-                <SelectValue placeholder="Add a costume..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
+                  <div className="space-y-2">
+                    <Label>Event Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="w-20 h-10"
+                        data-testid="input-color"
+                      />
+                      <Input
+                        type="text"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        placeholder="#3B82F6"
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
-                </SelectItem>
-                {availableCostumes.map((costume) => (
-                  <SelectItem key={costume.id} value={costume.id}>
-                    {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
-                  </SelectItem>
-                ))}
-                {availableCostumes.length === 0 && (
-                  <SelectItem value="_none" disabled>No costumes available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+                </>
+              )}
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <Separator />
+      {/* Resources Section */}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Resources</h2>
+            <div className="space-y-6">
+              {/* Location */}
+              <div className="space-y-3">
+                <Label>Location</Label>
 
-          {/* Personnel */}
-          <div className="space-y-3">
-            <Label>Personnel</Label>
-
-            {selectedPersonnel.length > 0 && (
-              <div className="space-y-2">
-                {selectedPersonnel.map((personnelId) => {
-                  const person = personnel.find(p => p.id === personnelId);
-                  if (!person) return null;
-                  return (
-                    <Card key={personnelId}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={person.avatarUrl || undefined} />
-                            <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{person.name}</p>
-                              {person.email && (
-                                <p className="text-sm text-muted-foreground">{person.email}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {personnelRoles[personnelId] === "__CUSTOM__" || (personnelRoles[personnelId] && !['Photographer', 'Videographer', 'Model', 'Makeup Artist', 'Stylist', 'Assistant', 'Coordinator'].includes(personnelRoles[personnelId])) ? (
-                                <div className="flex-1 flex gap-2">
-                                  <Input
-                                    placeholder="Custom role"
-                                    value={personnelRoles[personnelId] === "__CUSTOM__" ? "" : personnelRoles[personnelId] || ""}
-                                    onChange={(e) => setPersonnelRoles({
-                                      ...personnelRoles,
-                                      [personnelId]: e.target.value
-                                    })}
-                                    data-testid={`input-custom-role-${personnelId}`}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setPersonnelRoles({
-                                      ...personnelRoles,
-                                      [personnelId]: ""
-                                    })}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Select
-                                  value={personnelRoles[personnelId] || ""}
-                                  onValueChange={(value) => {
-                                    if (value === "_custom") {
-                                      setPersonnelRoles({
-                                        ...personnelRoles,
-                                        [personnelId]: "__CUSTOM__"
-                                      });
-                                    } else {
-                                      setPersonnelRoles({
-                                        ...personnelRoles,
-                                        [personnelId]: value
-                                      });
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="flex-1" data-testid={`select-role-${personnelId}`}>
-                                    <SelectValue placeholder="Select role..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Photographer">Photographer</SelectItem>
-                                    <SelectItem value="Videographer">Videographer</SelectItem>
-                                    <SelectItem value="Model">Model</SelectItem>
-                                    <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
-                                    <SelectItem value="Stylist">Stylist</SelectItem>
-                                    <SelectItem value="Assistant">Assistant</SelectItem>
-                                    <SelectItem value="Coordinator">Coordinator</SelectItem>
-                                    <SelectItem value="_custom">
-                                      <div className="flex items-center gap-2">
-                                        <Plus className="h-4 w-4" />
-                                        <span>Custom Role...</span>
-                                      </div>
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removePersonnel(personnelId)}
-                            data-testid={`button-remove-personnel-${personnelId}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreatePersonnelOpen(true);
-                return;
-              }
-              setSelectedPersonnel([...selectedPersonnel, value]);
-            }}>
-              <SelectTrigger data-testid="select-personnel">
-                <SelectValue placeholder="Add personnel..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availablePersonnel.map((person) => (
-                  <SelectItem key={person.id} value={person.id}>
-                    {person.name}
-                  </SelectItem>
-                ))}
-                {availablePersonnel.length === 0 && (
-                  <SelectItem value="_none" disabled>No personnel available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Equipment */}
-          <div className="space-y-3">
-            <Label>Equipment</Label>
-
-            {selectedEquipment.length > 0 && (
-              <div className="space-y-2">
-                {selectedEquipment.map((equipmentId) => {
-                  const item = equipment.find(e => e.id === equipmentId);
-                  if (!item) return null;
-                  return (
-                    <Card key={equipmentId}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-muted-foreground">{item.category}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={item.available ? "default" : "secondary"}>
-                              {item.available ? "Available" : "In Use"}
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeEquipment(equipmentId)}
-                              data-testid={`button-remove-equipment-${equipmentId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreateEquipmentOpen(true);
-                return;
-              }
-              setSelectedEquipment([...selectedEquipment, value]);
-            }}>
-              <SelectTrigger data-testid="select-equipment">
-                <SelectValue placeholder="Add equipment..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availableEquipment.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name} - {item.category}
-                  </SelectItem>
-                ))}
-                {availableEquipment.length === 0 && (
-                  <SelectItem value="_none" disabled>No equipment available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Props */}
-          <div className="space-y-3">
-            <Label>Props</Label>
-
-            {selectedProps.length > 0 && (
-              <div className="space-y-2">
-                {selectedProps.map((propId) => {
-                  const prop = props.find(p => p.id === propId);
-                  if (!prop) return null;
-                  return (
-                    <Card key={propId}>
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{prop.name}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={prop.available ? "default" : "secondary"}>
-                              {prop.available ? "Available" : "In Use"}
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeProp(propId)}
-                              data-testid={`button-remove-prop-${propId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreatePropsOpen(true);
-                return;
-              }
-              setSelectedProps([...selectedProps, value]);
-            }}>
-              <SelectTrigger data-testid="select-prop">
-                <SelectValue placeholder="Add prop..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availableProps.map((prop) => (
-                  <SelectItem key={prop.id} value={prop.id}>
-                    {prop.name}
-                  </SelectItem>
-                ))}
-                {availableProps.length === 0 && (
-                  <SelectItem value="_none" disabled>No props available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Instagram Links */}
-          <div className="space-y-3">
-            <Label>Instagram Reference Links</Label>
-            {instagramLinks.length > 0 && (
-              <div className="space-y-2">
-                {instagramLinks.map((link, index) => (
-                  <Card key={index}>
+                {locationId && locations.find(l => l.id === locationId) ? (
+                  <Card>
                     <CardContent className="p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm truncate flex-1">{link}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium">{locations.find(l => l.id === locationId)?.name}</p>
+                          {locations.find(l => l.id === locationId)?.address && (
+                            <p className="text-sm text-muted-foreground">{locations.find(l => l.id === locationId)?.address}</p>
+                          )}
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeInstagramLink(index)}
-                          data-testid={`button-remove-link-${index}`}
+                          onClick={() => setLocationId("")}
+                          data-testid="button-remove-location"
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  <Select value={locationId} onValueChange={(value) => {
+                    if (value === "_create_new") {
+                      setCreateLocationOpen(true);
+                      return;
+                    }
+                    setLocationId(value);
+                  }}>
+                    <SelectTrigger data-testid="select-location">
+                      <SelectValue placeholder="Select a location..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_create_new">
+                        <div className="flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          <span>Create New...</span>
+                        </div>
+                      </SelectItem>
+                      {availableLocations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                      {availableLocations.length === 0 && (
+                        <SelectItem value="_none" disabled>No locations available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://instagram.com/p/..."
-                value={currentLink}
-                onChange={(e) => setCurrentLink(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addInstagramLink();
+
+              <Separator />
+
+              {/* Equipment */}
+              <div className="space-y-3">
+                <Label>Equipment</Label>
+
+                {selectedEquipment.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedEquipment.map((equipmentId) => {
+                      const item = equipment.find(e => e.id === equipmentId);
+                      if (!item) return null;
+                      return (
+                        <Card key={equipmentId}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-medium">{item.name}</p>
+                                <p className="text-sm text-muted-foreground">{item.category}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={item.available ? "default" : "secondary"}>
+                                  {item.available ? "Available" : "In Use"}
+                                </Badge>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeEquipment(equipmentId)}
+                                  data-testid={`button-remove-equipment-${equipmentId}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Select value="" onValueChange={(value) => {
+                  if (value === "_create_new") {
+                    setCreateEquipmentOpen(true);
+                    return;
                   }
-                }}
-                data-testid="input-instagram-link"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addInstagramLink}
-                data-testid="button-add-link"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+                  setSelectedEquipment([...selectedEquipment, value]);
+                }}>
+                  <SelectTrigger data-testid="select-equipment">
+                    <SelectValue placeholder="Add equipment..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_create_new">
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span>Create New...</span>
+                      </div>
+                    </SelectItem>
+                    {availableEquipment.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} - {item.category}
+                      </SelectItem>
+                    ))}
+                    {availableEquipment.length === 0 && (
+                      <SelectItem value="_none" disabled>No equipment available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Props */}
+              <div className="space-y-3">
+                <Label>Props</Label>
+
+                {selectedProps.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedProps.map((propId) => {
+                      const prop = props.find(p => p.id === propId);
+                      if (!prop) return null;
+                      return (
+                        <Card key={propId}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">{prop.name}</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={prop.available ? "default" : "secondary"}>
+                                  {prop.available ? "Available" : "In Use"}
+                                </Badge>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeProp(propId)}
+                                  data-testid={`button-remove-prop-${propId}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Select value="" onValueChange={(value) => {
+                  if (value === "_create_new") {
+                    setCreatePropsOpen(true);
+                    return;
+                  }
+                  setSelectedProps([...selectedProps, value]);
+                }}>
+                  <SelectTrigger data-testid="select-prop">
+                    <SelectValue placeholder="Add prop..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_create_new">
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span>Create New...</span>
+                      </div>
+                    </SelectItem>
+                    {availableProps.map((prop) => (
+                      <SelectItem key={prop.id} value={prop.id}>
+                        {prop.name}
+                      </SelectItem>
+                    ))}
+                    {availableProps.length === 0 && (
+                      <SelectItem value="_none" disabled>No props available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Characters/Costumes */}
+              <div className="space-y-3">
+                <Label>Characters/Costumes</Label>
+
+                {selectedCostumes.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedCostumes.map((costumeId) => {
+                      const costume = costumes.find(c => c.id === costumeId);
+                      if (!costume) return null;
+                      return (
+                        <Card key={costumeId}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center gap-3">
+                              {costume.imageUrl && (
+                                <Avatar className="h-10 w-10">
+                                  <AvatarImage src={costume.imageUrl} />
+                                  <AvatarFallback>{getInitials(costume.characterName)}</AvatarFallback>
+                                </Avatar>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{costume.characterName}</p>
+                                {costume.seriesName && (
+                                  <p className="text-sm text-muted-foreground truncate">{costume.seriesName}</p>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeCostume(costumeId)}
+                                data-testid={`button-remove-costume-${costumeId}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Select value="" onValueChange={(value) => {
+                  if (value === "_create_new") {
+                    setCreateCostumesOpen(true);
+                    return;
+                  }
+                  setSelectedCostumes([...selectedCostumes, value]);
+                }}>
+                  <SelectTrigger data-testid="select-costume">
+                    <SelectValue placeholder="Add a costume..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_create_new">
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span>Create New...</span>
+                      </div>
+                    </SelectItem>
+                    {availableCostumes.map((costume) => (
+                      <SelectItem key={costume.id} value={costume.id}>
+                        {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
+                      </SelectItem>
+                    ))}
+                    {availableCostumes.length === 0 && (
+                      <SelectItem value="_none" disabled>No costumes available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Personnel */}
+              <div className="space-y-3">
+                <Label>Personnel</Label>
+
+                {selectedPersonnel.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedPersonnel.map((personnelId) => {
+                      const person = personnel.find(p => p.id === personnelId);
+                      if (!person) return null;
+                      return (
+                        <Card key={personnelId}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={person.avatarUrl || undefined} />
+                                <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{person.name}</p>
+                                  {person.email && (
+                                    <p className="text-sm text-muted-foreground">{person.email}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {personnelRoles[personnelId] === "__CUSTOM__" || (personnelRoles[personnelId] && !['Photographer', 'Videographer', 'Model', 'Makeup Artist', 'Stylist', 'Assistant', 'Coordinator'].includes(personnelRoles[personnelId])) ? (
+                                    <div className="flex-1 flex gap-2">
+                                      <Input
+                                        placeholder="Custom role"
+                                        value={personnelRoles[personnelId] === "__CUSTOM__" ? "" : personnelRoles[personnelId] || ""}
+                                        onChange={(e) => setPersonnelRoles({
+                                          ...personnelRoles,
+                                          [personnelId]: e.target.value
+                                        })}
+                                        data-testid={`input-custom-role-${personnelId}`}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setPersonnelRoles({
+                                          ...personnelRoles,
+                                          [personnelId]: ""
+                                        })}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <Select
+                                      value={personnelRoles[personnelId] || ""}
+                                      onValueChange={(value) => {
+                                        if (value === "_custom") {
+                                          setPersonnelRoles({
+                                            ...personnelRoles,
+                                            [personnelId]: "__CUSTOM__"
+                                          });
+                                        } else {
+                                          setPersonnelRoles({
+                                            ...personnelRoles,
+                                            [personnelId]: value
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="flex-1" data-testid={`select-role-${personnelId}`}>
+                                        <SelectValue placeholder="Select role..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Photographer">Photographer</SelectItem>
+                                        <SelectItem value="Videographer">Videographer</SelectItem>
+                                        <SelectItem value="Model">Model</SelectItem>
+                                        <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
+                                        <SelectItem value="Stylist">Stylist</SelectItem>
+                                        <SelectItem value="Assistant">Assistant</SelectItem>
+                                        <SelectItem value="Coordinator">Coordinator</SelectItem>
+                                        <SelectItem value="_custom">
+                                          <div className="flex items-center gap-2">
+                                            <Plus className="h-4 w-4" />
+                                            <span>Custom Role...</span>
+                                          </div>
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePersonnel(personnelId)}
+                                data-testid={`button-remove-personnel-${personnelId}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Select value="" onValueChange={(value) => {
+                  if (value === "_create_new") {
+                    setCreatePersonnelOpen(true);
+                    return;
+                  }
+                  setSelectedPersonnel([...selectedPersonnel, value]);
+                }}>
+                  <SelectTrigger data-testid="select-personnel">
+                    <SelectValue placeholder="Add personnel..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_create_new">
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span>Create New...</span>
+                      </div>
+                    </SelectItem>
+                    {availablePersonnel.map((person) => (
+                      <SelectItem key={person.id} value={person.id}>
+                        {person.name}
+                      </SelectItem>
+                    ))}
+                    {availablePersonnel.length === 0 && (
+                      <SelectItem value="_none" disabled>No personnel available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Instagram Links Section */}
+      <Card>
+        <CardContent className="p-6 space-y-3">
+          <Label>Instagram Reference Links</Label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://instagram.com/p/..."
+              value={currentLink}
+              onChange={(e) => setCurrentLink(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addInstagramLink();
+                }
+              }}
+              data-testid="input-instagram-link"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addInstagramLink}
+              data-testid="button-add-link"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes Section */}
+      <Card>
+        <CardContent className="p-6 space-y-3">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            placeholder="Add any details about the shoot..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            data-testid="textarea-notes"
+          />
         </CardContent>
       </Card>
 
