@@ -90,6 +90,7 @@ export const costumeProgress = pgTable("costume_progress", {
   seriesName: text("series_name"),
   status: text("status").notNull().default("planning"),
   completionPercentage: integer("completion_percentage").default(0),
+  todos: text("todos").array(),
   notes: text("notes"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

@@ -38,21 +38,19 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Shirt, ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Shirt, ImageIcon, X, Check } from "lucide-react";
 import type { CostumeProgress } from "@shared/schema";
 
 const costumeFormSchema = z.object({
   characterName: z.string().min(1, "Character name is required"),
   seriesName: z.string().optional(),
   status: z.enum(["planning", "in-progress", "completed"]).default("planning"),
-  completionPercentage: z.number().min(0).max(100).default(0),
+  todos: z.array(z.string()).default([]),
   notes: z.string().optional(),
 });
 
@@ -71,6 +69,7 @@ export default function Costumes() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [currentTodo, setCurrentTodo] = useState("");
 
   const { data: costumes = [], isLoading } = useQuery<CostumeProgress[]>({
     queryKey: ["/api/costumes"],
@@ -82,7 +81,7 @@ export default function Costumes() {
       characterName: "",
       seriesName: "",
       status: "planning",
-      completionPercentage: 0,
+      todos: [],
       notes: "",
     },
   });
@@ -93,7 +92,7 @@ export default function Costumes() {
       formData.append("characterName", data.characterName);
       formData.append("seriesName", data.seriesName || "");
       formData.append("status", data.status);
-      formData.append("completionPercentage", String(data.completionPercentage));
+      formData.append("todos", JSON.stringify(data.todos || []));
       formData.append("notes", data.notes || "");
       
       if (imageFile) {
@@ -138,7 +137,7 @@ export default function Costumes() {
       formData.append("characterName", data.characterName);
       formData.append("seriesName", data.seriesName || "");
       formData.append("status", data.status);
-      formData.append("completionPercentage", String(data.completionPercentage));
+      formData.append("todos", JSON.stringify(data.todos || []));
       formData.append("notes", data.notes || "");
       
       if (imageFile) {
@@ -208,7 +207,7 @@ export default function Costumes() {
       characterName: "",
       seriesName: "",
       status: "planning",
-      completionPercentage: 0,
+      todos: [],
       notes: "",
     });
     setImagePreview(null);
@@ -222,7 +221,7 @@ export default function Costumes() {
       characterName: costume.characterName,
       seriesName: costume.seriesName || "",
       status: costume.status as "planning" | "in-progress" | "completed",
-      completionPercentage: costume.completionPercentage ?? 0,
+      todos: costume.todos || [],
       notes: costume.notes || "",
     });
     setImagePreview(costume.imageUrl || null);
@@ -359,18 +358,22 @@ export default function Costumes() {
                       {costume.status === "in-progress" ? "In Progress" : costume.status.charAt(0).toUpperCase() + costume.status.slice(1)}
                     </Badge>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-medium" data-testid={`progress-text-${costume.id}`}>
-                        {costume.completionPercentage ?? 0}%
-                      </span>
+                  {costume.status !== "completed" && costume.todos && costume.todos.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-sm text-muted-foreground">Todos ({costume.todos.length})</span>
+                      <div className="space-y-1">
+                        {costume.todos.slice(0, 3).map((todo, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm" data-testid={`todo-display-${costume.id}-${index}`}>
+                            <Check className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground line-clamp-1">{todo}</span>
+                          </div>
+                        ))}
+                        {costume.todos.length > 3 && (
+                          <span className="text-xs text-muted-foreground">+{costume.todos.length - 3} more</span>
+                        )}
+                      </div>
                     </div>
-                    <Progress 
-                      value={costume.completionPercentage ?? 0} 
-                      data-testid={`progress-bar-${costume.id}`}
-                    />
-                  </div>
+                  )}
                   {costume.notes && (
                     <p className="text-sm text-muted-foreground line-clamp-2">{costume.notes}</p>
                   )}
@@ -487,26 +490,75 @@ export default function Costumes() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="completionPercentage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Completion: {field.value}%</FormLabel>
-                    <FormControl>
-                      <Slider
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={[field.value]}
-                        onValueChange={(values) => field.onChange(values[0])}
-                        data-testid="slider-costume-completion"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {form.watch("status") !== "completed" && (
+                <FormField
+                  control={form.control}
+                  name="todos"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Todo List</FormLabel>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={currentTodo}
+                            onChange={(e) => setCurrentTodo(e.target.value)}
+                            placeholder="Add a todo item..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (currentTodo.trim()) {
+                                  field.onChange([...field.value, currentTodo.trim()]);
+                                  setCurrentTodo("");
+                                }
+                              }
+                            }}
+                            data-testid="input-todo-item"
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            onClick={() => {
+                              if (currentTodo.trim()) {
+                                field.onChange([...field.value, currentTodo.trim()]);
+                                setCurrentTodo("");
+                              }
+                            }}
+                            data-testid="button-add-todo"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {field.value.length > 0 && (
+                          <div className="space-y-1">
+                            {field.value.map((todo, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                                data-testid={`todo-item-${index}`}
+                              >
+                                <Check className="h-4 w-4 text-muted-foreground" />
+                                <span className="flex-1 text-sm">{todo}</span>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    field.onChange(field.value.filter((_, i) => i !== index));
+                                  }}
+                                  data-testid={`button-remove-todo-${index}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

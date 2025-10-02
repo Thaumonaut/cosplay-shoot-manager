@@ -1529,7 +1529,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bodyData = {
         ...req.body,
         teamId,
-        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : 0
+        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : 0,
+        todos: req.body.todos ? JSON.parse(req.body.todos) : []
       };
       const data = insertCostumeProgressSchema.parse(bodyData);
       const costume = await storage.createCostumeProgress(data);
@@ -1545,7 +1546,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teamId = await getUserTeamId(getUserId(req));
       const bodyData = {
         ...req.body,
-        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : undefined
+        completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : undefined,
+        todos: req.body.todos ? JSON.parse(req.body.todos) : undefined
       };
       const validatedData = insertCostumeProgressSchema.partial().parse(bodyData);
       const updated = await storage.updateCostumeProgress(req.params.id, teamId, validatedData);
