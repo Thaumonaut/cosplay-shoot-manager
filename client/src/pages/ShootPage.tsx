@@ -1116,13 +1116,53 @@ export default function ShootPage() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-lg">{person.name}</p>
-                        <EditableField
-                          value={personnelRoles[personnelId] || ""}
-                          onChange={(value) => setPersonnelRoles({...personnelRoles, [personnelId]: value})}
-                          placeholder="Add role..."
-                          textClassName="text-sm text-muted-foreground"
-                          data-testid={`input-role-${personnelId}`}
-                        />
+                        {personnelRoles[personnelId] === "__CUSTOM__" ? (
+                          <Input
+                            value={personnelRoles[`${personnelId}_custom`] || ""}
+                            onChange={(e) => setPersonnelRoles({
+                              ...personnelRoles,
+                              [`${personnelId}_custom`]: e.target.value
+                            })}
+                            placeholder="Enter custom role..."
+                            className="mt-1 text-sm h-8"
+                            data-testid={`input-custom-role-${personnelId}`}
+                            onBlur={(e) => {
+                              if (!e.target.value) {
+                                const newRoles = {...personnelRoles};
+                                delete newRoles[personnelId];
+                                delete newRoles[`${personnelId}_custom`];
+                                setPersonnelRoles(newRoles);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Select
+                            value={personnelRoles[personnelId] || ""}
+                            onValueChange={(value) => {
+                              if (value === "__CUSTOM__") {
+                                setPersonnelRoles({...personnelRoles, [personnelId]: "__CUSTOM__"});
+                              } else {
+                                const newRoles = {...personnelRoles, [personnelId]: value};
+                                delete newRoles[`${personnelId}_custom`];
+                                setPersonnelRoles(newRoles);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm" data-testid={`select-role-${personnelId}`}>
+                              <SelectValue placeholder="Select role..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Photographer">Photographer</SelectItem>
+                              <SelectItem value="Videographer">Videographer</SelectItem>
+                              <SelectItem value="Model">Model</SelectItem>
+                              <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
+                              <SelectItem value="Stylist">Stylist</SelectItem>
+                              <SelectItem value="Assistant">Assistant</SelectItem>
+                              <SelectItem value="Coordinator">Coordinator</SelectItem>
+                              <SelectItem value="__CUSTOM__">Custom Role...</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                       <Button
                         type="button"
