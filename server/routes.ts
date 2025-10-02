@@ -1864,7 +1864,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/personnel", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const data = insertPersonnelSchema.parse({ ...req.body, teamId });
+      
+      // Upload avatar to object storage if provided
+      let avatarUrl: string | undefined;
+      if (req.file) {
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
+        }
+
+        // Sanitize filename to prevent path traversal
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const fileName = `public/personnel/${teamId}/${Date.now()}-${safeFilename}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: "public, max-age=31536000",
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload avatar: ${error.message}`);
+        }
+        
+        // Get the public URL
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        avatarUrl = publicUrlData.publicUrl;
+      }
+      
+      const data = insertPersonnelSchema.parse({ 
+        ...req.body, 
+        teamId,
+        ...(avatarUrl && { avatarUrl })
+      });
       const person = await storage.createPersonnel(data);
       res.status(201).json(person);
     } catch (error) {

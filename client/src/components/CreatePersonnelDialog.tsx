@@ -32,10 +32,20 @@ export function CreatePersonnelDialog({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; email?: string; phone?: string; notes?: string }) => {
-      const response = await apiRequest("POST", "/api/personnel", data);
+    mutationFn: async (data: FormData) => {
+      const response = await fetch("/api/personnel", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to create personnel");
+      }
       return await response.json();
     },
     onSuccess: (newPersonnel) => {
@@ -48,6 +58,8 @@ export function CreatePersonnelDialog({
       setEmail("");
       setPhone("");
       setNotes("");
+      setImageFile(null);
+      setImagePreview("");
       onOpenChange(false);
       onSuccess?.(newPersonnel);
     },
@@ -60,6 +72,18 @@ export function CreatePersonnelDialog({
     },
   });
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -70,12 +94,23 @@ export function CreatePersonnelDialog({
       });
       return;
     }
-    createMutation.mutate({
-      name: name.trim(),
-      email: email.trim() || undefined,
-      phone: phone.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    if (email.trim()) {
+      formData.append("email", email.trim());
+    }
+    if (phone.trim()) {
+      formData.append("phone", phone.trim());
+    }
+    if (notes.trim()) {
+      formData.append("notes", notes.trim());
+    }
+    if (imageFile) {
+      formData.append("avatar", imageFile);
+    }
+
+    createMutation.mutate(formData);
   };
 
   return (
@@ -97,6 +132,26 @@ export function CreatePersonnelDialog({
               onChange={(e) => setName(e.target.value)}
               data-testid="input-personnel-name"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="avatar">Avatar (Optional)</Label>
+            <Input
+              id="avatar"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              data-testid="input-personnel-avatar"
+            />
+            {imagePreview && (
+              <div className="flex justify-center">
+                <img
+                  src={imagePreview}
+                  alt="Avatar preview"
+                  className="w-24 h-24 rounded-full object-cover"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
