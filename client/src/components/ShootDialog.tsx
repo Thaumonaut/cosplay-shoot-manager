@@ -48,6 +48,10 @@ export function ShootDialog({ open, onOpenChange, shootId, mode }: ShootDialogPr
   const [manualTitle, setManualTitle] = useState(false);
   const [status, setStatus] = useState<string>("idea");
   const [date, setDate] = useState<Date>();
+  const [time, setTime] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState<number>(60);
+  const [reminderDate, setReminderDate] = useState<Date>();
+  const [reminderTime, setReminderTime] = useState("");
   const [locationId, setLocationId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [color, setColor] = useState<string>("#3B82F6");
@@ -109,6 +113,13 @@ export function ShootDialog({ open, onOpenChange, shootId, mode }: ShootDialogPr
       setManualTitle(true);
       setStatus(existingShoot.status);
       setDate(existingShoot.date ? new Date(existingShoot.date) : undefined);
+      setTime(existingShoot.time || "");
+      setDurationMinutes(existingShoot.durationMinutes || 60);
+      setReminderDate(existingShoot.reminderTime ? new Date(existingShoot.reminderTime) : undefined);
+      if (existingShoot.reminderTime) {
+        const reminderDateTime = new Date(existingShoot.reminderTime);
+        setReminderTime(`${String(reminderDateTime.getHours()).padStart(2, '0')}:${String(reminderDateTime.getMinutes()).padStart(2, '0')}`);
+      }
       setLocationId(existingShoot.locationId || "");
       setNotes(existingShoot.notes || "");
       setColor(existingShoot.color || "#3B82F6");
@@ -325,6 +336,10 @@ export function ShootDialog({ open, onOpenChange, shootId, mode }: ShootDialogPr
     setManualTitle(false);
     setStatus("idea");
     setDate(undefined);
+    setTime("");
+    setDurationMinutes(60);
+    setReminderDate(undefined);
+    setReminderTime("");
     setLocationId("");
     setNotes("");
     setColor("#3B82F6");
@@ -360,10 +375,22 @@ export function ShootDialog({ open, onOpenChange, shootId, mode }: ShootDialogPr
       return;
     }
 
+    // Build reminderTime timestamp if both date and time are provided
+    let reminderTimeValue = null;
+    if (reminderDate && reminderTime) {
+      const [hours, minutes] = reminderTime.split(':').map(Number);
+      const reminderDateTime = new Date(reminderDate);
+      reminderDateTime.setHours(hours, minutes, 0, 0);
+      reminderTimeValue = reminderDateTime.toISOString();
+    }
+
     const shootData: any = {
       title: title.trim(),
       status,
       date: date ? date.toISOString() : null,
+      time: time.trim() || null,
+      durationMinutes: durationMinutes || null,
+      reminderTime: reminderTimeValue,
       locationId: locationId || null,
       notes: notes.trim() || null,
       color: color || "#3B82F6",
@@ -485,6 +512,69 @@ export function ShootDialog({ open, onOpenChange, shootId, mode }: ShootDialogPr
                       />
                     </PopoverContent>
                   </Popover>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      data-testid="input-time"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration (minutes)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min="15"
+                      step="15"
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                      data-testid="input-duration"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Reminder</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          data-testid="button-reminder-date-picker"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {reminderDate ? format(reminderDate, "PP") : "Reminder date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={reminderDate}
+                          onSelect={setReminderDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Input
+                      type="time"
+                      value={reminderTime}
+                      onChange={(e) => setReminderTime(e.target.value)}
+                      placeholder="Time"
+                      data-testid="input-reminder-time"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    When to send email reminders to participants
+                  </p>
                 </div>
 
                 <div className="space-y-2">

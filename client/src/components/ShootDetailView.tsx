@@ -208,6 +208,60 @@ export function ShootDetailView({ shoot, onBack, onDelete, onExportDocs, isExpor
           </Button>
         </div>
 
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          {onExportDocs && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportDocs}
+              disabled={isExporting}
+              data-testid="button-create-docs"
+            >
+              <SiGoogledocs className="h-4 w-4 mr-2" />
+              {shoot.docsUrl ? 'Update' : 'Create'} Google Doc
+            </Button>
+          )}
+          {onSendReminders && shoot.participants.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSendReminders}
+              disabled={isSendingReminders}
+              data-testid="button-send-reminders"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Send Reminder Emails
+            </Button>
+          )}
+          {shoot.docsUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              data-testid="button-view-docs"
+            >
+              <a href={shoot.docsUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Doc
+              </a>
+            </Button>
+          )}
+          {shoot.calendarEventUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              data-testid="button-view-calendar"
+            >
+              <a href={shoot.calendarEventUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Calendar
+              </a>
+            </Button>
+          )}
+        </div>
+
         {/* Main Card */}
         <Card>
           {heroImage ? (

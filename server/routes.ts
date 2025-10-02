@@ -1551,6 +1551,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Create or update Google Doc for shoot
+  app.post("/api/shoots/:id/docs", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = await getUserTeamId(userId);
+      
+      const shoot = await storage.getTeamShoot(req.params.id, teamId);
+      if (!shoot) {
+        return res.status(404).json({ error: "Shoot not found" });
+      }
+
+      // Get full shoot details
+      const participants = await storage.getShootParticipants(req.params.id);
+      const references = await storage.getShootReferences(req.params.id);
+      const shootEquipment = await storage.getShootEquipment(req.params.id);
+      const shootProps = await storage.getShootProps(req.params.id);
+      const shootCostumes = await storage.getShootCostumes(req.params.id);
+      
+      const equipmentIds = shootEquipment.map((e: any) => e.equipmentId);
+      const propIds = shootProps.map((p: any) => p.propId);
+      const costumeIds = shootCostumes.map((c: any) => c.costumeId);
+
+      // Fetch related resources
+      const equipment = await Promise.all(equipmentIds.map(id => storage.getEquipment(id, teamId)));
+      const props = await Promise.all(propIds.map(id => storage.getProp(id, teamId)));
+      const costumes = await Promise.all(costumeIds.map(id => storage.getCostumeProgress(id, teamId)));
+      const location = shoot.locationId ? await storage.getLocation(shoot.locationId, teamId) : null;
+
+      const shootWithDetails = {
+        ...shoot,
+        participants,
+        references,
+        equipment: equipment.filter(Boolean),
+        props: props.filter(Boolean),
+        costumes: costumes.filter(Boolean),
+        location,
+      };
+
+      // Check if we should update existing doc or create new one
+      let docId: string;
+      let docUrl: string;
+      
+      if (shoot.docsId) {
+        // Update existing document by clearing and recreating content
+        const { updateShootDocument } = await import('./services/docs-update');
+        const result = await updateShootDocument(shoot.docsId, shootWithDetails as any);
+        
+        docId = result.docId;
+        docUrl = result.docUrl;
+      } else {
+        // Create new document
+        const result = await createShootDocument(shootWithDetails as any);
+        docId = result.docId;
+        docUrl = result.docUrl;
+      }
+
+      // Update shoot with doc info
+      await storage.updateShoot(req.params.id, teamId, {
+        docsId: docId,
+        docsUrl: docUrl,
+      });
+
+      res.json({ docId, docUrl, message: shoot.docsId ? "Document updated successfully" : "Document created successfully" });
+    } catch (error) {
+      console.error("Error creating shoot document:", error);
+      
+      if (error instanceof Error && error.message.includes('Google Docs not connected')) {
+        return res.status(503).json({
+          error: "Please connect your Google Docs account to use this feature"
+        });
+      }
+
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to create document",
+      });
+    }
+  });
+
   // Personnel endpoints
   app.get("/api/personnel", authenticateUser, async (req: AuthRequest, res) => {
     try {
