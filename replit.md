@@ -7,6 +7,17 @@ A web application for managing and organizing cosplay photo shoots. The system p
 ## Recent Changes
 
 **October 2, 2025**
+- **Centralized Profile & Team Settings**: Reorganized UI to consolidate all user and team settings in the profile page
+  - Removed Team Settings section from sidebar navigation
+  - Removed UserMenu dropdown from header (header now shows only SidebarTrigger and ThemeToggle)
+  - Profile page is now the single location for all user/team management
+  - User profile editing: firstName, lastName, and avatar upload with preview
+  - Team settings: view/edit team name (owner only), join team via invite code, leave team with confirmation
+  - Sign out button integrated into profile page Application section
+  - Backend team API: GET/PATCH `/api/team/:id`, POST `/api/team/join`, DELETE `/api/team/leave`
+  - Added `deleteTeamMember` storage method for team departure workflow
+  - Leave team auto-creates new personal team for user
+  - Fixed team query bug: now properly fetches `/api/team/{teamId}` with custom queryFn
 - **Enhanced AddShootDialog with smart title generation**: Shoot titles now auto-generate from selected costumes/characters with manual override option
   - Single costume: "Character Name - Series Shoot"
   - Multiple costumes: "Character1 & Character2 - Series Shoot" or "Character1 & Character2 +N Shoot"
