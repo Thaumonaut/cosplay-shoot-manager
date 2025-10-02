@@ -31,7 +31,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2, Edit2, MapPin, Clock } from "lucide-react";
+import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2, Edit2, MapPin, Clock, Upload, ImagePlus } from "lucide-react";
 import { SiGoogledocs, SiGooglecalendar } from "react-icons/si";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -72,6 +72,15 @@ export default function ShootPage() {
   const [createLocationOpen, setCreateLocationOpen] = useState(false);
   const [createPropsOpen, setCreatePropsOpen] = useState(false);
   const [createCostumesOpen, setCreateCostumesOpen] = useState(false);
+
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [editingCostume, setEditingCostume] = useState<CostumeProgress | null>(null);
+  const [editingProp, setEditingProp] = useState<Prop | null>(null);
+  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+
+  const [pendingReferenceFiles, setPendingReferenceFiles] = useState<File[]>([]);
+  const [isDraggingRef, setIsDraggingRef] = useState(false);
 
   const { data: existingShoot } = useQuery<any>({
     queryKey: ["/api/shoots", id],
@@ -236,6 +245,24 @@ export default function ShootPage() {
             })
           )
         );
+      }
+
+      if (pendingReferenceFiles.length > 0) {
+        for (const file of pendingReferenceFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('shootId', newShoot.id);
+          
+          try {
+            await fetch('/api/shoot-references', {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (error) {
+            console.error('Failed to upload reference:', error);
+          }
+        }
+        setPendingReferenceFiles([]);
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
@@ -661,38 +688,81 @@ export default function ShootPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-3xl">
-          <Input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setManualTitle(true);
-            }}
-            placeholder="Enter shoot title..."
-            className="text-3xl md:text-3xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
-            data-testid="input-shoot-title"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="cursor-pointer" data-testid="button-edit-status">
-                <StatusBadge status={status} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setStatus("idea" as any)} data-testid="status-option-idea">
-                Idea
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatus("planning" as any)} data-testid="status-option-planning">
-                Planning
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatus("ready to shoot" as any)} data-testid="status-option-ready">
-                Ready to Shoot
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatus("completed" as any)} data-testid="status-option-completed">
-                Completed
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 text-3xl">
+            <Input
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setManualTitle(true);
+              }}
+              placeholder="Enter shoot title..."
+              className="text-3xl md:text-3xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
+              data-testid="input-shoot-title"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="cursor-pointer" data-testid="button-edit-status">
+                  <StatusBadge status={status} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setStatus("idea" as any)} data-testid="status-option-idea">
+                  Idea
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatus("planning" as any)} data-testid="status-option-planning">
+                  Planning
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatus("ready to shoot" as any)} data-testid="status-option-ready">
+                  Ready to Shoot
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatus("completed" as any)} data-testid="status-option-completed">
+                  Completed
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {selectedCostumes.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Switch
+                checked={!manualTitle}
+                onCheckedChange={(checked) => {
+                  setManualTitle(!checked);
+                  if (checked) {
+                    const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
+                    if (selectedCostumeData.length > 0) {
+                      const characters = selectedCostumeData.map(c => c.characterName);
+                      const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
+                      const series = Array.from(seriesSet);
+                      
+                      let generatedTitle = "";
+                      if (characters.length === 1) {
+                        generatedTitle = characters[0];
+                        if (series.length > 0 && series[0]) {
+                          generatedTitle += ` - ${series[0]}`;
+                        }
+                      } else if (characters.length > 1) {
+                        generatedTitle = characters.slice(0, 2).join(" & ");
+                        if (characters.length > 2) {
+                          generatedTitle += ` +${characters.length - 2}`;
+                        }
+                        if (series.length > 0 && series[0]) {
+                          generatedTitle += ` - ${series[0]}`;
+                        }
+                      }
+                      
+                      if (generatedTitle) {
+                        setTitle(generatedTitle + " Shoot");
+                      }
+                    }
+                  }
+                }}
+                data-testid="switch-auto-title"
+              />
+              <span>{manualTitle ? "Using custom title" : "Using auto title"}</span>
+            </div>
+          )}
         </div>
 
         {status !== "idea" && (
@@ -863,53 +933,15 @@ export default function ShootPage() {
         </div>
 
         {selectedLocation && (
-          <Card>
+          <Card 
+            className="cursor-pointer hover-elevate" 
+            onClick={() => setEditingLocation(selectedLocation)}
+            data-testid={`card-location-${selectedLocation.id}`}
+          >
             <CardContent className="p-4">
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
-                        {selectedLocation.address && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3" />
-                            {selectedLocation.address}
-                          </p>
-                        )}
-                        {selectedLocation.notes && (
-                          <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setLocationId("")}
-                        data-testid="button-remove-location"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                {selectedLocation.placeId && (
-                  <div className="w-full h-64 rounded-lg overflow-hidden border">
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${selectedLocation?.placeId}`}
-                    />
-                  </div>
-                )}
-                
+              <div className="flex items-start gap-4">
                 {selectedLocation.imageUrl && (
-                  <div className="w-full h-48 rounded-lg overflow-hidden">
+                  <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                     <img 
                       src={selectedLocation.imageUrl} 
                       alt={selectedLocation.name}
@@ -917,6 +949,34 @@ export default function ShootPage() {
                     />
                   </div>
                 )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
+                      {selectedLocation.address && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {selectedLocation.address}
+                        </p>
+                      )}
+                      {selectedLocation.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLocationId("");
+                      }}
+                      data-testid="button-remove-location"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -960,11 +1020,16 @@ export default function ShootPage() {
               const costume = costumes.find(c => c.id === costumeId);
               if (!costume) return null;
               return (
-                <Card key={costumeId} className="overflow-hidden hover-elevate">
+                <Card 
+                  key={costumeId} 
+                  className="overflow-hidden cursor-pointer hover-elevate"
+                  onClick={() => setEditingCostume(costume)}
+                  data-testid={`card-costume-${costumeId}`}
+                >
                   <CardContent className="p-0 relative">
                     <div className="flex items-start gap-4 p-4">
                       {costume.imageUrl && (
-                        <div className="w-24 h-24 flex-shrink-0 rounded overflow-hidden">
+                        <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                           <img 
                             src={costume.imageUrl} 
                             alt={costume.characterName}
@@ -982,7 +1047,10 @@ export default function ShootPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeCostume(costumeId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCostume(costumeId);
+                        }}
                         data-testid={`button-remove-costume-${costumeId}`}
                       >
                         <X className="h-4 w-4" />
@@ -1033,11 +1101,16 @@ export default function ShootPage() {
               const prop = props.find(p => p.id === propId);
               if (!prop) return null;
               return (
-                <Card key={propId} className="overflow-hidden hover-elevate">
+                <Card 
+                  key={propId} 
+                  className="overflow-hidden cursor-pointer hover-elevate"
+                  onClick={() => setEditingProp(prop)}
+                  data-testid={`card-prop-${propId}`}
+                >
                   <CardContent className="p-0 relative">
                     <div className="flex items-start gap-4 p-4">
                       {prop.imageUrl && (
-                        <div className="w-24 h-24 flex-shrink-0 rounded overflow-hidden">
+                        <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                           <img 
                             src={prop.imageUrl} 
                             alt={prop.name}
@@ -1055,7 +1128,10 @@ export default function ShootPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeProp(propId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeProp(propId);
+                        }}
                         data-testid={`button-remove-prop-${propId}`}
                       >
                         <X className="h-4 w-4" />
@@ -1106,7 +1182,12 @@ export default function ShootPage() {
               const person = personnel.find(p => p.id === personnelId);
               if (!person) return null;
               return (
-                <Card key={personnelId} className="hover-elevate">
+                <Card 
+                  key={personnelId} 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => setEditingPersonnel(person)}
+                  data-testid={`card-personnel-${personnelId}`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-12 flex-shrink-0">
@@ -1118,10 +1199,14 @@ export default function ShootPage() {
                         {personnelRoles[personnelId] === "__CUSTOM__" ? (
                           <Input
                             value={personnelRoles[`${personnelId}_custom`] || ""}
-                            onChange={(e) => setPersonnelRoles({
-                              ...personnelRoles,
-                              [`${personnelId}_custom`]: e.target.value
-                            })}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setPersonnelRoles({
+                                ...personnelRoles,
+                                [`${personnelId}_custom`]: e.target.value
+                              });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
                             placeholder="Enter custom role..."
                             className="mt-1 text-sm h-8"
                             data-testid={`input-custom-role-${personnelId}`}
@@ -1147,7 +1232,11 @@ export default function ShootPage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="mt-1 h-8 text-sm" data-testid={`select-role-${personnelId}`}>
+                            <SelectTrigger 
+                              className="mt-1 h-8 text-sm" 
+                              data-testid={`select-role-${personnelId}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <SelectValue placeholder="Select role..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -1167,7 +1256,10 @@ export default function ShootPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removePersonnel(personnelId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePersonnel(personnelId);
+                        }}
                         data-testid={`button-remove-personnel-${personnelId}`}
                       >
                         <X className="h-4 w-4" />
@@ -1218,9 +1310,23 @@ export default function ShootPage() {
               const item = equipment.find(e => e.id === equipmentId);
               if (!item) return null;
               return (
-                <Card key={equipmentId} className="hover-elevate">
+                <Card 
+                  key={equipmentId} 
+                  className="cursor-pointer hover-elevate"
+                  onClick={() => setEditingEquipment(item)}
+                  data-testid={`card-equipment-${equipmentId}`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
+                      {item.imageUrl && (
+                        <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg">{item.name}</h3>
                         <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
@@ -1232,7 +1338,10 @@ export default function ShootPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeEquipment(equipmentId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeEquipment(equipmentId);
+                        }}
                         data-testid={`button-remove-equipment-${equipmentId}`}
                       >
                         <X className="h-4 w-4" />
@@ -1248,22 +1357,63 @@ export default function ShootPage() {
 
       {/* Reference Images Gallery Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Reference Images</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isNew}
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.multiple = true;
-              input.onchange = async (e) => {
-                const files = (e.target as HTMLInputElement).files;
-                if (!files) return;
+        <h2 className="text-lg font-semibold">Reference Images</h2>
+
+        <div
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            isDraggingRef ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingRef(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDraggingRef(false);
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setIsDraggingRef(false);
+            
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (files.length === 0) return;
+
+            if (isNew) {
+              setPendingReferenceFiles([...pendingReferenceFiles, ...files]);
+            } else {
+              for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('shootId', existingShoot?.id || '');
                 
-                for (const file of Array.from(files)) {
+                try {
+                  await fetch('/api/shoot-references', {
+                    method: 'POST',
+                    body: formData,
+                  });
+                } catch (error) {
+                  console.error('Failed to upload reference:', error);
+                }
+              }
+              
+              queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+            }
+          }}
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.multiple = true;
+            input.onchange = async (e) => {
+              const files = (e.target as HTMLInputElement).files;
+              if (!files) return;
+              
+              const fileArray = Array.from(files);
+              
+              if (isNew) {
+                setPendingReferenceFiles([...pendingReferenceFiles, ...fileArray]);
+              } else {
+                for (const file of fileArray) {
                   const formData = new FormData();
                   formData.append('file', file);
                   formData.append('shootId', existingShoot?.id || '');
@@ -1279,19 +1429,51 @@ export default function ShootPage() {
                 }
                 
                 queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-              };
-              input.click();
-            }}
-            data-testid="button-add-reference"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Images
-          </Button>
+              }
+            };
+            input.click();
+          }}
+          data-testid="dropzone-reference-images"
+        >
+          <div className="flex flex-col items-center gap-2 cursor-pointer">
+            <ImagePlus className="h-10 w-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Drag & drop images here or click to browse
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              {isNew ? 'Images will be uploaded when shoot is saved' : 'Upload reference photos for your shoot'}
+            </p>
+          </div>
         </div>
 
-        {existingShoot?.references && existingShoot.references.length > 0 && (
+        {(pendingReferenceFiles.length > 0 || (existingShoot?.references && existingShoot.references.length > 0)) && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {existingShoot.references.map((ref: any) => (
+            {pendingReferenceFiles.map((file, index) => (
+              <Card key={`pending-${index}`} className="overflow-hidden hover-elevate group relative">
+                <CardContent className="p-0">
+                  <div className="aspect-square relative">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt="Pending reference"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== index));
+                      }}
+                      data-testid={`button-remove-pending-reference-${index}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {existingShoot?.references && existingShoot.references.map((ref: any) => (
               <Card key={ref.id} className="overflow-hidden hover-elevate group relative">
                 <CardContent className="p-0">
                   <div className="aspect-square relative">
@@ -1447,24 +1629,44 @@ export default function ShootPage() {
 
       {/* Create Resource Dialogs */}
       <CreatePersonnelDialog
-        open={createPersonnelOpen}
-        onOpenChange={setCreatePersonnelOpen}
+        open={createPersonnelOpen || !!editingPersonnel}
+        onOpenChange={(open) => {
+          setCreatePersonnelOpen(open);
+          if (!open) setEditingPersonnel(null);
+        }}
+        editItem={editingPersonnel}
       />
       <CreateEquipmentDialog
-        open={createEquipmentOpen}
-        onOpenChange={setCreateEquipmentOpen}
+        open={createEquipmentOpen || !!editingEquipment}
+        onOpenChange={(open) => {
+          setCreateEquipmentOpen(open);
+          if (!open) setEditingEquipment(null);
+        }}
+        editItem={editingEquipment}
       />
       <CreateLocationDialog
-        open={createLocationOpen}
-        onOpenChange={setCreateLocationOpen}
+        open={createLocationOpen || !!editingLocation}
+        onOpenChange={(open) => {
+          setCreateLocationOpen(open);
+          if (!open) setEditingLocation(null);
+        }}
+        editItem={editingLocation}
       />
       <CreatePropsDialog
-        open={createPropsOpen}
-        onOpenChange={setCreatePropsOpen}
+        open={createPropsOpen || !!editingProp}
+        onOpenChange={(open) => {
+          setCreatePropsOpen(open);
+          if (!open) setEditingProp(null);
+        }}
+        editItem={editingProp}
       />
       <CreateCostumesDialog
-        open={createCostumesOpen}
-        onOpenChange={setCreateCostumesOpen}
+        open={createCostumesOpen || !!editingCostume}
+        onOpenChange={(open) => {
+          setCreateCostumesOpen(open);
+          if (!open) setEditingCostume(null);
+        }}
+        editItem={editingCostume}
       />
     </div>
   );

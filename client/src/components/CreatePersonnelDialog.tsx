@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -15,17 +15,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import type { Personnel } from "@shared/schema";
 
 interface CreatePersonnelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (personnel: any) => void;
+  editItem?: Personnel;
 }
 
 export function CreatePersonnelDialog({
   open,
   onOpenChange,
   onSuccess,
+  editItem,
 }: CreatePersonnelDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -35,6 +38,17 @@ export function CreatePersonnelDialog({
   const [notes, setNotes] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+
+  useEffect(() => {
+    if (editItem) {
+      setName(editItem.name || "");
+      setEmail(editItem.email || "");
+      setPhone(editItem.phone || "");
+      setNotes(editItem.notes || "");
+      setImagePreview(editItem.avatarUrl || "");
+      setImageFile(null);
+    }
+  }, [editItem]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -55,12 +69,7 @@ export function CreatePersonnelDialog({
         title: "Success",
         description: "Personnel added successfully",
       });
-      setName("");
-      setEmail("");
-      setPhone("");
-      setNotes("");
-      setImageFile(null);
-      setImagePreview("");
+      resetForm();
       onOpenChange(false);
       onSuccess?.(newPersonnel);
     },
@@ -72,6 +81,48 @@ export function CreatePersonnelDialog({
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await fetch(`/api/personnel/${editItem!.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to update personnel");
+      }
+      return await response.json();
+    },
+    onSuccess: (updatedPersonnel) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personnel", editItem!.id] });
+      toast({
+        title: "Success",
+        description: "Personnel updated successfully",
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess?.(updatedPersonnel);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update personnel",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setNotes("");
+    setImageFile(null);
+    setImagePreview("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,16 +150,27 @@ export function CreatePersonnelDialog({
       formData.append("avatar", imageFile);
     }
 
-    createMutation.mutate(formData);
+    if (editItem) {
+      updateMutation.mutate(formData);
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent data-testid="dialog-create-personnel">
         <DialogHeader>
-          <DialogTitle>Add New Person</DialogTitle>
+          <DialogTitle>{editItem ? "Edit Person" : "Add New Person"}</DialogTitle>
           <DialogDescription>
-            Create a new person to add to your team
+            {editItem ? "Update person details" : "Create a new person to add to your team"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,17 +232,19 @@ export function CreatePersonnelDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               data-testid="button-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-save"
             >
-              {createMutation.isPending ? "Adding..." : "Add Person"}
+              {editItem
+                ? (updateMutation.isPending ? "Updating..." : "Update")
+                : (createMutation.isPending ? "Creating..." : "Create")}
             </Button>
           </DialogFooter>
         </form>

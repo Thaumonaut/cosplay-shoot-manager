@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -15,17 +15,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import type { Prop } from "@shared/schema";
 
 interface CreatePropsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (prop: any) => void;
+  editItem?: Prop;
 }
 
 export function CreatePropsDialog({
   open,
   onOpenChange,
   onSuccess,
+  editItem,
 }: CreatePropsDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,6 +37,16 @@ export function CreatePropsDialog({
   const [available, setAvailable] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+
+  useEffect(() => {
+    if (editItem) {
+      setName(editItem.name || "");
+      setDescription(editItem.description || "");
+      setAvailable(editItem.available ?? true);
+      setImagePreview(editItem.imageUrl || "");
+      setImageFile(null);
+    }
+  }, [editItem]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -54,11 +67,7 @@ export function CreatePropsDialog({
         title: "Success",
         description: "Prop added successfully",
       });
-      setName("");
-      setDescription("");
-      setAvailable(true);
-      setImageFile(null);
-      setImagePreview("");
+      resetForm();
       onOpenChange(false);
       onSuccess?.(newProp);
     },
@@ -70,6 +79,47 @@ export function CreatePropsDialog({
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await fetch(`/api/props/${editItem!.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to update prop");
+      }
+      return await response.json();
+    },
+    onSuccess: (updatedProp) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/props"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/props", editItem!.id] });
+      toast({
+        title: "Success",
+        description: "Prop updated successfully",
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess?.(updatedProp);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update prop",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setAvailable(true);
+    setImageFile(null);
+    setImagePreview("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,16 +142,27 @@ export function CreatePropsDialog({
       formData.append("image", imageFile);
     }
 
-    createMutation.mutate(formData);
+    if (editItem) {
+      updateMutation.mutate(formData);
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent data-testid="dialog-create-props">
         <DialogHeader>
-          <DialogTitle>Add New Prop</DialogTitle>
+          <DialogTitle>{editItem ? "Edit Prop" : "Add New Prop"}</DialogTitle>
           <DialogDescription>
-            Add a new prop to your collection
+            {editItem ? "Update prop details" : "Add a new prop to your collection"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -150,17 +211,19 @@ export function CreatePropsDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               data-testid="button-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-save"
             >
-              {createMutation.isPending ? "Adding..." : "Add Prop"}
+              {editItem
+                ? (updateMutation.isPending ? "Updating..." : "Update")
+                : (createMutation.isPending ? "Creating..." : "Create")}
             </Button>
           </DialogFooter>
         </form>

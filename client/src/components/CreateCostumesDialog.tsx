@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -22,17 +22,20 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import type { CostumeProgress } from "@shared/schema";
 
 interface CreateCostumesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (costume: any) => void;
+  editItem?: CostumeProgress;
 }
 
 export function CreateCostumesDialog({
   open,
   onOpenChange,
   onSuccess,
+  editItem,
 }: CreateCostumesDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -43,6 +46,18 @@ export function CreateCostumesDialog({
   const [notes, setNotes] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+
+  useEffect(() => {
+    if (editItem) {
+      setCharacterName(editItem.characterName || "");
+      setSeriesName(editItem.seriesName || "");
+      setStatus(editItem.status || "planning");
+      setCompletionPercentage(String(editItem.completionPercentage || 0));
+      setNotes(editItem.notes || "");
+      setImagePreview(editItem.imageUrl || "");
+      setImageFile(null);
+    }
+  }, [editItem]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -63,13 +78,7 @@ export function CreateCostumesDialog({
         title: "Success",
         description: "Costume added successfully",
       });
-      setCharacterName("");
-      setSeriesName("");
-      setStatus("planning");
-      setCompletionPercentage("0");
-      setNotes("");
-      setImageFile(null);
-      setImagePreview("");
+      resetForm();
       onOpenChange(false);
       onSuccess?.(newCostume);
     },
@@ -81,6 +90,49 @@ export function CreateCostumesDialog({
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await fetch(`/api/costumes/${editItem!.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to update costume");
+      }
+      return await response.json();
+    },
+    onSuccess: (updatedCostume) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/costumes", editItem!.id] });
+      toast({
+        title: "Success",
+        description: "Costume updated successfully",
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess?.(updatedCostume);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update costume",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setCharacterName("");
+    setSeriesName("");
+    setStatus("planning");
+    setCompletionPercentage("0");
+    setNotes("");
+    setImageFile(null);
+    setImagePreview("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,16 +169,27 @@ export function CreateCostumesDialog({
       formData.append("image", imageFile);
     }
 
-    createMutation.mutate(formData);
+    if (editItem) {
+      updateMutation.mutate(formData);
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent data-testid="dialog-create-costumes">
         <DialogHeader>
-          <DialogTitle>Add New Costume</DialogTitle>
+          <DialogTitle>{editItem ? "Edit Costume" : "Add New Costume"}</DialogTitle>
           <DialogDescription>
-            Track a new costume project
+            {editItem ? "Update costume details" : "Track a new costume project"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,17 +267,19 @@ export function CreateCostumesDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               data-testid="button-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-save"
             >
-              {createMutation.isPending ? "Adding..." : "Add Costume"}
+              {editItem
+                ? (updateMutation.isPending ? "Updating..." : "Update")
+                : (createMutation.isPending ? "Creating..." : "Create")}
             </Button>
           </DialogFooter>
         </form>

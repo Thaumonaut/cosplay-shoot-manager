@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -16,17 +16,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import type { Equipment } from "@shared/schema";
 
 interface CreateEquipmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (equipment: any) => void;
+  editItem?: Equipment;
 }
 
 export function CreateEquipmentDialog({
   open,
   onOpenChange,
   onSuccess,
+  editItem,
 }: CreateEquipmentDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -37,6 +40,18 @@ export function CreateEquipmentDialog({
   const [available, setAvailable] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+
+  useEffect(() => {
+    if (editItem) {
+      setName(editItem.name || "");
+      setCategory(editItem.category || "");
+      setDescription(editItem.description || "");
+      setQuantity(String(editItem.quantity || 1));
+      setAvailable(editItem.available ?? true);
+      setImagePreview(editItem.imageUrl || "");
+      setImageFile(null);
+    }
+  }, [editItem]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -57,13 +72,7 @@ export function CreateEquipmentDialog({
         title: "Success",
         description: "Equipment added successfully",
       });
-      setName("");
-      setCategory("");
-      setDescription("");
-      setQuantity("1");
-      setAvailable(true);
-      setImageFile(null);
-      setImagePreview("");
+      resetForm();
       onOpenChange(false);
       onSuccess?.(newEquipment);
     },
@@ -75,6 +84,49 @@ export function CreateEquipmentDialog({
       });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await fetch(`/api/equipment/${editItem!.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to update equipment");
+      }
+      return await response.json();
+    },
+    onSuccess: (updatedEquipment) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/equipment", editItem!.id] });
+      toast({
+        title: "Success",
+        description: "Equipment updated successfully",
+      });
+      resetForm();
+      onOpenChange(false);
+      onSuccess?.(updatedEquipment);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update equipment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setName("");
+    setCategory("");
+    setDescription("");
+    setQuantity("1");
+    setAvailable(true);
+    setImageFile(null);
+    setImagePreview("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,16 +168,27 @@ export function CreateEquipmentDialog({
       formData.append("image", imageFile);
     }
 
-    createMutation.mutate(formData);
+    if (editItem) {
+      updateMutation.mutate(formData);
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent data-testid="dialog-create-equipment">
         <DialogHeader>
-          <DialogTitle>Add New Equipment</DialogTitle>
+          <DialogTitle>{editItem ? "Edit Equipment" : "Add New Equipment"}</DialogTitle>
           <DialogDescription>
-            Add new equipment to track for your shoots
+            {editItem ? "Update equipment details" : "Add new equipment to track for your shoots"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -197,17 +260,19 @@ export function CreateEquipmentDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               data-testid="button-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-save"
             >
-              {createMutation.isPending ? "Adding..." : "Add Equipment"}
+              {editItem
+                ? (updateMutation.isPending ? "Updating..." : "Update")
+                : (createMutation.isPending ? "Creating..." : "Create")}
             </Button>
           </DialogFooter>
         </form>
