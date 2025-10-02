@@ -49,6 +49,7 @@ import {
   teamMembers,
 } from "@shared/schema";
 import { eq, and, desc, sql as rawSql } from "drizzle-orm";
+import { supabaseAdmin } from "./supabase";
 
 export interface IStorage {
   // Shoots
@@ -674,4 +675,885 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export class SupabaseStorage implements IStorage {
+  async getShoot(id: string, userId: string): Promise<Shoot | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .select()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Shoot;
+  }
+
+  async getUserShoots(userId: string): Promise<Shoot[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .select()
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Shoot[]) || [];
+  }
+
+  async getTeamShoots(teamId: string): Promise<Shoot[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Shoot[]) || [];
+  }
+
+  async getTeamShoot(id: string, teamId: string): Promise<Shoot | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Shoot;
+  }
+
+  async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin.rpc('get_user_shoots_with_counts', { user_uuid: userId });
+    
+    if (error) return [];
+    return (data as Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>) || [];
+  }
+
+  async createShoot(shoot: InsertShoot): Promise<Shoot> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .insert(shoot)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot: ${error.message}`);
+    return data as Shoot;
+  }
+
+  async updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { userId: _, ...allowedUpdates } = shoot as any;
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Shoot;
+  }
+
+  async updateTeamShoot(id: string, teamId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
+    const { data, error } = await supabaseAdmin
+      .from('shoots')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Shoot;
+  }
+
+  async deleteShoot(id: string, userId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('shoots')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    
+    return !error;
+  }
+
+  async deleteTeamShoot(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('shoots')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getShootReferences(shootId: string): Promise<ShootReference[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_references')
+      .select()
+      .eq('shoot_id', shootId);
+    
+    if (error) return [];
+    return (data as ShootReference[]) || [];
+  }
+
+  async getShootReferenceById(id: string): Promise<ShootReference | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_references')
+      .select()
+      .eq('id', id)
+      .single();
+    
+    if (error) return undefined;
+    return data as ShootReference;
+  }
+
+  async createShootReference(reference: InsertShootReference): Promise<ShootReference> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_references')
+      .insert(reference)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot reference: ${error.message}`);
+    return data as ShootReference;
+  }
+
+  async deleteShootReference(id: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('shoot_references')
+      .delete()
+      .eq('id', id);
+    
+    return !error;
+  }
+
+  async getShootParticipants(shootId: string): Promise<ShootParticipant[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_participants')
+      .select()
+      .eq('shoot_id', shootId);
+    
+    if (error) return [];
+    return (data as ShootParticipant[]) || [];
+  }
+
+  async getShootParticipantById(id: string): Promise<ShootParticipant | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_participants')
+      .select()
+      .eq('id', id)
+      .single();
+    
+    if (error) return undefined;
+    return data as ShootParticipant;
+  }
+
+  async createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_participants')
+      .insert(participant)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot participant: ${error.message}`);
+    return data as ShootParticipant;
+  }
+
+  async deleteShootParticipant(id: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('shoot_participants')
+      .delete()
+      .eq('id', id);
+    
+    return !error;
+  }
+
+  async getShootEquipment(shootId: string): Promise<Equipment[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data: associations, error: assocError } = await supabaseAdmin
+      .from('shoot_equipment')
+      .select()
+      .eq('shoot_id', shootId);
+    
+    if (assocError || !associations?.length) return [];
+    
+    const equipmentIds = associations.map(a => a.equipment_id);
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .in('id', equipmentIds);
+    
+    if (error) return [];
+    return (data as Equipment[]) || [];
+  }
+
+  async getShootProps(shootId: string): Promise<Prop[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data: associations, error: assocError } = await supabaseAdmin
+      .from('shoot_props')
+      .select()
+      .eq('shoot_id', shootId);
+    
+    if (assocError || !associations?.length) return [];
+    
+    const propIds = associations.map(a => a.prop_id);
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .select()
+      .in('id', propIds);
+    
+    if (error) return [];
+    return (data as Prop[]) || [];
+  }
+
+  async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data: associations, error: assocError } = await supabaseAdmin
+      .from('shoot_costumes')
+      .select()
+      .eq('shoot_id', shootId);
+    
+    if (assocError || !associations?.length) return [];
+    
+    const costumeIds = associations.map(a => a.costume_id);
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .select()
+      .in('id', costumeIds);
+    
+    if (error) return [];
+    return (data as CostumeProgress[]) || [];
+  }
+
+  async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_equipment')
+      .insert(association)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot equipment: ${error.message}`);
+    return data as ShootEquipment;
+  }
+
+  async createShootProp(association: InsertShootProp): Promise<ShootProp> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_props')
+      .insert(association)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot prop: ${error.message}`);
+    return data as ShootProp;
+  }
+
+  async createShootCostume(association: InsertShootCostume): Promise<ShootCostume> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('shoot_costumes')
+      .insert(association)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create shoot costume: ${error.message}`);
+    return data as ShootCostume;
+  }
+
+  async getPersonnel(id: string, teamId: string): Promise<Personnel | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Personnel;
+  }
+
+  async getTeamPersonnel(teamId: string): Promise<Personnel[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Personnel[]) || [];
+  }
+
+  async createPersonnel(person: InsertPersonnel): Promise<Personnel> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .insert(person)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create personnel: ${error.message}`);
+    return data as Personnel;
+  }
+
+  async updatePersonnel(id: string, teamId: string, person: Partial<InsertPersonnel>): Promise<Personnel | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { teamId: _, ...allowedUpdates } = person as any;
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Personnel;
+  }
+
+  async deletePersonnel(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('personnel')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getEquipment(id: string, teamId: string): Promise<Equipment | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Equipment;
+  }
+
+  async getTeamEquipment(teamId: string): Promise<Equipment[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Equipment[]) || [];
+  }
+
+  async createEquipment(item: InsertEquipment): Promise<Equipment> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .insert(item)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create equipment: ${error.message}`);
+    return data as Equipment;
+  }
+
+  async updateEquipment(id: string, teamId: string, item: Partial<InsertEquipment>): Promise<Equipment | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { teamId: _, ...allowedUpdates } = item as any;
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Equipment;
+  }
+
+  async deleteEquipment(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('equipment')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getLocation(id: string, teamId: string): Promise<Location | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('locations')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Location;
+  }
+
+  async getTeamLocations(teamId: string): Promise<Location[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('locations')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Location[]) || [];
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('locations')
+      .insert(location)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create location: ${error.message}`);
+    return data as Location;
+  }
+
+  async updateLocation(id: string, teamId: string, location: Partial<InsertLocation>): Promise<Location | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { teamId: _, ...allowedUpdates } = location as any;
+    const { data, error } = await supabaseAdmin
+      .from('locations')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Location;
+  }
+
+  async deleteLocation(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('locations')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getProp(id: string, teamId: string): Promise<Prop | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as Prop;
+  }
+
+  async getTeamProps(teamId: string): Promise<Prop[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as Prop[]) || [];
+  }
+
+  async createProp(prop: InsertProp): Promise<Prop> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .insert(prop)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create prop: ${error.message}`);
+    return data as Prop;
+  }
+
+  async updateProp(id: string, teamId: string, prop: Partial<InsertProp>): Promise<Prop | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { teamId: _, ...allowedUpdates } = prop as any;
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Prop;
+  }
+
+  async deleteProp(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('props')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getCostumeProgress(id: string, teamId: string): Promise<CostumeProgress | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .select()
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as CostumeProgress;
+  }
+
+  async getTeamCostumes(teamId: string): Promise<CostumeProgress[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return (data as CostumeProgress[]) || [];
+  }
+
+  async createCostumeProgress(costume: InsertCostumeProgress): Promise<CostumeProgress> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .insert(costume)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create costume progress: ${error.message}`);
+    return data as CostumeProgress;
+  }
+
+  async updateCostumeProgress(id: string, teamId: string, costume: Partial<InsertCostumeProgress>): Promise<CostumeProgress | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { teamId: _, ...allowedUpdates } = costume as any;
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('team_id', teamId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as CostumeProgress;
+  }
+
+  async deleteCostumeProgress(id: string, teamId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('costume_progress')
+      .delete()
+      .eq('id', id)
+      .eq('team_id', teamId);
+    
+    return !error;
+  }
+
+  async getTeam(id: string): Promise<Team | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('teams')
+      .select()
+      .eq('id', id)
+      .single();
+    
+    if (error) return undefined;
+    return data as Team;
+  }
+
+  async createTeam(team: InsertTeam): Promise<Team> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('teams')
+      .insert(team)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create team: ${error.message}`);
+    return data as Team;
+  }
+
+  async updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { id: _, ...allowedUpdates } = team as any;
+    const { data, error } = await supabaseAdmin
+      .from('teams')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as Team;
+  }
+
+  async deleteTeam(id: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('teams')
+      .delete()
+      .eq('id', id);
+    
+    return !error;
+  }
+
+  async getUserProfile(userId: string): Promise<UserProfile | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .select()
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) return undefined;
+    return data as UserProfile;
+  }
+
+  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .insert(profile)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create user profile: ${error.message}`);
+    return data as UserProfile;
+  }
+
+  async updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { id: _, userId: __, ...allowedUpdates } = profile as any;
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .update({ ...allowedUpdates, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as UserProfile;
+  }
+
+  async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_invites')
+      .select()
+      .eq('invite_code', inviteCode)
+      .single();
+    
+    if (error) return undefined;
+    return data as TeamInvite;
+  }
+
+  async getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_invites')
+      .select()
+      .eq('team_id', teamId)
+      .single();
+    
+    if (error) return undefined;
+    return data as TeamInvite;
+  }
+
+  async createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_invites')
+      .insert(invite)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create team invite: ${error.message}`);
+    return data as TeamInvite;
+  }
+
+  async getUserTeamMember(userId: string): Promise<TeamMember | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .select()
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+    
+    if (error) return undefined;
+    return data as TeamMember;
+  }
+
+  async getTeamMember(teamId: string, userId: string): Promise<TeamMember | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .select()
+      .eq('team_id', teamId)
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) return undefined;
+    return data as TeamMember;
+  }
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .select()
+      .eq('team_id', teamId);
+    
+    if (error) return [];
+    return (data as TeamMember[]) || [];
+  }
+
+  async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .insert(member)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to create team member: ${error.message}`);
+    return data as TeamMember;
+  }
+
+  async updateTeamMember(id: string, updates: Partial<InsertTeamMember>): Promise<TeamMember | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { data, error } = await supabaseAdmin
+      .from('team_members')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) return undefined;
+    return data as TeamMember;
+  }
+
+  async deleteTeamMember(id: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('team_members')
+      .delete()
+      .eq('id', id);
+    
+    return !error;
+  }
+}
+
+export const storage = new SupabaseStorage();
