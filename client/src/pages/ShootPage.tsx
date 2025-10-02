@@ -4,12 +4,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge, type ShootStatus } from "@/components/StatusBadge";
 import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
 import { CreateEquipmentDialog } from "@/components/CreateEquipmentDialog";
 import { CreateLocationDialog } from "@/components/CreateLocationDialog";
 import { CreatePropsDialog } from "@/components/CreatePropsDialog";
 import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
+import { EditableField } from "@/components/EditableField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +47,7 @@ export default function ShootPage() {
 
   const [title, setTitle] = useState("");
   const [manualTitle, setManualTitle] = useState(false);
-  const [status, setStatus] = useState<string>("idea");
+  const [status, setStatus] = useState<ShootStatus>("idea");
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
@@ -72,13 +73,11 @@ export default function ShootPage() {
   const [createPropsOpen, setCreatePropsOpen] = useState(false);
   const [createCostumesOpen, setCreateCostumesOpen] = useState(false);
 
-  // Fetch existing shoot data if editing
   const { data: existingShoot } = useQuery<any>({
     queryKey: ["/api/shoots", id],
     enabled: !isNew && !!id,
   });
 
-  // Fetch resources
   const { data: personnel = [] } = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
   });
@@ -99,7 +98,6 @@ export default function ShootPage() {
     queryKey: ["/api/costumes"],
   });
 
-  // Populate form when editing
   useEffect(() => {
     if (!isNew && existingShoot) {
       setTitle(existingShoot.title);
@@ -156,7 +154,6 @@ export default function ShootPage() {
     }
   }, [isNew, existingShoot]);
 
-  // Auto-generate title from selected costumes
   useEffect(() => {
     if (!manualTitle && costumes.length > 0 && isNew) {
       const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
@@ -575,199 +572,160 @@ export default function ShootPage() {
   const selectedLocation = locations.find(l => l.id === locationId);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 p-6">
-      {/* Header with Back Button and Actions */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/")}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <div className="flex gap-2">
-          {!isNew && (
-            <>
-              {/* Calendar Button */}
-              {existingShoot?.calendarEventUrl ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  data-testid="button-view-calendar"
-                >
-                  <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
-                    <SiGooglecalendar className="h-4 w-4 mr-2" />
-                    View in Calendar
-                  </a>
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => createCalendarEventMutation.mutate()}
-                  disabled={createCalendarEventMutation.isPending}
-                  data-testid="button-create-calendar"
-                >
-                  <SiGooglecalendar className="h-4 w-4 mr-2" />
-                  {createCalendarEventMutation.isPending ? "Adding..." : "Add to Calendar"}
-                </Button>
-              )}
+    <div className="max-w-5xl mx-auto p-6 space-y-8">
+      {/* Compact Header */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div className="flex gap-2">
+            {!isNew && (
+              <>
+                {existingShoot?.calendarEventUrl ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    data-testid="button-view-calendar"
+                  >
+                    <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
+                      <SiGooglecalendar className="h-4 w-4" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => createCalendarEventMutation.mutate()}
+                    disabled={createCalendarEventMutation.isPending}
+                    data-testid="button-create-calendar"
+                  >
+                    <SiGooglecalendar className="h-4 w-4" />
+                  </Button>
+                )}
 
-              {/* Docs Button */}
-              {existingShoot?.docsUrl ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  data-testid="button-view-docs"
-                >
-                  <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
-                    <SiGoogledocs className="h-4 w-4 mr-2" />
-                    View Doc
-                  </a>
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => createDocsMutation.mutate()}
-                  disabled={createDocsMutation.isPending}
-                  data-testid="button-create-docs"
-                >
-                  <SiGoogledocs className="h-4 w-4 mr-2" />
-                  {createDocsMutation.isPending ? "Creating..." : "Create Doc"}
-                </Button>
-              )}
+                {existingShoot?.docsUrl ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    data-testid="button-view-docs"
+                  >
+                    <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
+                      <SiGoogledocs className="h-4 w-4" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => createDocsMutation.mutate()}
+                    disabled={createDocsMutation.isPending}
+                    data-testid="button-create-docs"
+                  >
+                    <SiGoogledocs className="h-4 w-4" />
+                  </Button>
+                )}
 
-              {selectedPersonnel.length > 0 && (
+                {selectedPersonnel.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => sendRemindersMutation.mutate()}
+                    disabled={sendRemindersMutation.isPending}
+                    data-testid="button-send-reminders"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => sendRemindersMutation.mutate()}
-                  disabled={sendRemindersMutation.isPending}
-                  data-testid="button-send-reminders"
+                  onClick={() => deleteMutation.mutate()}
+                  className="text-destructive"
+                  data-testid="button-delete"
                 >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Reminders
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => deleteMutation.mutate()}
-                className="text-destructive hover:bg-destructive/10"
-                data-testid="button-delete"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Main Details Card */}
-      <Card>
-        <CardHeader className="p-4">
-          <CardTitle>{isNew ? "New Shoot" : "Shoot Details"}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 p-4">
-          {/* Title Input */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setManualTitle(true);
-              }}
-              placeholder="Enter shoot title..."
-              data-testid="input-shoot-title"
-            />
-            {!manualTitle && selectedCostumes.length > 0 && isNew && (
-              <p className="text-xs text-muted-foreground">
-                Auto-generated from selected costumes
-              </p>
+              </>
             )}
           </div>
+        </div>
 
-          {/* Status */}
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger data-testid="select-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="idea">Idea</SelectItem>
-                <SelectItem value="planning">Planning</SelectItem>
-                <SelectItem value="ready to shoot">Ready to Shoot</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center gap-3">
+          <Input
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setManualTitle(true);
+            }}
+            placeholder="Enter shoot title..."
+            className="text-2xl font-bold h-auto py-2 border-0 px-0 focus-visible:ring-0"
+            data-testid="input-shoot-title"
+          />
+          <StatusBadge status={status} />
+        </div>
 
-          {/* Date, Time, Duration - Compact Layout */}
-          {status !== "idea" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      data-testid="button-select-date"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span className="text-muted-foreground">Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="time">Time</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  data-testid="input-time"
+        {status !== "idea" && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-select-date"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span className="text-muted-foreground">Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
                 />
-              </div>
+              </PopoverContent>
+            </Popover>
 
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
-                  min="15"
-                  step="15"
-                  className="text-sm"
-                  data-testid="input-duration"
-                />
-              </div>
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-auto"
+              data-testid="input-time"
+            />
+
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="number"
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                min="15"
+                step="15"
+                className="w-20"
+                data-testid="input-duration"
+              />
+              <span className="text-sm text-muted-foreground">min</span>
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {/* Reminder */}
+      {/* Quick Details Section */}
+      <Card>
+        <CardContent className="space-y-4 p-3">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Shoot Reminder</Label>
+            <Label>Reminder</Label>
             <Select value={reminderPreset} onValueChange={setReminderPreset}>
               <SelectTrigger data-testid="select-reminder">
                 <SelectValue placeholder="Set a reminder..." />
@@ -815,576 +773,482 @@ export default function ShootPage() {
             )}
           </div>
 
-          {/* Public Sharing */}
           {!isNew && (
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Public Sharing</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow anyone with the link to view this shoot
-                  </p>
-                </div>
-                <Switch
-                  checked={isPublic}
-                  onCheckedChange={handleTogglePublic}
-                  disabled={togglePublicMutation.isPending}
-                  data-testid="switch-public"
-                />
-              </div>
-              {isPublic && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyPublicLink}
-                  className="w-full"
-                  data-testid="button-copy-link"
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Copy Public Link
-                </Button>
-              )}
+            <div className="flex items-center justify-between">
+              <Label>Public Sharing</Label>
+              <Switch
+                checked={isPublic}
+                onCheckedChange={handleTogglePublic}
+                disabled={togglePublicMutation.isPending}
+                data-testid="switch-public"
+              />
             </div>
           )}
+
+          {!isNew && isPublic && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyPublicLink}
+              className="w-full"
+              data-testid="button-copy-link"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Copy Link
+            </Button>
+          )}
+
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea
+              placeholder="Add shoot notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={4}
+              data-testid="textarea-notes"
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Resources Section - Gallery Layout */}
-      <Card>
-        <CardHeader className="p-4">
-          <CardTitle>Resources</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6 p-4">
-          {/* Location with Image and Map */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Location</Label>
-            </div>
+      {/* Location Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Location</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-add-location">
+                <Plus className="h-4 w-4 mr-2" />
+                {selectedLocation ? "Change" : "Add"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setCreateLocationOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New...
+              </DropdownMenuItem>
+              {availableLocations.map((loc) => (
+                <DropdownMenuItem key={loc.id} onSelect={() => setLocationId(loc.id)}>
+                  {loc.name}
+                </DropdownMenuItem>
+              ))}
+              {availableLocations.length === 0 && !selectedLocation && (
+                <DropdownMenuItem disabled>No locations available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-            {selectedLocation && (
-              <div className="space-y-3">
-                <Card className="hover-elevate">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      {selectedLocation.imageUrl && (
-                        <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
-                          <img 
-                            src={selectedLocation.imageUrl} 
-                            alt={selectedLocation.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
-                            {selectedLocation.address && (
-                              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                                <MapPin className="h-3 w-3" />
-                                {selectedLocation.address}
-                              </p>
-                            )}
-                            {selectedLocation.notes && (
-                              <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
-                            )}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setLocationId("")}
-                            data-testid="button-remove-location"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Google Maps Embed */}
-                {selectedLocation.address && import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
-                  <div className="w-full h-64 rounded-lg overflow-hidden">
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      style={{ border: 0 }}
-                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(selectedLocation.address)}`}
-                      allowFullScreen
-                      data-testid="map-embed"
+        {selectedLocation && (
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-start gap-4">
+                {selectedLocation.imageUrl && (
+                  <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
+                    <img 
+                      src={selectedLocation.imageUrl} 
+                      alt={selectedLocation.name}
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 )}
-              </div>
-            )}
-
-            <Select value={locationId} onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreateLocationOpen(true);
-                return;
-              }
-              setLocationId(value);
-            }}>
-              <SelectTrigger data-testid="select-location">
-                <SelectValue placeholder="Select a location..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
+                      {selectedLocation.address && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {selectedLocation.address}
+                        </p>
+                      )}
+                      {selectedLocation.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setLocationId("")}
+                      data-testid="button-remove-location"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                </SelectItem>
-                {availableLocations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-                {availableLocations.length === 0 && selectedLocation && (
-                  <SelectItem value="_none" disabled>No other locations available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Costumes - Gallery Grid */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Characters/Costumes</Label>
-
-            {selectedCostumes.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {selectedCostumes.map((costumeId) => {
-                  const costume = costumes.find(c => c.id === costumeId);
-                  if (!costume) return null;
-                  return (
-                    <Card key={costumeId} className="hover-elevate overflow-hidden">
-                      <CardContent className="p-0">
-                        {costume.imageUrl && (
-                          <div className="w-full aspect-square relative">
-                            <img 
-                              src={costume.imageUrl} 
-                              alt={costume.characterName}
-                              className="w-full h-full object-cover"
-                            />
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="icon"
-                              className="absolute top-2 right-2 h-8 w-8"
-                              onClick={() => removeCostume(costumeId)}
-                              data-testid={`button-remove-costume-${costumeId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        <div className="p-3">
-                          <p className="font-semibold">{costume.characterName}</p>
-                          {costume.seriesName && (
-                            <p className="text-sm text-muted-foreground">{costume.seriesName}</p>
-                          )}
-                          {!costume.imageUrl && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="absolute top-2 right-2"
-                              onClick={() => removeCostume(costumeId)}
-                              data-testid={`button-remove-costume-${costumeId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                </div>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreateCostumesOpen(true);
-                return;
-              }
-              setSelectedCostumes([...selectedCostumes, value]);
-            }}>
-              <SelectTrigger data-testid="select-costume">
-                <SelectValue placeholder="Add a costume..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availableCostumes.map((costume) => (
-                  <SelectItem key={costume.id} value={costume.id}>
-                    {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
-                  </SelectItem>
-                ))}
-                {availableCostumes.length === 0 && (
-                  <SelectItem value="_none" disabled>No costumes available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+      {/* Costumes Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Characters & Costumes</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-add-costume">
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setCreateCostumesOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New...
+              </DropdownMenuItem>
+              {availableCostumes.map((costume) => (
+                <DropdownMenuItem 
+                  key={costume.id} 
+                  onSelect={() => setSelectedCostumes([...selectedCostumes, costume.id])}
+                >
+                  {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
+                </DropdownMenuItem>
+              ))}
+              {availableCostumes.length === 0 && (
+                <DropdownMenuItem disabled>No costumes available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {selectedCostumes.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {selectedCostumes.map((costumeId) => {
+              const costume = costumes.find(c => c.id === costumeId);
+              if (!costume) return null;
+              return (
+                <Card key={costumeId} className="overflow-hidden hover-elevate group">
+                  <CardContent className="p-0 relative">
+                    {costume.imageUrl && (
+                      <div className="w-full aspect-square relative">
+                        <img 
+                          src={costume.imageUrl} 
+                          alt={costume.characterName}
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeCostume(costumeId)}
+                          data-testid={`button-remove-costume-${costumeId}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <p className="font-semibold truncate">{costume.characterName}</p>
+                      {costume.seriesName && (
+                        <p className="text-sm text-muted-foreground truncate">{costume.seriesName}</p>
+                      )}
+                      {!costume.imageUrl && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2"
+                          onClick={() => removeCostume(costumeId)}
+                          data-testid={`button-remove-costume-${costumeId}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+        )}
+      </div>
 
-          <Separator />
+      {/* Props Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Props</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-add-prop">
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setCreatePropsOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New...
+              </DropdownMenuItem>
+              {availableProps.map((prop) => (
+                <DropdownMenuItem 
+                  key={prop.id} 
+                  onSelect={() => setSelectedProps([...selectedProps, prop.id])}
+                >
+                  {prop.name}
+                </DropdownMenuItem>
+              ))}
+              {availableProps.length === 0 && (
+                <DropdownMenuItem disabled>No props available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-          {/* Props - Gallery Grid */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Props</Label>
-
-            {selectedProps.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {selectedProps.map((propId) => {
-                  const prop = props.find(p => p.id === propId);
-                  if (!prop) return null;
-                  return (
-                    <Card key={propId} className="hover-elevate overflow-hidden">
-                      <CardContent className="p-0">
-                        {prop.imageUrl && (
-                          <div className="w-full aspect-square relative">
-                            <img 
-                              src={prop.imageUrl} 
-                              alt={prop.name}
-                              className="w-full h-full object-cover"
-                            />
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="icon"
-                              className="absolute top-2 right-2 h-8 w-8"
-                              onClick={() => removeProp(propId)}
-                              data-testid={`button-remove-prop-${propId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        <div className="p-3">
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold">{prop.name}</p>
-                            {!prop.imageUrl && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeProp(propId)}
-                                data-testid={`button-remove-prop-${propId}`}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                          {prop.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{prop.description}</p>
-                          )}
-                          <Badge variant={prop.available ? "default" : "secondary"} className="mt-2">
-                            {prop.available ? "Available" : "In Use"}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreatePropsOpen(true);
-                return;
-              }
-              setSelectedProps([...selectedProps, value]);
-            }}>
-              <SelectTrigger data-testid="select-prop">
-                <SelectValue placeholder="Add prop..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availableProps.map((prop) => (
-                  <SelectItem key={prop.id} value={prop.id}>
-                    {prop.name}
-                  </SelectItem>
-                ))}
-                {availableProps.length === 0 && (
-                  <SelectItem value="_none" disabled>No props available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Personnel - Prominent Avatars */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Team</Label>
-
-            {selectedPersonnel.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {selectedPersonnel.map((personnelId) => {
-                  const person = personnel.find(p => p.id === personnelId);
-                  if (!person) return null;
-                  return (
-                    <Card key={personnelId} className="hover-elevate">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={person.avatarUrl || undefined} />
-                            <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0 space-y-2">
-                            <div>
-                              <p className="font-semibold">{person.name}</p>
-                              {person.email && (
-                                <p className="text-sm text-muted-foreground truncate">{person.email}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {personnelRoles[personnelId] === "__CUSTOM__" || (personnelRoles[personnelId] && !['Photographer', 'Videographer', 'Model', 'Makeup Artist', 'Stylist', 'Assistant', 'Coordinator'].includes(personnelRoles[personnelId])) ? (
-                                <div className="flex-1 flex gap-2">
-                                  <Input
-                                    placeholder="Custom role"
-                                    value={personnelRoles[personnelId] === "__CUSTOM__" ? "" : personnelRoles[personnelId] || ""}
-                                    onChange={(e) => setPersonnelRoles({
-                                      ...personnelRoles,
-                                      [personnelId]: e.target.value
-                                    })}
-                                    data-testid={`input-custom-role-${personnelId}`}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setPersonnelRoles({
-                                      ...personnelRoles,
-                                      [personnelId]: ""
-                                    })}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Select
-                                  value={personnelRoles[personnelId] || ""}
-                                  onValueChange={(value) => {
-                                    if (value === "_custom") {
-                                      setPersonnelRoles({
-                                        ...personnelRoles,
-                                        [personnelId]: "__CUSTOM__"
-                                      });
-                                    } else {
-                                      setPersonnelRoles({
-                                        ...personnelRoles,
-                                        [personnelId]: value
-                                      });
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="flex-1" data-testid={`select-role-${personnelId}`}>
-                                    <SelectValue placeholder="Select role..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Photographer">Photographer</SelectItem>
-                                    <SelectItem value="Videographer">Videographer</SelectItem>
-                                    <SelectItem value="Model">Model</SelectItem>
-                                    <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
-                                    <SelectItem value="Stylist">Stylist</SelectItem>
-                                    <SelectItem value="Assistant">Assistant</SelectItem>
-                                    <SelectItem value="Coordinator">Coordinator</SelectItem>
-                                    <SelectItem value="_custom">
-                                      <div className="flex items-center gap-2">
-                                        <Plus className="h-4 w-4" />
-                                        <span>Custom Role...</span>
-                                      </div>
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
-                          </div>
+        {selectedProps.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {selectedProps.map((propId) => {
+              const prop = props.find(p => p.id === propId);
+              if (!prop) return null;
+              return (
+                <Card key={propId} className="overflow-hidden hover-elevate group">
+                  <CardContent className="p-0 relative">
+                    {prop.imageUrl && (
+                      <div className="w-full aspect-square relative">
+                        <img 
+                          src={prop.imageUrl} 
+                          alt={prop.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeProp(propId)}
+                          data-testid={`button-remove-prop-${propId}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold truncate flex-1">{prop.name}</p>
+                        {!prop.imageUrl && (
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => removePersonnel(personnelId)}
-                            data-testid={`button-remove-personnel-${personnelId}`}
+                            onClick={() => removeProp(propId)}
+                            data-testid={`button-remove-prop-${propId}`}
                           >
                             <X className="h-4 w-4" />
                           </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                        )}
+                      </div>
+                      <Badge variant={prop.available ? "default" : "secondary"} className="mt-2">
+                        {prop.available ? "Available" : "In Use"}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreatePersonnelOpen(true);
-                return;
+      {/* Team Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Team</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-add-personnel">
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setCreatePersonnelOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New...
+              </DropdownMenuItem>
+              {availablePersonnel.map((person) => (
+                <DropdownMenuItem 
+                  key={person.id} 
+                  onSelect={() => setSelectedPersonnel([...selectedPersonnel, person.id])}
+                >
+                  {person.name}
+                </DropdownMenuItem>
+              ))}
+              {availablePersonnel.length === 0 && (
+                <DropdownMenuItem disabled>No personnel available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {selectedPersonnel.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {selectedPersonnel.map((personnelId) => {
+              const person = personnel.find(p => p.id === personnelId);
+              if (!person) return null;
+              return (
+                <Card key={personnelId} className="hover-elevate">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={person.avatarUrl || undefined} alt={person.name} />
+                        <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{person.name}</p>
+                        <EditableField
+                          value={personnelRoles[personnelId] || ""}
+                          onChange={(value) => setPersonnelRoles({...personnelRoles, [personnelId]: value})}
+                          placeholder="Add role..."
+                          textClassName="text-sm text-muted-foreground"
+                          data-testid={`input-role-${personnelId}`}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePersonnel(personnelId)}
+                        data-testid={`button-remove-personnel-${personnelId}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Equipment Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Equipment</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-add-equipment">
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setCreateEquipmentOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New...
+              </DropdownMenuItem>
+              {availableEquipment.map((item) => (
+                <DropdownMenuItem 
+                  key={item.id} 
+                  onSelect={() => setSelectedEquipment([...selectedEquipment, item.id])}
+                >
+                  {item.name} - {item.category}
+                </DropdownMenuItem>
+              ))}
+              {availableEquipment.length === 0 && (
+                <DropdownMenuItem disabled>No equipment available</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {selectedEquipment.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {selectedEquipment.map((equipmentId) => {
+              const item = equipment.find(e => e.id === equipmentId);
+              if (!item) return null;
+              return (
+                <Card key={equipmentId} className="hover-elevate">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{item.name}</p>
+                        <p className="text-sm text-muted-foreground truncate">{item.category}</p>
+                        <Badge variant={item.available ? "default" : "secondary"} className="mt-2">
+                          {item.available ? "Available" : "In Use"}
+                        </Badge>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeEquipment(equipmentId)}
+                        data-testid={`button-remove-equipment-${equipmentId}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Instagram References Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Instagram References</h2>
+        
+        <div className="flex gap-2">
+          <Input
+            placeholder="https://instagram.com/p/..."
+            value={currentLink}
+            onChange={(e) => setCurrentLink(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addInstagramLink();
               }
-              setSelectedPersonnel([...selectedPersonnel, value]);
-            }}>
-              <SelectTrigger data-testid="select-personnel">
-                <SelectValue placeholder="Add personnel..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availablePersonnel.map((person) => (
-                  <SelectItem key={person.id} value={person.id}>
-                    {person.name}
-                  </SelectItem>
-                ))}
-                {availablePersonnel.length === 0 && (
-                  <SelectItem value="_none" disabled>No personnel available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Equipment - Compact List */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Equipment</Label>
-
-            {selectedEquipment.length > 0 && (
-              <div className="space-y-2">
-                {selectedEquipment.map((equipmentId) => {
-                  const item = equipment.find(e => e.id === equipmentId);
-                  if (!item) return null;
-                  return (
-                    <Card key={equipmentId} className="hover-elevate">
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium">{item.name}</p>
-                            {item.category && (
-                              <p className="text-sm text-muted-foreground">{item.category}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={item.available ? "default" : "secondary"}>
-                              {item.available ? "Available" : "In Use"}
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeEquipment(equipmentId)}
-                              data-testid={`button-remove-equipment-${equipmentId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
-            <Select value="" onValueChange={(value) => {
-              if (value === "_create_new") {
-                setCreateEquipmentOpen(true);
-                return;
-              }
-              setSelectedEquipment([...selectedEquipment, value]);
-            }}>
-              <SelectTrigger data-testid="select-equipment">
-                <SelectValue placeholder="Add equipment..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_create_new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New...</span>
-                  </div>
-                </SelectItem>
-                {availableEquipment.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name} - {item.category}
-                  </SelectItem>
-                ))}
-                {availableEquipment.length === 0 && (
-                  <SelectItem value="_none" disabled>No equipment available</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Instagram Links Section */}
-      <Card>
-        <CardHeader className="p-4">
-          <CardTitle>Instagram References</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="https://instagram.com/p/..."
-              value={currentLink}
-              onChange={(e) => setCurrentLink(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addInstagramLink();
-                }
-              }}
-              data-testid="input-instagram-link"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addInstagramLink}
-              data-testid="button-add-link"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notes Section - Bottom of Page */}
-      <Card>
-        <CardHeader className="p-4">
-          <CardTitle>Notes</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <Textarea
-            placeholder="Add any additional details, ideas, or notes about the shoot..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={6}
-            data-testid="textarea-notes"
+            }}
+            data-testid="input-instagram-link"
           />
-        </CardContent>
-      </Card>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addInstagramLink}
+            data-testid="button-add-link"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
 
-      {/* Action Buttons */}
+        {instagramLinks.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {instagramLinks.map((link, index) => (
+              <Card key={index} className="hover-elevate">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <a 
+                      href={link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm truncate flex-1 hover:underline"
+                      data-testid={`link-instagram-${index}`}
+                    >
+                      {link}
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeInstagramLink(index)}
+                      data-testid={`button-remove-link-${index}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Actions */}
       <div className="flex justify-end gap-2 pb-6">
         <Button
           variant="outline"
