@@ -28,6 +28,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Mail, Phone, Pencil, Trash2, Users } from "lucide-react";
+import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
 import type { Personnel } from "@shared/schema";
 
 const personnelFormSchema = z.object({
@@ -56,44 +57,6 @@ export default function Personnel() {
       email: "",
       phone: "",
       notes: "",
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: PersonnelForm) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("email", data.email || "");
-      formData.append("phone", data.phone || "");
-      formData.append("notes", data.notes || "");
-
-      const res = await fetch("/api/personnel", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
-      setIsAddDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Personnel added successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add personnel",
-        variant: "destructive",
-      });
     },
   });
 
@@ -154,11 +117,9 @@ export default function Personnel() {
     },
   });
 
-  const onSubmit = (data: PersonnelForm) => {
+  const onEditSubmit = (data: PersonnelForm) => {
     if (editingPersonnel) {
       updateMutation.mutate({ id: editingPersonnel.id, data });
-    } else {
-      createMutation.mutate(data);
     }
   };
 
@@ -172,8 +133,7 @@ export default function Personnel() {
     });
   };
 
-  const closeDialog = () => {
-    setIsAddDialogOpen(false);
+  const closeEditDialog = () => {
     setEditingPersonnel(null);
     form.reset();
   };
@@ -287,20 +247,21 @@ export default function Personnel() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen || !!editingPersonnel} onOpenChange={closeDialog}>
+      <CreatePersonnelDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+
+      <Dialog open={!!editingPersonnel} onOpenChange={closeEditDialog}>
         <DialogContent data-testid="dialog-personnel-form">
           <DialogHeader>
-            <DialogTitle>
-              {editingPersonnel ? "Edit Personnel" : "Add Personnel"}
-            </DialogTitle>
+            <DialogTitle>Edit Personnel</DialogTitle>
             <DialogDescription>
-              {editingPersonnel
-                ? "Update the personnel information"
-                : "Add a new team member or contact"}
+              Update the personnel information
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -373,17 +334,17 @@ export default function Personnel() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={closeDialog}
+                  onClick={closeEditDialog}
                   data-testid="button-cancel-personnel"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="button-save-personnel"
                 >
-                  {editingPersonnel ? "Update" : "Add"}
+                  Update
                 </Button>
               </DialogFooter>
             </form>

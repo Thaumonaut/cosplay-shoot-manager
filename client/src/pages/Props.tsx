@@ -38,6 +38,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Package, ImageIcon } from "lucide-react";
+import { CreatePropsDialog } from "@/components/CreatePropsDialog";
 import type { Prop } from "@shared/schema";
 
 const propFormSchema = z.object({
@@ -66,49 +67,6 @@ export default function Props() {
       name: "",
       description: "",
       available: true,
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: PropForm) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("description", data.description || "");
-      formData.append("available", String(data.available));
-      
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
-
-      const res = await fetch("/api/props", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to create prop");
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/props"] });
-      toast({
-        title: "Success",
-        description: "Prop added successfully",
-      });
-      setIsAddDialogOpen(false);
-      form.reset();
-      setImagePreview(null);
-      setImageFile(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add prop",
-        variant: "destructive",
-      });
     },
   });
 
@@ -181,17 +139,6 @@ export default function Props() {
     },
   });
 
-  const handleOpenAddDialog = () => {
-    form.reset({
-      name: "",
-      description: "",
-      available: true,
-    });
-    setImagePreview(null);
-    setImageFile(null);
-    setIsAddDialogOpen(true);
-  };
-
   const handleOpenEditDialog = (prop: Prop) => {
     setEditingProp(prop);
     form.reset({
@@ -215,11 +162,9 @@ export default function Props() {
     }
   };
 
-  const onSubmit = (data: PropForm) => {
+  const onEditSubmit = (data: PropForm) => {
     if (editingProp) {
       updateMutation.mutate({ id: editingProp.id, data });
-    } else {
-      createMutation.mutate(data);
     }
   };
 
@@ -241,7 +186,7 @@ export default function Props() {
           </p>
         </div>
         <Button 
-          onClick={handleOpenAddDialog} 
+          onClick={() => setIsAddDialogOpen(true)} 
           data-testid="button-add-props"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -258,7 +203,7 @@ export default function Props() {
               Get started by adding your first prop
             </p>
             <Button 
-              onClick={handleOpenAddDialog}
+              onClick={() => setIsAddDialogOpen(true)}
               data-testid="button-add-first-props"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -325,9 +270,13 @@ export default function Props() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen || editingProp !== null} onOpenChange={(open) => {
+      <CreatePropsDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+
+      <Dialog open={editingProp !== null} onOpenChange={(open) => {
         if (!open) {
-          setIsAddDialogOpen(false);
           setEditingProp(null);
           form.reset();
           setImagePreview(null);
@@ -336,15 +285,13 @@ export default function Props() {
       }}>
         <DialogContent data-testid="dialog-prop-form">
           <DialogHeader>
-            <DialogTitle>
-              {editingProp ? "Edit Prop" : "Add Prop"}
-            </DialogTitle>
+            <DialogTitle>Edit Prop</DialogTitle>
             <DialogDescription>
-              {editingProp ? "Update prop details" : "Add a new prop to your collection"}
+              Update prop details
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0">
                   <div className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
@@ -434,7 +381,6 @@ export default function Props() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsAddDialogOpen(false);
                     setEditingProp(null);
                     form.reset();
                     setImagePreview(null);
@@ -446,10 +392,10 @@ export default function Props() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="button-save-prop"
                 >
-                  {editingProp ? "Update" : "Add"}
+                  Update
                 </Button>
               </DialogFooter>
             </form>

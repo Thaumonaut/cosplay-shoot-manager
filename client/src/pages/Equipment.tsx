@@ -27,6 +27,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Wrench, Package } from "lucide-react";
+import { CreateEquipmentDialog } from "@/components/CreateEquipmentDialog";
 import type { Equipment as EquipmentType } from "@shared/schema";
 
 const equipmentFormSchema = z.object({
@@ -57,27 +58,6 @@ export default function Equipment() {
       description: "",
       quantity: 1,
       available: true,
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: EquipmentForm) =>
-      apiRequest("POST", "/api/equipment", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
-      setIsAddDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Equipment added successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add equipment",
-        variant: "destructive",
-      });
     },
   });
 
@@ -122,11 +102,9 @@ export default function Equipment() {
     },
   });
 
-  const onSubmit = (data: EquipmentForm) => {
+  const onEditSubmit = (data: EquipmentForm) => {
     if (editingEquipment) {
       updateMutation.mutate({ id: editingEquipment.id, data });
-    } else {
-      createMutation.mutate(data);
     }
   };
 
@@ -141,8 +119,7 @@ export default function Equipment() {
     });
   };
 
-  const closeDialog = () => {
-    setIsAddDialogOpen(false);
+  const closeEditDialog = () => {
     setEditingEquipment(null);
     form.reset();
   };
@@ -246,20 +223,21 @@ export default function Equipment() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen || !!editingEquipment} onOpenChange={closeDialog}>
+      <CreateEquipmentDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+
+      <Dialog open={!!editingEquipment} onOpenChange={closeEditDialog}>
         <DialogContent data-testid="dialog-equipment-form">
           <DialogHeader>
-            <DialogTitle>
-              {editingEquipment ? "Edit Equipment" : "Add Equipment"}
-            </DialogTitle>
+            <DialogTitle>Edit Equipment</DialogTitle>
             <DialogDescription>
-              {editingEquipment
-                ? "Update the equipment information"
-                : "Add a new piece of equipment to your inventory"}
+              Update the equipment information
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -331,17 +309,17 @@ export default function Equipment() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={closeDialog}
+                  onClick={closeEditDialog}
                   data-testid="button-cancel-equipment"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="button-save-equipment"
                 >
-                  {editingEquipment ? "Update" : "Add"}
+                  Update
                 </Button>
               </DialogFooter>
             </form>

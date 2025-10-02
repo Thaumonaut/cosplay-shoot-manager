@@ -44,6 +44,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Shirt, ImageIcon, X, Check } from "lucide-react";
+import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
 import type { CostumeProgress } from "@shared/schema";
 
 const costumeFormSchema = z.object({
@@ -83,51 +84,6 @@ export default function Costumes() {
       status: "planning",
       todos: [],
       notes: "",
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: CostumeForm) => {
-      const formData = new FormData();
-      formData.append("characterName", data.characterName);
-      formData.append("seriesName", data.seriesName || "");
-      formData.append("status", data.status);
-      formData.append("todos", JSON.stringify(data.todos || []));
-      formData.append("notes", data.notes || "");
-      
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
-
-      const res = await fetch("/api/costumes", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to create costume");
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
-      toast({
-        title: "Success",
-        description: "Costume added successfully",
-      });
-      setIsAddDialogOpen(false);
-      form.reset();
-      setImagePreview(null);
-      setImageFile(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add costume",
-        variant: "destructive",
-      });
     },
   });
 
@@ -202,19 +158,6 @@ export default function Costumes() {
     },
   });
 
-  const handleOpenAddDialog = () => {
-    form.reset({
-      characterName: "",
-      seriesName: "",
-      status: "planning",
-      todos: [],
-      notes: "",
-    });
-    setImagePreview(null);
-    setImageFile(null);
-    setIsAddDialogOpen(true);
-  };
-
   const handleOpenEditDialog = (costume: CostumeProgress) => {
     setEditingCostume(costume);
     form.reset({
@@ -240,11 +183,9 @@ export default function Costumes() {
     }
   };
 
-  const onSubmit = (data: CostumeForm) => {
+  const onEditSubmit = (data: CostumeForm) => {
     if (editingCostume) {
       updateMutation.mutate({ id: editingCostume.id, data });
-    } else {
-      createMutation.mutate(data);
     }
   };
 
@@ -279,7 +220,7 @@ export default function Costumes() {
           </p>
         </div>
         <Button 
-          onClick={handleOpenAddDialog} 
+          onClick={() => setIsAddDialogOpen(true)} 
           data-testid="button-add-costumes"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -296,7 +237,7 @@ export default function Costumes() {
               Start tracking your cosplay costume progress
             </p>
             <Button 
-              onClick={handleOpenAddDialog}
+              onClick={() => setIsAddDialogOpen(true)}
               data-testid="button-add-first-costumes"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -384,9 +325,13 @@ export default function Costumes() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen || editingCostume !== null} onOpenChange={(open) => {
+      <CreateCostumesDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+
+      <Dialog open={editingCostume !== null} onOpenChange={(open) => {
         if (!open) {
-          setIsAddDialogOpen(false);
           setEditingCostume(null);
           form.reset();
           setImagePreview(null);
@@ -395,15 +340,13 @@ export default function Costumes() {
       }}>
         <DialogContent data-testid="dialog-costume-form">
           <DialogHeader>
-            <DialogTitle>
-              {editingCostume ? "Edit Costume" : "Add Costume"}
-            </DialogTitle>
+            <DialogTitle>Edit Costume</DialogTitle>
             <DialogDescription>
-              {editingCostume ? "Update costume progress" : "Add a new costume to track"}
+              Update costume progress
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0">
                   <div className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
@@ -584,7 +527,6 @@ export default function Costumes() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsAddDialogOpen(false);
                     setEditingCostume(null);
                     form.reset();
                     setImagePreview(null);
@@ -596,10 +538,10 @@ export default function Costumes() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="button-save-costume"
                 >
-                  {editingCostume ? "Update" : "Add"}
+                  Update
                 </Button>
               </DialogFooter>
             </form>

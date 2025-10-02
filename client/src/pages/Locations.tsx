@@ -27,6 +27,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, MapPin, Map } from "lucide-react";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
+import { CreateLocationDialog } from "@/components/CreateLocationDialog";
 import type { Location as LocationType } from "@shared/schema";
 
 const locationFormSchema = z.object({
@@ -53,43 +54,6 @@ export default function Locations() {
       name: "",
       address: "",
       notes: "",
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: LocationForm) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("address", data.address || "");
-      formData.append("notes", data.notes || "");
-
-      const res = await fetch("/api/locations", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
-      setIsAddDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Location added successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add location",
-        variant: "destructive",
-      });
     },
   });
 
@@ -150,11 +114,9 @@ export default function Locations() {
     },
   });
 
-  const onSubmit = (data: LocationForm) => {
+  const onEditSubmit = (data: LocationForm) => {
     if (editingLocation) {
       updateMutation.mutate({ id: editingLocation.id, data });
-    } else {
-      createMutation.mutate(data);
     }
   };
 
@@ -167,8 +129,7 @@ export default function Locations() {
     });
   };
 
-  const closeDialog = () => {
-    setIsAddDialogOpen(false);
+  const closeEditDialog = () => {
     setEditingLocation(null);
     form.reset();
   };
@@ -266,20 +227,21 @@ export default function Locations() {
         </div>
       )}
 
-      <Dialog open={isAddDialogOpen || !!editingLocation} onOpenChange={closeDialog}>
+      <CreateLocationDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+
+      <Dialog open={!!editingLocation} onOpenChange={closeEditDialog}>
         <DialogContent data-testid="dialog-location-form">
           <DialogHeader>
-            <DialogTitle>
-              {editingLocation ? "Edit Location" : "Add Location"}
-            </DialogTitle>
+            <DialogTitle>Edit Location</DialogTitle>
             <DialogDescription>
-              {editingLocation
-                ? "Update the location information"
-                : "Add a new shoot location"}
+              Update the location information
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -348,17 +310,17 @@ export default function Locations() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={closeDialog}
+                  onClick={closeEditDialog}
                   data-testid="button-cancel-location"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={updateMutation.isPending}
                   data-testid="button-save-location"
                 >
-                  {editingLocation ? "Update" : "Add"}
+                  Update
                 </Button>
               </DialogFooter>
             </form>
