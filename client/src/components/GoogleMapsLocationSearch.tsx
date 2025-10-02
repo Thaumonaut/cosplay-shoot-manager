@@ -35,6 +35,7 @@ export function GoogleMapsLocationSearch({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const searchLocations = async () => {
@@ -97,6 +98,9 @@ export function GoogleMapsLocationSearch({
     setShowSuggestions(false);
     setSuggestions([]);
 
+    // Blur the input to prevent dropdown from reappearing
+    inputRef.current?.blur();
+
     onLocationSelect({
       name: prediction.name,
       address: prediction.address,
@@ -112,6 +116,7 @@ export function GoogleMapsLocationSearch({
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
