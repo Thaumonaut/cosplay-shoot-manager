@@ -1195,7 +1195,7 @@ export default function ShootPage() {
         
         <div className="flex gap-2">
           <Input
-            placeholder="https://instagram.com/p/..."
+            placeholder="https://instagram.com/p/... or https://instagram.com/reel/..."
             value={currentLink}
             onChange={(e) => setCurrentLink(e.target.value)}
             onKeyPress={(e) => {
@@ -1217,33 +1217,74 @@ export default function ShootPage() {
         </div>
 
         {instagramLinks.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {instagramLinks.map((link, index) => (
-              <Card key={index} className="hover-elevate">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <a 
-                      href={link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm truncate flex-1 hover:underline"
-                      data-testid={`link-instagram-${index}`}
-                    >
-                      {link}
-                    </a>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeInstagramLink(index)}
-                      data-testid={`button-remove-link-${index}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {instagramLinks.map((link, index) => {
+              // Convert Instagram URL to embed URL
+              const getEmbedUrl = (url: string) => {
+                try {
+                  // Match Instagram post/reel URLs
+                  const match = url.match(/instagram\.com\/(p|reel)\/([^/?]+)/);
+                  if (match) {
+                    return `https://www.instagram.com/${match[1]}/${match[2]}/embed/`;
+                  }
+                  return null;
+                } catch {
+                  return null;
+                }
+              };
+
+              const embedUrl = getEmbedUrl(link);
+
+              return (
+                <Card key={index} className="hover-elevate relative overflow-hidden">
+                  <CardContent className="p-0">
+                    {embedUrl ? (
+                      <div className="relative">
+                        <iframe
+                          src={embedUrl}
+                          className="w-full h-[400px] border-0"
+                          frameBorder="0"
+                          scrolling="no"
+                          allowTransparency={true}
+                          data-testid={`embed-instagram-${index}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                          onClick={() => removeInstagramLink(index)}
+                          data-testid={`button-remove-link-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-3 flex items-center justify-between gap-2">
+                        <a 
+                          href={link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm truncate flex-1 hover:underline"
+                          data-testid={`link-instagram-${index}`}
+                        >
+                          {link}
+                        </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeInstagramLink(index)}
+                          data-testid={`button-remove-link-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
