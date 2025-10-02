@@ -137,7 +137,10 @@ export function GoogleMapsLocationSearch({
               <button
                 key={prediction.placeId || index}
                 type="button"
-                onClick={() => handleSelect(prediction)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(prediction);
+                }}
                 className="w-full text-left px-4 py-2 hover-elevate flex items-start gap-2 border-b last:border-b-0"
                 data-testid={`suggestion-${index}`}
               >
