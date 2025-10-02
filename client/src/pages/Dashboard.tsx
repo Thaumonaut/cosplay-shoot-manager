@@ -10,7 +10,6 @@ import { UpcomingShootsSection } from "@/components/UpcomingShootsSection";
 import { ShootCalendar } from "@/components/ShootCalendar";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { AccordionShoots } from "@/components/AccordionShoots";
-import { ShootDialog } from "@/components/ShootDialog";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import heroImage from "@assets/generated_images/Cosplay_photo_shoot_hero_image_70beec03.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,11 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [, params] = useRoute("/status/:status");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
-  const [selectedShootId, setSelectedShootId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
@@ -149,7 +145,6 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
-      setSelectedShootId(null);
       toast({
         title: "Shoot deleted",
         description: "The shoot has been deleted successfully.",
@@ -363,11 +358,7 @@ export default function Dashboard() {
         </div>
         <Button
           size="lg"
-          onClick={() => {
-            setDialogMode('create');
-            setSelectedShootId(null);
-            setDialogOpen(true);
-          }}
+          onClick={() => navigate("/shoots/new")}
           data-testid="button-add-shoot"
         >
           <Plus className="h-5 w-5 mr-2" />
@@ -380,11 +371,7 @@ export default function Dashboard() {
           <div>
             <ShootCalendar
               shoots={calendarShoots}
-              onShootClick={(id) => {
-                setSelectedShootId(id);
-                setDialogMode('edit');
-                setDialogOpen(true);
-              }}
+              onShootClick={(id) => navigate(`/shoots/${id}`)}
               onDateSelect={setSelectedDate}
               selectedDate={selectedDate}
             />
@@ -400,11 +387,7 @@ export default function Dashboard() {
                     {selectedDayShoots.map((shoot) => (
                       <div
                         key={shoot.id}
-                        onClick={() => {
-                          setSelectedShootId(shoot.id);
-                          setDialogMode('edit');
-                          setDialogOpen(true);
-                        }}
+                        onClick={() => navigate(`/shoots/${shoot.id}`)}
                         className="p-3 rounded-lg border cursor-pointer hover-elevate flex items-center gap-3"
                         data-testid={`selected-day-shoot-${shoot.id}`}
                       >
@@ -436,11 +419,7 @@ export default function Dashboard() {
             <div>
               <ShootCalendar
                 shoots={calendarShoots}
-                onShootClick={(id) => {
-                setSelectedShootId(id);
-                setDialogMode('edit');
-                setDialogOpen(true);
-              }}
+                onShootClick={(id) => navigate(`/shoots/${id}`)}
                 onDateSelect={setSelectedDate}
                 selectedDate={selectedDate}
               />
@@ -456,11 +435,7 @@ export default function Dashboard() {
                       {selectedDayShoots.map((shoot) => (
                         <div
                           key={shoot.id}
-                          onClick={() => {
-                          setSelectedShootId(shoot.id);
-                          setDialogMode('edit');
-                          setDialogOpen(true);
-                        }}
+                          onClick={() => navigate(`/shoots/${shoot.id}`)}
                           className="p-3 rounded-lg border cursor-pointer hover-elevate flex items-center gap-3"
                           data-testid={`selected-day-shoot-${shoot.id}`}
                         >
@@ -491,11 +466,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-semibold">All Shoots</h2>
             <AccordionShoots
               shoots={shoots}
-              onShootClick={(id) => {
-                setSelectedShootId(id);
-                setDialogMode('edit');
-                setDialogOpen(true);
-              }}
+              onShootClick={(id) => navigate(`/shoots/${id}`)}
             />
           </div>
         </>
@@ -503,26 +474,10 @@ export default function Dashboard() {
         <div className="space-y-4">
           <KanbanBoard
             columns={kanbanColumns}
-            onShootClick={(id) => {
-              setSelectedShootId(id);
-              setDialogMode('edit');
-              setDialogOpen(true);
-            }}
+            onShootClick={(id) => navigate(`/shoots/${id}`)}
           />
         </div>
       )}
-
-      <ShootDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) {
-            setSelectedShootId(null);
-          }
-        }}
-        mode={dialogMode}
-        shootId={selectedShootId || undefined}
-      />
     </div>
   );
 }

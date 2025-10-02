@@ -18,6 +18,7 @@ import Equipment from "@/pages/Equipment";
 import Locations from "@/pages/Locations";
 import Props from "@/pages/Props";
 import Costumes from "@/pages/Costumes";
+import ShootPage from "@/pages/ShootPage";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
@@ -125,6 +126,16 @@ function AppContent() {
                 <Route path="/costumes">
                   <ProtectedRoute>
                     <Costumes />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/shoots/new">
+                  <ProtectedRoute>
+                    <ShootPage />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/shoots/:id">
+                  <ProtectedRoute>
+                    <ShootPage />
                   </ProtectedRoute>
                 </Route>
                 <Route path="/auth" component={Auth} />
