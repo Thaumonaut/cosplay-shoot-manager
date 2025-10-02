@@ -661,7 +661,7 @@ export default function ShootPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 text-3xl">
           <Input
             value={title}
             onChange={(e) => {
