@@ -104,6 +104,7 @@ export const shoots = pgTable("shoots", {
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   status: text("status").notNull().default("idea"),
+  isPublic: boolean("is_public").default(false),
   date: timestamp("date"),
   time: text("time"),
   durationMinutes: integer("duration_minutes"),
