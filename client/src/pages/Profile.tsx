@@ -9,7 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, LogOut, UserPlus, UserMinus, Save, Upload, Copy } from "lucide-react";
+import { Camera, LogOut, UserPlus, UserMinus, Save, Upload, Copy, UserX } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +52,17 @@ interface TeamMember {
   userId: string;
   role: string;
   createdAt: string;
+}
+
+interface TeamMemberWithProfile extends TeamMember {
+  profile: {
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+  };
+  user: {
+    email: string;
+  };
 }
 
 export default function Profile() {
@@ -103,6 +122,20 @@ export default function Profile() {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch invite");
+      return response.json();
+    },
+  });
+
+  // Fetch team members
+  const { data: teamMembers = [] } = useQuery<TeamMemberWithProfile[]>({
+    queryKey: ["/api/team", teamMember?.teamId, "members"],
+    enabled: !!teamMember?.teamId,
+    queryFn: async () => {
+      if (!teamMember?.teamId) throw new Error("No team ID");
+      const response = await fetch(`/api/team/${teamMember.teamId}/members`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch team members");
       return response.json();
     },
   });
@@ -251,6 +284,54 @@ export default function Profile() {
     },
   });
 
+  // Update member role mutation
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: async ({ memberId, newRole }: { memberId: string; newRole: string }) => {
+      if (!team?.id) throw new Error("No team ID");
+      const response = await apiRequest("PATCH", `/api/team/${team.id}/members/${memberId}/role`, {
+        role: newRole,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/team", team?.id, "members"] });
+      toast({
+        title: "Role updated",
+        description: "Member role has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update member role. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove member mutation
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      if (!team?.id) throw new Error("No team ID");
+      const response = await apiRequest("DELETE", `/api/team/${team.id}/members/${memberId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/team", team?.id, "members"] });
+      toast({
+        title: "Member removed",
+        description: "Team member has been removed successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove member. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -284,6 +365,7 @@ export default function Profile() {
   }
 
   const isTeamOwner = teamMember?.role === "owner";
+  const canManageTeam = teamMember?.role === "owner" || teamMember?.role === "admin";
 
   return (
     <div className="space-y-6">
@@ -394,11 +476,11 @@ export default function Profile() {
                       id="teamName"
                       value={teamName}
                       onChange={(e) => setTeamName(e.target.value)}
-                      disabled={!isTeamOwner}
+                      disabled={!canManageTeam}
                       placeholder="Team name"
                       data-testid="input-team-name"
                     />
-                    {isTeamOwner && (
+                    {canManageTeam && (
                       <Button
                         onClick={() => updateTeamMutation.mutate()}
                         disabled={updateTeamMutation.isPending || !teamName}
@@ -409,9 +491,9 @@ export default function Profile() {
                       </Button>
                     )}
                   </div>
-                  {!isTeamOwner && (
+                  {!canManageTeam && (
                     <p className="text-xs text-muted-foreground">
-                      Only team owners can change the team name
+                      Only team owners and admins can change the team name
                     </p>
                   )}
                 </div>
@@ -488,6 +570,86 @@ export default function Profile() {
                     </div>
                   </div>
                 )}
+
+                <Separator />
+
+                {/* Team Members Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium">Team Members</h4>
+                    <p className="text-sm text-muted-foreground">
+                      View and manage team members
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {teamMembers.map((member) => {
+                      const isCurrentUser = member.userId === user?.id;
+                      const canModifyMember = canManageTeam && !isCurrentUser && member.role !== "owner";
+                      const memberName = member.profile?.firstName && member.profile?.lastName
+                        ? `${member.profile.firstName} ${member.profile.lastName}`
+                        : member.profile?.firstName || member.user.email;
+
+                      return (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-3 rounded-lg border"
+                          data-testid={`member-${member.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={member.profile?.avatarUrl || undefined} />
+                              <AvatarFallback>
+                                {getInitials(member.profile?.firstName || null, member.profile?.lastName || null)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium" data-testid={`text-member-name-${member.id}`}>
+                                {memberName}
+                                {isCurrentUser && <span className="text-muted-foreground ml-2">(You)</span>}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {canModifyMember ? (
+                              <Select
+                                value={member.role}
+                                onValueChange={(newRole) => 
+                                  updateMemberRoleMutation.mutate({ memberId: member.id, newRole })
+                                }
+                                disabled={updateMemberRoleMutation.isPending}
+                              >
+                                <SelectTrigger className="w-32" data-testid={`select-role-${member.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="member">Member</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  {isTeamOwner && <SelectItem value="owner">Owner</SelectItem>}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge variant="secondary" className="capitalize" data-testid={`badge-role-${member.id}`}>
+                                {member.role}
+                              </Badge>
+                            )}
+                            {canModifyMember && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeMemberMutation.mutate(member.id)}
+                                disabled={removeMemberMutation.isPending}
+                                data-testid={`button-remove-member-${member.id}`}
+                              >
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <Separator />
 
