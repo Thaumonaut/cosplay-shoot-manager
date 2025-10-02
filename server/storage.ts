@@ -1603,7 +1603,11 @@ export class SupabaseStorage implements IStorage {
       .eq('id', memberId)
       .single();
     
-    if (error) return undefined;
+    if (error) {
+      console.error("[DEBUG] getTeamMemberById error:", { memberId, error });
+      return undefined;
+    }
+    console.log("[DEBUG] getTeamMemberById data:", { memberId, data });
     return toCamelCase(data) as TeamMember;
   }
 

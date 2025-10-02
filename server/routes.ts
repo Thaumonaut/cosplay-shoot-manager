@@ -704,30 +704,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { teamId, memberId } = req.params;
       const { role } = req.body;
+      
+      console.log("[DEBUG] Role change request:", { userId, teamId, memberId, role });
 
       if (!role || !['owner', 'admin', 'member'].includes(role)) {
+        console.log("[DEBUG] Invalid role:", role);
         return res.status(400).json({ error: "Valid role is required (owner, admin, or member)" });
       }
 
       // Get actor's team membership and role for this specific team
       const actorMember = await storage.getTeamMember(teamId, userId);
+      console.log("[DEBUG] Actor member:", actorMember);
       if (!actorMember) {
+        console.log("[DEBUG] Actor not authorized for team");
         return res.status(403).json({ error: "Unauthorized to modify this team" });
       }
 
       // Only owners and admins can change roles
       if (actorMember.role !== "owner" && actorMember.role !== "admin") {
+        console.log("[DEBUG] Actor role insufficient:", actorMember.role);
         return res.status(403).json({ error: "Only owners and admins can change member roles" });
       }
 
       // Get target member's current details by their record ID
       const targetMember = await storage.getTeamMemberById(memberId);
+      console.log("[DEBUG] Target member:", targetMember);
       if (!targetMember) {
+        console.log("[DEBUG] Target member not found");
         return res.status(404).json({ error: "Team member not found" });
       }
 
       // Verify the target member belongs to this team
+      console.log("[DEBUG] Team ID comparison:", { targetTeamId: targetMember.teamId, requestTeamId: teamId, match: targetMember.teamId === teamId });
       if (targetMember.teamId !== teamId) {
+        console.log("[DEBUG] Team ID mismatch");
         return res.status(403).json({ error: "Team member not found in this team" });
       }
 
@@ -737,15 +747,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         actorMember.role as "owner" | "admin" | "member",
         targetMember.role as "owner" | "admin" | "member"
       );
+      console.log("[DEBUG] Can modify:", canModify);
 
       if (!canModify) {
+        console.log("[DEBUG] Permission denied");
         return res.status(403).json({ 
           error: "You cannot modify this member's role. Admins can only modify regular members." 
         });
       }
 
       // Update the role
+      console.log("[DEBUG] Updating role to:", role);
       const updatedMember = await storage.updateTeamMember(targetMember.id, { role });
+      console.log("[DEBUG] Updated member:", updatedMember);
       res.json(updatedMember);
     } catch (error) {
       console.error("Error updating team member role:", error);
