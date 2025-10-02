@@ -401,6 +401,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a new team
+  app.post("/api/team", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { name } = req.body;
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: "Team name is required" });
+      }
+
+      // Create the team
+      const newTeam = await storage.createTeam({
+        name: name.trim(),
+      });
+
+      // Add user as owner of the new team
+      await storage.createTeamMember({
+        teamId: newTeam.id,
+        userId,
+        role: "owner",
+      });
+
+      // Set as active team
+      await storage.setActiveTeam(userId, newTeam.id);
+
+      res.json(newTeam);
+    } catch (error) {
+      console.error("Error creating team:", error);
+      res.status(500).json({ error: "Failed to create team" });
+    }
+  });
+
+  // Delete a team
+  app.delete("/api/team/:id", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const teamId = req.params.id;
+
+      // Verify user is the owner of this team
+      const teamMember = await storage.getTeamMember(teamId, userId);
+      if (!teamMember) {
+        return res.status(403).json({ error: "Unauthorized to delete this team" });
+      }
+      if (teamMember.role !== "owner") {
+        return res.status(403).json({ error: "Only team owners can delete the team" });
+      }
+
+      // Count how many teams the user owns
+      const userTeams = await storage.getUserTeams(userId);
+      const ownedTeamsCount = userTeams.filter(team => team.role === "owner").length;
+
+      // Prevent deletion if this is the user's only owned team
+      if (ownedTeamsCount <= 1) {
+        return res.status(400).json({ 
+          error: "Cannot delete your only owned team. You must own at least one team." 
+        });
+      }
+
+      // Delete the team (cascading deletes will handle team members, etc.)
+      const deleted = await storage.deleteTeam(teamId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+
+      // If this was the active team, switch to another owned team
+      const profile = await storage.getUserProfile(userId);
+      if (profile?.activeTeamId === teamId) {
+        const anotherOwnedTeam = userTeams.find(
+          team => team.role === "owner" && team.id !== teamId
+        );
+        if (anotherOwnedTeam) {
+          await storage.setActiveTeam(userId, anotherOwnedTeam.id);
+        }
+      }
+
+      res.json({ message: "Team deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting team:", error);
+      res.status(500).json({ error: "Failed to delete team" });
+    }
+  });
+
   // Join a team using invite code
   app.post("/api/team/join", authenticateUser, async (req: AuthRequest, res) => {
     try {

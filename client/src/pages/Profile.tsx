@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, UserPlus, UserMinus, Save, Upload, Copy, UserX } from "lucide-react";
+import { Camera, UserPlus, UserMinus, Save, Upload, Copy, UserX, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -72,10 +72,12 @@ export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [newTeamName, setNewTeamName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveTeamDialog, setShowLeaveTeamDialog] = useState(false);
+  const [showDeleteTeamDialog, setShowDeleteTeamDialog] = useState(false);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
 
   // Fetch user profile
@@ -139,6 +141,12 @@ export default function Profile() {
       if (!response.ok) throw new Error("Failed to fetch team members");
       return response.json();
     },
+  });
+
+  // Fetch user teams to check ownership count
+  const { data: userTeams = [] } = useQuery<Array<{ id: string; name: string; role: string }>>({
+    queryKey: ["/api/user/teams"],
+    enabled: !!user,
   });
 
   // Update team name when team loads
@@ -334,6 +342,59 @@ export default function Profile() {
     },
   });
 
+  // Create team mutation
+  const createTeamMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/team", {
+        name: newTeamName,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      toast({
+        title: "Team created",
+        description: "Your new team has been created and is now active.",
+      });
+      setNewTeamName("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create team. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete team mutation
+  const deleteTeamMutation = useMutation({
+    mutationFn: async () => {
+      if (!team?.id) throw new Error("No team ID");
+      const response = await apiRequest("DELETE", `/api/team/${team.id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      toast({
+        title: "Team deleted",
+        description: "The team has been deleted successfully.",
+      });
+      setShowDeleteTeamDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete team. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete account mutation
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
@@ -390,6 +451,8 @@ export default function Profile() {
 
   const isTeamOwner = teamMember?.role === "owner";
   const canManageTeam = teamMember?.role === "owner" || teamMember?.role === "admin";
+  const ownedTeamsCount = userTeams.filter(t => t.role === "owner").length;
+  const canDeleteTeam = isTeamOwner && ownedTeamsCount > 1;
 
   return (
     <div className="space-y-6">
@@ -641,6 +704,32 @@ export default function Profile() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Create Team */}
+          <div className="space-y-2">
+            <h4 className="font-medium">Create a New Team</h4>
+            <p className="text-sm text-muted-foreground">
+              Create your own team and become its owner
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="Enter team name"
+                data-testid="input-new-team-name"
+              />
+              <Button
+                onClick={() => createTeamMutation.mutate()}
+                disabled={createTeamMutation.isPending || !newTeamName.trim()}
+                data-testid="button-create-team"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Join Team */}
           <div className="space-y-2">
             <h4 className="font-medium">Join a Team</h4>
@@ -768,6 +857,30 @@ export default function Profile() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Delete Team */}
+          {isTeamOwner && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-medium">Delete Team</h4>
+                <p className="text-sm text-muted-foreground">
+                  {canDeleteTeam
+                    ? "Permanently delete this team and all its data. This action cannot be undone."
+                    : "You cannot delete your only owned team. Create another team first."}
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteTeamDialog(true)}
+                  disabled={!canDeleteTeam}
+                  data-testid="button-delete-team"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Team
+                </Button>
+              </div>
+              <Separator />
+            </>
+          )}
+
           <div className="space-y-2">
             <h4 className="font-medium">Delete Account</h4>
             <p className="text-sm text-muted-foreground">
@@ -803,6 +916,29 @@ export default function Profile() {
               data-testid="button-confirm-leave-team"
             >
               Leave Team
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Team Confirmation Dialog */}
+      <AlertDialog open={showDeleteTeamDialog} onOpenChange={setShowDeleteTeamDialog}>
+        <AlertDialogContent data-testid="dialog-delete-team">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Team</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this team? All team data, shoots, and resources will be permanently deleted.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-team">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTeamMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-team"
+            >
+              Delete Team
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
