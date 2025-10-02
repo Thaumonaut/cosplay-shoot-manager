@@ -191,6 +191,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
+  // Get user profile
+  app.get("/api/user/profile", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getUserProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
   // Create or update user profile
   app.post("/api/user/profile", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
     try {

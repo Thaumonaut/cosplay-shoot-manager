@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, LogOut, UserPlus, UserMinus, Save, Upload, Copy, UserX } from "lucide-react";
+import { Camera, UserPlus, UserMinus, Save, Upload, Copy, UserX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -478,266 +478,151 @@ export default function Profile() {
               </Button>
             </div>
           </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-medium">Account Actions</h4>
-              <p className="text-sm text-muted-foreground">
-                Manage your account and sessions
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => signOut()}
-              data-testid="button-signout"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Team Settings Section */}
+      {/* Team Management Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Team Settings</CardTitle>
+          <CardTitle>Team Management</CardTitle>
           <CardDescription>
-            Manage your team membership and settings
+            Manage your current team and members
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {team && teamMember ? (
             <>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="teamName">Team Name</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="teamName"
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      disabled={!canManageTeam}
-                      placeholder="Team name"
-                      data-testid="input-team-name"
-                    />
-                    {canManageTeam && (
-                      <Button
-                        onClick={() => updateTeamMutation.mutate()}
-                        disabled={updateTeamMutation.isPending || !teamName}
-                        data-testid="button-save-team"
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                    )}
-                  </div>
-                  {!canManageTeam && (
-                    <p className="text-xs text-muted-foreground">
-                      Only team owners and admins can change the team name
-                    </p>
+              {/* Team Name */}
+              <div className="space-y-2">
+                <Label htmlFor="teamName">Team Name</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="teamName"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    disabled={!canManageTeam}
+                    placeholder="Team name"
+                    data-testid="input-team-name"
+                  />
+                  {canManageTeam && (
+                    <Button
+                      onClick={() => updateTeamMutation.mutate()}
+                      disabled={updateTeamMutation.isPending || !teamName}
+                      data-testid="button-save-team"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
                   )}
                 </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <h4 className="font-medium">Your Role</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{teamMember.role}</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {isTeamOwner && (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium">Team Invitations</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Share your team's invite code or send invitations via email
-                      </p>
-                    </div>
-                    {teamInvite && (
-                      <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
-                        <div className="space-y-3">
-                          <div>
-                            <span className="text-sm font-medium">Invite Code</span>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-sm font-mono bg-background px-3 py-2 rounded-md border flex-1">{teamInvite.code}</p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(teamInvite.code);
-                                  toast({
-                                    title: "Code copied",
-                                    description: "Invite code copied to clipboard",
-                                  });
-                                }}
-                                data-testid="button-copy-invite-code"
-                              >
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copy Code
-                              </Button>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium">Share Link</span>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs font-mono bg-background px-3 py-2 rounded-md border flex-1 truncate">{teamInvite.inviteUrl}</p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(teamInvite.inviteUrl);
-                                  toast({
-                                    title: "Link copied",
-                                    description: "Invite link copied to clipboard",
-                                  });
-                                }}
-                                data-testid="button-copy-invite-link"
-                              >
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copy Link
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Share the code or link with people you want to invite to your team
-                        </p>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="emailInvite">Send Email Invitation</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="emailInvite"
-                          type="email"
-                          placeholder="colleague@example.com"
-                          value={inviteCode}
-                          onChange={(e) => setInviteCode(e.target.value)}
-                          data-testid="input-email-invite"
-                        />
-                        <Button
-                          onClick={() => {
-                            if (inviteCode) {
-                              sendEmailInviteMutation.mutate(inviteCode);
-                              setInviteCode("");
-                            }
-                          }}
-                          disabled={sendEmailInviteMutation.isPending || !inviteCode}
-                          data-testid="button-send-email-invite"
-                        >
-                          Send
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Separator />
-
-                {/* Team Members Section */}
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium">Team Members</h4>
-                    <p className="text-sm text-muted-foreground">
-                      View and manage team members
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {teamMembers.map((member) => {
-                      const isCurrentUser = member.userId === user?.id;
-                      const canModifyMember = canManageTeam && !isCurrentUser && member.role !== "owner";
-                      const memberName = member.profile?.firstName && member.profile?.lastName
-                        ? `${member.profile.firstName} ${member.profile.lastName}`
-                        : member.profile?.firstName || member.user?.email || 'Unknown User';
-
-                      return (
-                        <div
-                          key={member.id}
-                          className="flex items-center justify-between p-3 rounded-lg border"
-                          data-testid={`member-${member.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={member.profile?.avatarUrl || undefined} />
-                              <AvatarFallback>
-                                {getInitials(member.profile?.firstName || null, member.profile?.lastName || null)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium" data-testid={`text-member-name-${member.id}`}>
-                                {memberName}
-                                {isCurrentUser && <span className="text-muted-foreground ml-2">(You)</span>}
-                              </p>
-                              <p className="text-sm text-muted-foreground">{member.user?.email || ''}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {canModifyMember ? (
-                              <Select
-                                value={member.role}
-                                onValueChange={(newRole) => 
-                                  updateMemberRoleMutation.mutate({ memberId: member.id, newRole })
-                                }
-                                disabled={updateMemberRoleMutation.isPending}
-                              >
-                                <SelectTrigger className="w-32" data-testid={`select-role-${member.id}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="member">Member</SelectItem>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  {isTeamOwner && <SelectItem value="owner">Owner</SelectItem>}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Badge variant="secondary" className="capitalize" data-testid={`badge-role-${member.id}`}>
-                                {member.role}
-                              </Badge>
-                            )}
-                            {canModifyMember && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeMemberMutation.mutate(member.id)}
-                                disabled={removeMemberMutation.isPending}
-                                data-testid={`button-remove-member-${member.id}`}
-                              >
-                                <UserX className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <h4 className="font-medium">Leave Team</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {teamMembers.length === 1
-                      ? "You are the only member of this team. You cannot leave it."
-                      : isTeamOwner
-                        ? "As the team owner, leaving will create a new personal team for you."
-                        : "You will be removed from this team and a new personal team will be created for you."}
+                {!canManageTeam && (
+                  <p className="text-xs text-muted-foreground">
+                    Only team owners and admins can change the team name
                   </p>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowLeaveTeamDialog(true)}
-                    disabled={teamMembers.length === 1}
-                    data-testid="button-leave-team"
-                  >
-                    <UserMinus className="h-4 w-4 mr-2" />
-                    Leave Team
-                  </Button>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Team Members List */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium">Team Members</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {teamMembers.length} {teamMembers.length === 1 ? 'member' : 'members'}
+                  </p>
                 </div>
+                <div className="space-y-2">
+                  {teamMembers.map((member) => {
+                    const isCurrentUser = member.userId === user?.id;
+                    const canModifyMember = canManageTeam && !isCurrentUser && member.role !== "owner";
+                    const memberName = member.profile?.firstName && member.profile?.lastName
+                      ? `${member.profile.firstName} ${member.profile.lastName}`
+                      : member.profile?.firstName || member.user?.email || 'Unknown User';
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 rounded-lg border"
+                        data-testid={`member-${member.id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={member.profile?.avatarUrl || undefined} />
+                            <AvatarFallback>
+                              {getInitials(member.profile?.firstName || null, member.profile?.lastName || null)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium" data-testid={`text-member-name-${member.id}`}>
+                              {memberName}
+                              {isCurrentUser && <span className="text-muted-foreground ml-2">(You)</span>}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{member.user?.email || ''}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {canModifyMember ? (
+                            <Select
+                              value={member.role}
+                              onValueChange={(newRole) => 
+                                updateMemberRoleMutation.mutate({ memberId: member.id, newRole })
+                              }
+                              disabled={updateMemberRoleMutation.isPending}
+                            >
+                              <SelectTrigger className="w-32" data-testid={`select-role-${member.id}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="member">Member</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                {isTeamOwner && <SelectItem value="owner">Owner</SelectItem>}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="secondary" className="capitalize" data-testid={`badge-role-${member.id}`}>
+                              {member.role}
+                            </Badge>
+                          )}
+                          {canModifyMember && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeMemberMutation.mutate(member.id)}
+                              disabled={removeMemberMutation.isPending}
+                              data-testid={`button-remove-member-${member.id}`}
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Leave Team */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Leave Team</h4>
+                <p className="text-sm text-muted-foreground">
+                  {teamMembers.length === 1
+                    ? "You are the only member of this team. You cannot leave it."
+                    : isTeamOwner
+                      ? "As the team owner, leaving will create a new personal team for you."
+                      : "You will be removed from this team and a new personal team will be created for you."}
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowLeaveTeamDialog(true)}
+                  disabled={teamMembers.length === 1}
+                  data-testid="button-leave-team"
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Leave Team
+                </Button>
               </div>
             </>
           ) : (
@@ -745,9 +630,19 @@ export default function Profile() {
               You are not currently part of a team.
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          <Separator />
-
+      {/* Team Actions Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Actions</CardTitle>
+          <CardDescription>
+            Join a team or invite others to yours
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Join Team */}
           <div className="space-y-2">
             <h4 className="font-medium">Join a Team</h4>
             <p className="text-sm text-muted-foreground">
@@ -766,10 +661,102 @@ export default function Profile() {
                 data-testid="button-join-team"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                Join Team
+                Join
               </Button>
             </div>
           </div>
+
+          {isTeamOwner && (
+            <>
+              <Separator />
+
+              {/* Share Team */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium">Share Your Team</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Invite others to join your team
+                  </p>
+                </div>
+                {teamInvite && (
+                  <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm font-medium">Invite Code</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-sm font-mono bg-background px-3 py-2 rounded-md border flex-1">{teamInvite.code}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(teamInvite.code);
+                              toast({
+                                title: "Code copied",
+                                description: "Invite code copied to clipboard",
+                              });
+                            }}
+                            data-testid="button-copy-invite-code"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium">Share Link</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs font-mono bg-background px-3 py-2 rounded-md border flex-1 truncate">{teamInvite.inviteUrl}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(teamInvite.inviteUrl);
+                              toast({
+                                title: "Link copied",
+                                description: "Invite link copied to clipboard",
+                              });
+                            }}
+                            data-testid="button-copy-invite-link"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Share the code or link with people you want to invite
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="emailInvite">Send Email Invitation</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="emailInvite"
+                      type="email"
+                      placeholder="colleague@example.com"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      data-testid="input-email-invite"
+                    />
+                    <Button
+                      onClick={() => {
+                        if (inviteCode) {
+                          sendEmailInviteMutation.mutate(inviteCode);
+                          setInviteCode("");
+                        }
+                      }}
+                      disabled={sendEmailInviteMutation.isPending || !inviteCode}
+                      data-testid="button-send-email-invite"
+                    >
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
