@@ -1,0 +1,268 @@
+# Cosplay Photo Shoot Tracker
+
+A comprehensive web application for managing and organizing cosplay photo shoots with team collaboration, resource management, and role-based permissions.
+
+## Features
+
+- **Team-based collaboration** with role-based permissions (Owner, Admin, Member)
+- **Shoot management** with Kanban board and calendar views
+- **Resource tracking** for personnel, costumes, equipment, props, and locations
+- **Google Calendar & Google Docs integration** for scheduling and collaboration
+- **Enhanced UI** with detailed resource cards and role assignment
+- **Image reference management** via Instagram links and cloud storage
+
+## Running on Replit (Recommended)
+
+This project is designed for Replit's environment:
+
+1. Open the project in Replit
+2. Set your environment secrets in the Replit Secrets panel
+3. Click "Run" - the application starts automatically
+4. Access your app via the provided Replit URL
+
+## Running Locally
+
+### Prerequisites
+
+- **Node.js** (version 20 or higher) - [Download here](https://nodejs.org/)
+- **PostgreSQL** database - [Download here](https://www.postgresql.org/download/)
+
+### Quick Start (Mac/Linux)
+
+1. **Download and install:**
+   ```bash
+   npm install
+   ```
+
+2. **Set required environment variables** (in your terminal):
+   ```bash
+   export DATABASE_URL="postgresql://user:password@localhost:5432/cosplay_tracker"
+   export SUPABASE_URL="your_supabase_url"
+   export SUPABASE_ANON_KEY="your_key"
+   export SUPABASE_SERVICE_ROLE_KEY="your_key"
+   ```
+   
+   Optional (for location search features):
+   ```bash
+   export GOOGLE_MAPS_API_KEY="your_key"
+   ```
+
+3. **Create database and run migrations:**
+   ```bash
+   createdb cosplay_tracker
+   npm run db:push
+   ```
+
+4. **Run the app:**
+   ```bash
+   npm run dev
+   ```
+
+The app will start on `http://localhost:5000`. The npm script automatically sets `NODE_ENV=development` which enables the Vite dev server for the frontend.
+
+### Windows Setup
+
+The npm scripts use Unix syntax (`NODE_ENV=value`) which doesn't work on Windows. You have two options:
+
+#### Option A: Run without modifying repository (Quick test)
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set environment variables in PowerShell:**
+   ```powershell
+   $env:DATABASE_URL="postgresql://user:password@localhost:5432/cosplay_tracker"
+   $env:SUPABASE_URL="your_supabase_url"
+   $env:SUPABASE_ANON_KEY="your_key"
+   $env:SUPABASE_SERVICE_ROLE_KEY="your_key"
+   ```
+   
+   Optional (for location search):
+   ```powershell
+   $env:GOOGLE_MAPS_API_KEY="your_key"
+   ```
+
+3. **Create database and run:**
+   ```bash
+   createdb cosplay_tracker
+   npm run db:push
+   npx --yes cross-env NODE_ENV=development tsx server/index.ts
+   ```
+
+**No repository changes** - `npx --yes` downloads and runs cross-env temporarily without installing it.
+
+#### Option B: Modify package.json (For regular use)
+
+1. **Install cross-env:**
+   ```bash
+   npm install --save-dev cross-env
+   ```
+
+2. **Update scripts in `package.json`:**
+   ```json
+   {
+     "scripts": {
+       "dev": "cross-env NODE_ENV=development tsx server/index.ts",
+       "start": "cross-env NODE_ENV=production node dist/index.js"
+     }
+   }
+   ```
+
+3. **Then run:**
+   ```bash
+   npm run dev
+   ```
+
+**Note:** This modifies package.json and package-lock.json. Commit these changes if you want to keep them.
+
+## Environment Variables Reference
+
+### Required (must be set in your shell)
+- `DATABASE_URL` - PostgreSQL connection string
+- `SUPABASE_URL` - Supabase project URL  
+- `SUPABASE_ANON_KEY` - Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+
+### Optional
+- `GOOGLE_MAPS_API_KEY` - For location search features
+- `RESEND_API_KEY` - For email invitations
+- `PORT` - Server port (defaults to 5000)
+
+**Note:** `NODE_ENV` is set automatically by the npm script - you don't need to set it manually.
+
+## Supabase Setup
+
+1. Create a free account at [Supabase](https://supabase.com/)
+2. Create a new project
+3. Go to Project Settings > API
+4. Copy your project URL and API keys (use them in environment variables above)
+5. In Authentication > Providers, enable Email authentication
+
+## Optional: Use .env File (Avoids setting variables each time)
+
+The project doesn't include .env support by default. To add it:
+
+1. **Install dotenv:**
+   ```bash
+   npm install dotenv
+   ```
+
+2. **Create `.env` file in project root:**
+   ```env
+   DATABASE_URL=postgresql://user:password@localhost:5432/cosplay_tracker
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_ANON_KEY=your_key
+   SUPABASE_SERVICE_ROLE_KEY=your_key
+   GOOGLE_MAPS_API_KEY=your_key
+   ```
+
+3. **Add to the very TOP of `server/index.ts` (before any other imports):**
+   ```javascript
+   import 'dotenv/config';
+   ```
+
+4. **Add `.env` to `.gitignore`:**
+   ```
+   .env
+   ```
+
+Now you can run `npm run dev` without setting variables each time.
+
+## Troubleshooting
+
+### Error: 'NODE_ENV' is not recognized (Windows)
+
+**Problem:** The npm scripts don't work on Windows.
+
+**Solutions:**
+- **Quick test:** Use `npx --yes cross-env NODE_ENV=development tsx server/index.ts` (no code changes)
+- **Regular use:** Install cross-env and modify package.json (see Windows Setup above)
+
+### Error: DATABASE_URL environment variable is required
+
+**Problem:** Required environment variables aren't set.
+
+**Solutions:**
+- Verify you set variables in your current terminal: `echo $DATABASE_URL` (Mac/Linux) or `echo $env:DATABASE_URL` (PowerShell)
+- Make sure you're running `npm run dev` in the same terminal where you set the variables
+- Variables only persist in the current terminal session - you need to set them again in new terminals
+- Or use the optional .env file setup above
+
+### Frontend Doesn't Start - Only Backend Runs
+
+**Problem:** Vite dev server doesn't start, only Express.
+
+**Cause:** Vite only starts when `NODE_ENV === "development"`.
+
+**Check:**
+- Are you running `npm run dev`? (This sets NODE_ENV automatically)
+- Look for Vite startup messages in the console
+- If using .env file, make sure dotenv import is at the top of server/index.ts
+
+### Database Connection Errors
+
+**Checklist:**
+1. Is PostgreSQL running? Check with:
+   - Windows: `pg_ctl status`
+   - Mac: `brew services list`
+   - Linux: `sudo systemctl status postgresql`
+2. Is `DATABASE_URL` format correct? Should be: `postgresql://username:password@localhost:5432/database_name`
+3. Does the database exist? List with: `psql -l`
+4. Test connection: `psql "postgresql://user:password@localhost:5432/cosplay_tracker"`
+
+### Port 5000 Already in Use
+
+**Solutions:**
+1. Set different port: `export PORT=3000` then `npm run dev`
+2. Find what's using the port:
+   - Windows: `netstat -ano | findstr :5000`
+   - Mac/Linux: `lsof -i :5000`
+3. Stop the conflicting process
+
+## Project Structure
+
+```
+.
+├── client/              # React frontend
+│   ├── src/
+│   │   ├── components/  # UI components
+│   │   ├── pages/       # Page components
+│   │   └── lib/         # Utilities
+├── server/              # Express backend
+│   ├── routes.ts        # API endpoints
+│   ├── storage.ts       # Database layer
+│   └── middleware/      # Auth middleware
+├── shared/              # Shared types
+│   └── schema.ts        # Drizzle schema
+└── package.json
+```
+
+## Scripts
+
+- `npm run dev` - Development server (sets NODE_ENV=development automatically)
+- `npm run build` - Production build
+- `npm start` - Run production build
+- `npm run check` - TypeScript type checking  
+- `npm run db:push` - Apply database schema changes
+
+## Tech Stack
+
+- **Frontend:** React, TypeScript, TailwindCSS, shadcn/ui, TanStack Query, Wouter
+- **Backend:** Express.js, TypeScript
+- **Database:** PostgreSQL with Drizzle ORM
+- **Authentication:** Supabase Auth
+- **Build Tools:** Vite, esbuild, tsx
+
+## Platform Compatibility
+
+| Platform | Compatibility | Notes |
+|----------|--------------|-------|
+| Replit | ✅ Full support | Designed for this environment |
+| Mac/Linux | ✅ Works out of box | Just set environment variables |
+| Windows | ⚠️ Requires workaround | Use `npx --yes cross-env` or modify package.json |
+
+## License
+
+MIT
