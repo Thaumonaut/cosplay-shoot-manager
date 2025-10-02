@@ -691,19 +691,7 @@ export default function ShootPage() {
 
           {/* Location */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Location</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCreateLocationOpen(true)}
-                data-testid="button-create-location"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Location
-              </Button>
-            </div>
+            <Label>Location</Label>
 
             {locationId && locations.find(l => l.id === locationId) ? (
               <Card>
@@ -728,11 +716,23 @@ export default function ShootPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Select value={locationId} onValueChange={setLocationId}>
+              <Select value={locationId} onValueChange={(value) => {
+                if (value === "_create_new") {
+                  setCreateLocationOpen(true);
+                  return;
+                }
+                setLocationId(value);
+              }}>
                 <SelectTrigger data-testid="select-location">
                   <SelectValue placeholder="Select a location..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="_create_new">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span>Create New...</span>
+                    </div>
+                  </SelectItem>
                   {availableLocations.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
                       {location.name}
@@ -750,19 +750,7 @@ export default function ShootPage() {
 
           {/* Characters/Costumes */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Characters/Costumes</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCreateCostumesOpen(true)}
-                data-testid="button-create-costume"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Costume
-              </Button>
-            </div>
+            <Label>Characters/Costumes</Label>
 
             {selectedCostumes.length > 0 && (
               <div className="space-y-2">
@@ -802,11 +790,23 @@ export default function ShootPage() {
               </div>
             )}
 
-            <Select value="" onValueChange={(value) => setSelectedCostumes([...selectedCostumes, value])}>
+            <Select value="" onValueChange={(value) => {
+              if (value === "_create_new") {
+                setCreateCostumesOpen(true);
+                return;
+              }
+              setSelectedCostumes([...selectedCostumes, value]);
+            }}>
               <SelectTrigger data-testid="select-costume">
                 <SelectValue placeholder="Add a costume..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="_create_new">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Create New...</span>
+                  </div>
+                </SelectItem>
                 {availableCostumes.map((costume) => (
                   <SelectItem key={costume.id} value={costume.id}>
                     {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
@@ -823,19 +823,7 @@ export default function ShootPage() {
 
           {/* Personnel */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Personnel</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCreatePersonnelOpen(true)}
-                data-testid="button-create-personnel"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Personnel
-              </Button>
-            </div>
+            <Label>Personnel</Label>
 
             {selectedPersonnel.length > 0 && (
               <div className="space-y-2">
@@ -884,11 +872,23 @@ export default function ShootPage() {
               </div>
             )}
 
-            <Select value="" onValueChange={(value) => setSelectedPersonnel([...selectedPersonnel, value])}>
+            <Select value="" onValueChange={(value) => {
+              if (value === "_create_new") {
+                setCreatePersonnelOpen(true);
+                return;
+              }
+              setSelectedPersonnel([...selectedPersonnel, value]);
+            }}>
               <SelectTrigger data-testid="select-personnel">
                 <SelectValue placeholder="Add personnel..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="_create_new">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Create New...</span>
+                  </div>
+                </SelectItem>
                 {availablePersonnel.map((person) => (
                   <SelectItem key={person.id} value={person.id}>
                     {person.name}
@@ -905,19 +905,7 @@ export default function ShootPage() {
 
           {/* Equipment */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Equipment</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCreateEquipmentOpen(true)}
-                data-testid="button-create-equipment"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Equipment
-              </Button>
-            </div>
+            <Label>Equipment</Label>
 
             {selectedEquipment.length > 0 && (
               <div className="space-y-2">
@@ -954,11 +942,23 @@ export default function ShootPage() {
               </div>
             )}
 
-            <Select value="" onValueChange={(value) => setSelectedEquipment([...selectedEquipment, value])}>
+            <Select value="" onValueChange={(value) => {
+              if (value === "_create_new") {
+                setCreateEquipmentOpen(true);
+                return;
+              }
+              setSelectedEquipment([...selectedEquipment, value]);
+            }}>
               <SelectTrigger data-testid="select-equipment">
                 <SelectValue placeholder="Add equipment..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="_create_new">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Create New...</span>
+                  </div>
+                </SelectItem>
                 {availableEquipment.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name} - {item.category}
@@ -975,19 +975,7 @@ export default function ShootPage() {
 
           {/* Props */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Props</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCreatePropsOpen(true)}
-                data-testid="button-create-prop"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                New Prop
-              </Button>
-            </div>
+            <Label>Props</Label>
 
             {selectedProps.length > 0 && (
               <div className="space-y-2">
@@ -1021,11 +1009,23 @@ export default function ShootPage() {
               </div>
             )}
 
-            <Select value="" onValueChange={(value) => setSelectedProps([...selectedProps, value])}>
+            <Select value="" onValueChange={(value) => {
+              if (value === "_create_new") {
+                setCreatePropsOpen(true);
+                return;
+              }
+              setSelectedProps([...selectedProps, value]);
+            }}>
               <SelectTrigger data-testid="select-prop">
                 <SelectValue placeholder="Add prop..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="_create_new">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Create New...</span>
+                  </div>
+                </SelectItem>
                 {availableProps.map((prop) => (
                   <SelectItem key={prop.id} value={prop.id}>
                     {prop.name}
