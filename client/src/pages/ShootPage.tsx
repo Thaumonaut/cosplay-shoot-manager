@@ -845,15 +845,68 @@ export default function ShootPage() {
                                 <p className="text-sm text-muted-foreground">{person.email}</p>
                               )}
                             </div>
-                            <Input
-                              placeholder="Role (e.g., Photographer, Model)"
-                              value={personnelRoles[personnelId] || ""}
-                              onChange={(e) => setPersonnelRoles({
-                                ...personnelRoles,
-                                [personnelId]: e.target.value
-                              })}
-                              data-testid={`input-role-${personnelId}`}
-                            />
+                            <div className="flex items-center gap-2">
+                              {personnelRoles[personnelId] === "__CUSTOM__" || (personnelRoles[personnelId] && !['Photographer', 'Videographer', 'Model', 'Makeup Artist', 'Stylist', 'Assistant', 'Coordinator'].includes(personnelRoles[personnelId])) ? (
+                                <div className="flex-1 flex gap-2">
+                                  <Input
+                                    placeholder="Custom role"
+                                    value={personnelRoles[personnelId] === "__CUSTOM__" ? "" : personnelRoles[personnelId] || ""}
+                                    onChange={(e) => setPersonnelRoles({
+                                      ...personnelRoles,
+                                      [personnelId]: e.target.value
+                                    })}
+                                    data-testid={`input-custom-role-${personnelId}`}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setPersonnelRoles({
+                                      ...personnelRoles,
+                                      [personnelId]: ""
+                                    })}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Select
+                                  value={personnelRoles[personnelId] || ""}
+                                  onValueChange={(value) => {
+                                    if (value === "_custom") {
+                                      setPersonnelRoles({
+                                        ...personnelRoles,
+                                        [personnelId]: "__CUSTOM__"
+                                      });
+                                    } else {
+                                      setPersonnelRoles({
+                                        ...personnelRoles,
+                                        [personnelId]: value
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="flex-1" data-testid={`select-role-${personnelId}`}>
+                                    <SelectValue placeholder="Select role..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Photographer">Photographer</SelectItem>
+                                    <SelectItem value="Videographer">Videographer</SelectItem>
+                                    <SelectItem value="Model">Model</SelectItem>
+                                    <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
+                                    <SelectItem value="Stylist">Stylist</SelectItem>
+                                    <SelectItem value="Assistant">Assistant</SelectItem>
+                                    <SelectItem value="Coordinator">Coordinator</SelectItem>
+                                    <SelectItem value="_custom">
+                                      <div className="flex items-center gap-2">
+                                        <Plus className="h-4 w-4" />
+                                        <span>Custom Role...</span>
+                                      </div>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
                           </div>
                           <Button
                             type="button"
