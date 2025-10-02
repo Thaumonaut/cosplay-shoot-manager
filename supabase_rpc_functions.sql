@@ -143,10 +143,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create or update team for user (auto-onboarding)
-CREATE OR REPLACE FUNCTION ensure_user_team(user_uuid TEXT, team_name TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION ensure_user_team(user_uuid TEXT, p_team_name TEXT DEFAULT NULL)
 RETURNS TABLE (
   team_id VARCHAR,
-  team_name TEXT,
+  name TEXT,
   role TEXT
 ) AS $$
 DECLARE
@@ -170,7 +170,7 @@ BEGIN
     LIMIT 1;
   ELSE
     -- Create new team
-    final_team_name := COALESCE(team_name, 'My Team');
+    final_team_name := COALESCE(p_team_name, 'My Team');
     
     INSERT INTO teams (name)
     VALUES (final_team_name)
