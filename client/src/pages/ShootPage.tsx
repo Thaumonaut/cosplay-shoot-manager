@@ -575,7 +575,7 @@ export default function ShootPage() {
   const selectedLocation = locations.find(l => l.id === locationId);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 p-6">
+    <div className="max-w-5xl mx-auto space-y-4 p-6">
       {/* Header with Back Button and Actions */}
       <div className="flex items-center justify-between">
         <Button
@@ -670,9 +670,9 @@ export default function ShootPage() {
       </div>
 
       {/* Main Header with Title and Status */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center gap-4">
-          <h1 className="text-4xl font-bold" data-testid="text-shoot-title">
+          <h1 className="text-3xl font-bold" data-testid="text-shoot-title">
             {isNew ? "New Shoot" : title || "Untitled Shoot"}
           </h1>
           {!isNew && (
@@ -735,10 +735,10 @@ export default function ShootPage() {
 
       {/* Main Details Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <CardTitle>Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3 p-4">
           {/* Title Input */}
           <div className="space-y-2">
             <Label htmlFor="title">Shoot Title</Label>
@@ -917,10 +917,10 @@ export default function ShootPage() {
 
       {/* Resources Section - Gallery Layout */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <CardTitle>Resources</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-8">
+        <CardContent className="space-y-6 p-4">
           {/* Location with Image and Map */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -928,7 +928,7 @@ export default function ShootPage() {
             </div>
 
             {selectedLocation && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Card className="hover-elevate">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
@@ -1023,7 +1023,7 @@ export default function ShootPage() {
             <Label className="text-base font-semibold">Characters/Costumes</Label>
 
             {selectedCostumes.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedCostumes.map((costumeId) => {
                   const costume = costumes.find(c => c.id === costumeId);
                   if (!costume) return null;
@@ -1110,7 +1110,7 @@ export default function ShootPage() {
             <Label className="text-base font-semibold">Props</Label>
 
             {selectedProps.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedProps.map((propId) => {
                   const prop = props.find(p => p.id === propId);
                   if (!prop) return null;
@@ -1201,7 +1201,7 @@ export default function ShootPage() {
             <Label className="text-base font-semibold">Team</Label>
 
             {selectedPersonnel.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {selectedPersonnel.map((personnelId) => {
                   const person = personnel.find(p => p.id === personnelId);
                   if (!person) return null;
@@ -1405,10 +1405,10 @@ export default function ShootPage() {
 
       {/* Instagram Links Section */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <CardTitle>Instagram References</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 p-4">
           <div className="flex gap-2">
             <Input
               placeholder="https://instagram.com/p/..."
@@ -1436,10 +1436,10 @@ export default function ShootPage() {
 
       {/* Notes Section - Bottom of Page */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <CardTitle>Notes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           <Textarea
             placeholder="Add any additional details, ideas, or notes about the shoot..."
             value={notes}
