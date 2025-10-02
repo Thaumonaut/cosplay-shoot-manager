@@ -54,9 +54,13 @@ export interface IStorage {
   // Shoots
   getShoot(id: string, userId: string): Promise<Shoot | undefined>;
   getUserShoots(userId: string): Promise<Shoot[]>;
+  getTeamShoots(teamId: string): Promise<Shoot[]>;
+  getTeamShoot(id: string, teamId: string): Promise<Shoot | undefined>;
   createShoot(shoot: InsertShoot): Promise<Shoot>;
   updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined>;
+  updateTeamShoot(id: string, teamId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined>;
   deleteShoot(id: string, userId: string): Promise<boolean>;
+  deleteTeamShoot(id: string, teamId: string): Promise<boolean>;
   
   // References
   getShootReferences(shootId: string): Promise<ShootReference[]>;
@@ -153,6 +157,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(shoots.createdAt));
   }
 
+  async getTeamShoots(teamId: string): Promise<Shoot[]> {
+    return db
+      .select()
+      .from(shoots)
+      .where(eq(shoots.teamId, teamId))
+      .orderBy(desc(shoots.createdAt));
+  }
+
+  async getTeamShoot(id: string, teamId: string): Promise<Shoot | undefined> {
+    const [shoot] = await db
+      .select()
+      .from(shoots)
+      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)));
+    return shoot;
+  }
+
   async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
     const result = await db
       .select({
@@ -194,10 +214,28 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async updateTeamShoot(id: string, teamId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
+    const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
+    const [updated] = await db
+      .update(shoots)
+      .set({ ...allowedUpdates, updatedAt: new Date() })
+      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)))
+      .returning();
+    return updated;
+  }
+
   async deleteShoot(id: string, userId: string): Promise<boolean> {
     const result = await db
       .delete(shoots)
       .where(and(eq(shoots.id, id), eq(shoots.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteTeamShoot(id: string, teamId: string): Promise<boolean> {
+    const result = await db
+      .delete(shoots)
+      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)))
       .returning();
     return result.length > 0;
   }
