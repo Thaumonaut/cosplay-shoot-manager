@@ -845,6 +845,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Update shoot resources
+  app.patch(
+    "/api/shoots/:id/resources",
+    authenticateUser,
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+        
+        // Verify shoot ownership
+        const shoot = await storage.getShoot(req.params.id, userId);
+        if (!shoot) {
+          return res.status(404).json({ error: "Shoot not found" });
+        }
+
+        const { equipmentIds = [], propIds = [], costumeIds = [], personnelIds = [], participants = [] } = req.body;
+
+        // Delete existing associations
+        await storage.deleteShootEquipment(req.params.id);
+        await storage.deleteShootProps(req.params.id);
+        await storage.deleteShootCostumes(req.params.id);
+
+        // Create new equipment associations
+        for (const equipmentId of equipmentIds) {
+          await storage.createShootEquipment({
+            shootId: req.params.id,
+            equipmentId,
+            quantity: 1,
+          });
+        }
+
+        // Create new prop associations
+        for (const propId of propIds) {
+          await storage.createShootProp({
+            shootId: req.params.id,
+            propId,
+          });
+        }
+
+        // Create new costume associations
+        for (const costumeId of costumeIds) {
+          await storage.createShootCostume({
+            shootId: req.params.id,
+            costumeId,
+          });
+        }
+
+        // Update participants
+        await storage.deleteShootParticipants(req.params.id);
+        
+        // Recreate all participants (preserves both manual and personnel-linked)
+        for (const participant of participants) {
+          await storage.createShootParticipant({
+            shootId: req.params.id,
+            personnelId: participant.personnelId || null,
+            name: participant.name,
+            role: participant.role,
+            email: participant.email || null,
+          });
+        }
+        
+        // Add any newly selected personnel not already in participants
+        const existingPersonnelIds = new Set(
+          participants.filter((p: any) => p.personnelId).map((p: any) => p.personnelId)
+        );
+        for (const personnelId of personnelIds) {
+          if (!existingPersonnelIds.has(personnelId)) {
+            const person = await storage.getPersonnel(personnelId, teamId);
+            if (person) {
+              await storage.createShootParticipant({
+                shootId: req.params.id,
+                personnelId,
+                name: person.name,
+                role: "Participant",
+              });
+            }
+          }
+        }
+
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({
+          error: error instanceof Error ? error.message : "Failed to update resources",
+        });
+      }
+    },
+  );
+
   // Get shoot references
   app.get(
     "/api/shoots/:id/references",

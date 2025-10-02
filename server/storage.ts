@@ -249,6 +249,10 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async deleteShootParticipants(shootId: string): Promise<void> {
+    await db.delete(shootParticipants).where(eq(shootParticipants.shootId, shootId));
+  }
+
   // Shoot Resource Association methods
   async getShootEquipment(shootId: string): Promise<Equipment[]> {
     const results = await db
@@ -290,6 +294,18 @@ export class DatabaseStorage implements IStorage {
   async createShootCostume(association: InsertShootCostume): Promise<ShootCostume> {
     const [newAssociation] = await db.insert(shootCostumes).values(association).returning();
     return newAssociation;
+  }
+
+  async deleteShootEquipment(shootId: string): Promise<void> {
+    await db.delete(shootEquipment).where(eq(shootEquipment.shootId, shootId));
+  }
+
+  async deleteShootProps(shootId: string): Promise<void> {
+    await db.delete(shootProps).where(eq(shootProps.shootId, shootId));
+  }
+
+  async deleteShootCostumes(shootId: string): Promise<void> {
+    await db.delete(shootCostumes).where(eq(shootCostumes.shootId, shootId));
   }
 
   // Personnel methods

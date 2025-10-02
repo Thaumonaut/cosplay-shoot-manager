@@ -77,7 +77,7 @@ export function EditShootDialog({
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
 
   // Fetch participants
-  const { data: participants = [] } = useQuery<ShootParticipant[]>({
+  const { data: participants = [], isLoading: participantsLoading } = useQuery<ShootParticipant[]>({
     queryKey: ["/api/shoots", shoot.id, "participants"],
     enabled: open,
   });
@@ -151,11 +151,6 @@ export function EditShootDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id] });
-      toast({
-        title: "Shoot updated",
-        description: "Your shoot has been updated successfully.",
-      });
-      onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
@@ -166,18 +161,74 @@ export function EditShootDialog({
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateResourcesMutation = useMutation({
+    mutationFn: async () => {
+      // Preserve all existing participants (both personnel-linked and manual)
+      const allParticipants = participants.map(p => ({
+        personnelId: p.personnelId,
+        name: p.name,
+        role: p.role,
+        email: p.email,
+      }));
+
+      const response = await apiRequest("PATCH", `/api/shoots/${shoot.id}/resources`, {
+        equipmentIds: selectedEquipment,
+        propIds: selectedProps,
+        costumeIds: selectedCostumes,
+        personnelIds: selectedPersonnel,
+        participants: allParticipants,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id, "equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id, "props"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id, "costumes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", shoot.id, "participants"] });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    updateShootMutation.mutate({
-      title: title.trim() || "Untitled Shoot",
-      status,
-      date: date || null,
-      locationId: locationId || null,
-      locationNotes: locationNotes.trim() || null,
-      description: notes.trim() || null,
-      instagramLinks: instagramLinks.length > 0 ? instagramLinks : null,
-    });
+    // Don't submit if participants are still loading to prevent data loss
+    if (participantsLoading) {
+      toast({
+        title: "Please wait",
+        description: "Loading participant data...",
+      });
+      return;
+    }
+
+    try {
+      // Update shoot details
+      await updateShootMutation.mutateAsync({
+        title: title.trim() || "Untitled Shoot",
+        status,
+        date: date || null,
+        locationId: locationId || null,
+        locationNotes: locationNotes.trim() || null,
+        description: notes.trim() || null,
+        instagramLinks: instagramLinks.length > 0 ? instagramLinks : null,
+      });
+
+      // Update resources
+      await updateResourcesMutation.mutateAsync();
+
+      // Only close dialog and show success after BOTH mutations succeed
+      toast({
+        title: "Shoot updated",
+        description: "Your shoot has been updated successfully.",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      // Show error toast if resources update fails
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Failed to update all shoot details",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddLink = () => {
@@ -637,10 +688,10 @@ export function EditShootDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={updateShootMutation.isPending}
+            disabled={updateShootMutation.isPending || participantsLoading}
             data-testid="button-save-shoot"
           >
-            {updateShootMutation.isPending ? "Saving..." : "Save Changes"}
+            {participantsLoading ? "Loading..." : updateShootMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

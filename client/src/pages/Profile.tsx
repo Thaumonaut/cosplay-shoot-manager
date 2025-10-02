@@ -93,6 +93,20 @@ export default function Profile() {
     },
   });
 
+  // Fetch team invite code
+  const { data: teamInvite } = useQuery<{ code: string; inviteUrl: string }>({
+    queryKey: ["/api/team", teamMember?.teamId, "invite"],
+    enabled: !!teamMember?.teamId && teamMember?.role === "owner",
+    queryFn: async () => {
+      if (!teamMember?.teamId) throw new Error("No team ID");
+      const response = await fetch(`/api/team/${teamMember.teamId}/invite`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch invite");
+      return response.json();
+    },
+  });
+
   // Update team name when team loads
   useEffect(() => {
     if (team) {
@@ -208,6 +222,30 @@ export default function Profile() {
       toast({
         title: "Error",
         description: "Failed to leave team. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send email invite mutation
+  const sendEmailInviteMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!team?.id) throw new Error("No team ID");
+      const response = await apiRequest("POST", `/api/team/${team.id}/invite/send`, {
+        email,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation sent",
+        description: "Team invitation has been sent successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send invitation. Please try again.",
         variant: "destructive",
       });
     },
@@ -387,38 +425,69 @@ export default function Profile() {
 
                 <Separator />
 
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium">Team Invitations</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Share your team's invite code or send invitations via email
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Invite Code</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const baseUrl = window.location.origin;
-                          navigator.clipboard.writeText(`${baseUrl}/auth?inviteCode=TEAM_INVITE_CODE`);
-                          toast({
-                            title: "Link copied",
-                            description: "Invite link copied to clipboard",
-                          });
-                        }}
-                        data-testid="button-copy-invite-link"
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy Invite Link
-                      </Button>
+                {isTeamOwner && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium">Team Invitations</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Share your team's invite code or send invitations via email
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Share this link with people you want to invite to your team
-                    </p>
+                    {teamInvite && (
+                      <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <span className="text-sm font-medium">Invite Link</span>
+                            <p className="text-xs text-muted-foreground font-mono">{teamInvite.code}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(teamInvite.inviteUrl);
+                              toast({
+                                title: "Link copied",
+                                description: "Invite link copied to clipboard",
+                              });
+                            }}
+                            data-testid="button-copy-invite-link"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Link
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Share this link with people you want to invite to your team
+                        </p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="emailInvite">Send Email Invitation</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="emailInvite"
+                          type="email"
+                          placeholder="colleague@example.com"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          data-testid="input-email-invite"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (inviteCode) {
+                              sendEmailInviteMutation.mutate(inviteCode);
+                              setInviteCode("");
+                            }
+                          }}
+                          disabled={sendEmailInviteMutation.isPending || !inviteCode}
+                          data-testid="button-send-email-invite"
+                        >
+                          Send
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <Separator />
 
