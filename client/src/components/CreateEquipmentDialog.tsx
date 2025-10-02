@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 
 interface CreateEquipmentDialogProps {
   open: boolean;
@@ -34,16 +35,20 @@ export function CreateEquipmentDialog({
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [available, setAvailable] = useState(true);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const createMutation = useMutation({
-    mutationFn: async (data: {
-      name: string;
-      category: string;
-      description?: string;
-      quantity: number;
-      available: boolean;
-    }) => {
-      const response = await apiRequest("POST", "/api/equipment", data);
+    mutationFn: async (data: FormData) => {
+      const response = await fetch("/api/equipment", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to create equipment");
+      }
       return await response.json();
     },
     onSuccess: (newEquipment) => {
@@ -57,6 +62,8 @@ export function CreateEquipmentDialog({
       setDescription("");
       setQuantity("1");
       setAvailable(true);
+      setImageFile(null);
+      setImagePreview("");
       onOpenChange(false);
       onSuccess?.(newEquipment);
     },
@@ -96,13 +103,20 @@ export function CreateEquipmentDialog({
       });
       return;
     }
-    createMutation.mutate({
-      name: name.trim(),
-      category: category.trim(),
-      description: description.trim() || undefined,
-      quantity: qty,
-      available,
-    });
+
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    formData.append("category", category.trim());
+    if (description.trim()) {
+      formData.append("description", description.trim());
+    }
+    formData.append("quantity", qty.toString());
+    formData.append("available", available.toString());
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+
+    createMutation.mutate(formData);
   };
 
   return (
@@ -115,6 +129,15 @@ export function CreateEquipmentDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <ImageUploadWithCrop
+            value={imagePreview}
+            onChange={(file, preview) => {
+              setImageFile(file);
+              setImagePreview(preview);
+            }}
+            aspect={1}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input

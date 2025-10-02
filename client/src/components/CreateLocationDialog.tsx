@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
+import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 
 interface CreateLocationDialogProps {
   open: boolean;
@@ -32,14 +33,20 @@ export function CreateLocationDialog({
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const createMutation = useMutation({
-    mutationFn: async (data: {
-      name: string;
-      address?: string;
-      notes?: string;
-    }) => {
-      const response = await apiRequest("POST", "/api/locations", data);
+    mutationFn: async (data: FormData) => {
+      const response = await fetch("/api/locations", {
+        method: "POST",
+        credentials: "include",
+        body: data,
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to create location");
+      }
       return await response.json();
     },
     onSuccess: (newLocation) => {
@@ -51,6 +58,8 @@ export function CreateLocationDialog({
       setName("");
       setAddress("");
       setNotes("");
+      setImageFile(null);
+      setImagePreview("");
       onOpenChange(false);
       onSuccess?.(newLocation);
     },
@@ -73,11 +82,20 @@ export function CreateLocationDialog({
       });
       return;
     }
-    createMutation.mutate({
-      name: name.trim(),
-      address: address.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    if (address.trim()) {
+      formData.append("address", address.trim());
+    }
+    if (notes.trim()) {
+      formData.append("notes", notes.trim());
+    }
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+
+    createMutation.mutate(formData);
   };
 
   return (
@@ -90,6 +108,15 @@ export function CreateLocationDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <ImageUploadWithCrop
+            value={imagePreview}
+            onChange={(file, preview) => {
+              setImageFile(file);
+              setImagePreview(preview);
+            }}
+            aspect={1}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input

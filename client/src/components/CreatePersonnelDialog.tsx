@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 
 interface CreatePersonnelDialogProps {
   open: boolean;
@@ -72,18 +73,6 @@ export function CreatePersonnelDialog({
     },
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -123,6 +112,15 @@ export function CreatePersonnelDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <ImageUploadWithCrop
+            value={imagePreview}
+            onChange={(file, preview) => {
+              setImageFile(file);
+              setImagePreview(preview);
+            }}
+            aspect={1}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input
@@ -132,26 +130,6 @@ export function CreatePersonnelDialog({
               onChange={(e) => setName(e.target.value)}
               data-testid="input-personnel-name"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="avatar">Avatar (Optional)</Label>
-            <Input
-              id="avatar"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              data-testid="input-personnel-avatar"
-            />
-            {imagePreview && (
-              <div className="flex justify-center">
-                <img
-                  src={imagePreview}
-                  alt="Avatar preview"
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">

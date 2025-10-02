@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ImageIcon } from "lucide-react";
+import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 
 interface CreateCostumesDialogProps {
   open: boolean;
@@ -81,18 +81,6 @@ export function CreateCostumesDialog({
     },
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!characterName.trim()) {
@@ -141,31 +129,14 @@ export function CreateCostumesDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                )}
-              </div>
-            </div>
-            <div className="flex-1">
-              <Label>Image (Optional)</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="cursor-pointer"
-                data-testid="input-costumes-image"
-              />
-            </div>
-          </div>
+          <ImageUploadWithCrop
+            value={imagePreview}
+            onChange={(file, preview) => {
+              setImageFile(file);
+              setImagePreview(preview);
+            }}
+            aspect={1}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="characterName">Character Name *</Label>
