@@ -51,3 +51,17 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
 - Removed examples/ folder (7 deprecated example files)
 - Renamed MapboxLocationSearch.tsx to GoogleMapsLocationSearch.tsx to accurately reflect Google Maps API usage
 - Updated all component imports and references across CreateLocationDialog and Locations pages
+
+### Team Authorization Pattern Refactor (October 2025)
+- **Critical Fix**: Refactored all team endpoints to use `getTeamMember(teamId, userId)` instead of `getUserTeamMember(userId)`
+  - Old pattern returned any team membership, causing 403 errors when switching teams
+  - New pattern verifies membership for the specific team being accessed
+- **Robust Active Team Handling**: Enhanced `getUserTeamId()` helper to verify active team membership still exists
+  - Falls back to another team or creates personal team if active team is invalid
+  - Prevents stale `activeTeamId` references after team deletion or leaving
+- **Leave Team Flow**: Fixed `/api/team/leave` endpoint to properly set new personal team as active after leaving
+- **Profile UX**: Moved delete account section to "Danger Zone" card at bottom with destructive styling
+- **Affected Endpoints**: All team-related routes now properly authorize against specific teams
+  - `/api/user/team-member` - returns membership for active team only
+  - `/api/team/:id`, `/api/team/:id/members`, `/api/team/:id/invite` - verify membership for requested team
+  - Team member management routes verify admin/owner role for specific team
