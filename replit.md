@@ -65,3 +65,19 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
   - `/api/user/team-member` - returns membership for active team only
   - `/api/team/:id`, `/api/team/:id/members`, `/api/team/:id/invite` - verify membership for requested team
   - Team member management routes verify admin/owner role for specific team
+
+### ShootPage UX Enhancements (October 2025)
+- **Inline Resource Creation**: Redesigned all resource dropdowns (Location, Equipment, Props, Costumes, Personnel) to include "Create New..." as the first option
+  - Removed all standalone "Add" buttons for cleaner interface
+  - Selecting "Create New..." opens the respective creation dialog
+  - Maintains consistent UX pattern across all resource types
+- **Personnel Role Management**: Enhanced role assignment with dropdown of predefined roles
+  - 7 predefined roles: Photographer, Videographer, Model, Makeup Artist, Stylist, Assistant, Coordinator
+  - "Custom Role..." option allows users to enter custom roles via text input
+  - Uses "__CUSTOM__" sentinel value to toggle between dropdown and text input
+  - Backward compatible with existing custom roles from database
+- **Personnel Avatar Upload**: Added complete avatar upload functionality
+  - Frontend: Avatar upload input with circular preview (24x24px) in CreatePersonnelDialog
+  - Backend: Multer-based file upload to Supabase Storage at `public/personnel/{teamId}/`
+  - Returns public URL stored in `personnel.avatar_url` field
+  - Follows same pattern as props/costumes image uploads
