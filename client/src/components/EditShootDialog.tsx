@@ -3,7 +3,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { Shoot, Equipment, Location, Prop, CostumeProgress, Personnel, ShootParticipant } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation as useLocationRouter } from "wouter";
+import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
+import { CreateEquipmentDialog } from "@/components/CreateEquipmentDialog";
+import { CreateLocationDialog } from "@/components/CreateLocationDialog";
+import { CreatePropsDialog } from "@/components/CreatePropsDialog";
+import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
 import {
   Dialog,
   DialogContent,
@@ -60,7 +64,6 @@ export function EditShootDialog({
   isSendingReminders,
 }: EditShootDialogProps) {
   const { toast } = useToast();
-  const [, setLocation] = useLocationRouter();
   const [title, setTitle] = useState(shoot.title);
   const [status, setStatus] = useState<string>(shoot.status);
   const [date, setDate] = useState<Date | undefined>(shoot.date ? new Date(shoot.date) : undefined);
@@ -75,6 +78,13 @@ export function EditShootDialog({
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedProps, setSelectedProps] = useState<string[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
+
+  // Create resource dialog states
+  const [createPersonnelOpen, setCreatePersonnelOpen] = useState(false);
+  const [createEquipmentOpen, setCreateEquipmentOpen] = useState(false);
+  const [createLocationOpen, setCreateLocationOpen] = useState(false);
+  const [createPropsOpen, setCreatePropsOpen] = useState(false);
+  const [createCostumesOpen, setCreateCostumesOpen] = useState(false);
 
   // Fetch participants
   const { data: participants = [], isLoading: participantsLoading } = useQuery<ShootParticipant[]>({
@@ -357,7 +367,7 @@ export function EditShootDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setLocation("/locations")}
+                    onClick={() => setCreateLocationOpen(true)}
                     data-testid="button-create-location"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -436,7 +446,7 @@ export function EditShootDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setLocation("/personnel")}
+                    onClick={() => setCreatePersonnelOpen(true)}
                     data-testid="button-create-personnel"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -481,7 +491,7 @@ export function EditShootDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setLocation("/equipment")}
+                    onClick={() => setCreateEquipmentOpen(true)}
                     data-testid="button-create-equipment"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -526,7 +536,7 @@ export function EditShootDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setLocation("/props")}
+                    onClick={() => setCreatePropsOpen(true)}
                     data-testid="button-create-prop"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -571,7 +581,7 @@ export function EditShootDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setLocation("/costumes")}
+                    onClick={() => setCreateCostumesOpen(true)}
                     data-testid="button-create-costume"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -695,6 +705,43 @@ export function EditShootDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Create Resource Dialogs */}
+      <CreatePersonnelDialog
+        open={createPersonnelOpen}
+        onOpenChange={setCreatePersonnelOpen}
+        onSuccess={(newPersonnel) => {
+          setSelectedPersonnel([...selectedPersonnel, newPersonnel.id]);
+        }}
+      />
+      <CreateEquipmentDialog
+        open={createEquipmentOpen}
+        onOpenChange={setCreateEquipmentOpen}
+        onSuccess={(newEquipment) => {
+          setSelectedEquipment([...selectedEquipment, newEquipment.id]);
+        }}
+      />
+      <CreateLocationDialog
+        open={createLocationOpen}
+        onOpenChange={setCreateLocationOpen}
+        onSuccess={(newLocation) => {
+          setLocationId(newLocation.id);
+        }}
+      />
+      <CreatePropsDialog
+        open={createPropsOpen}
+        onOpenChange={setCreatePropsOpen}
+        onSuccess={(newProp) => {
+          setSelectedProps([...selectedProps, newProp.id]);
+        }}
+      />
+      <CreateCostumesDialog
+        open={createCostumesOpen}
+        onOpenChange={setCreateCostumesOpen}
+        onSuccess={(newCostume) => {
+          setSelectedCostumes([...selectedCostumes, newCostume.id]);
+        }}
+      />
     </Dialog>
   );
 }
