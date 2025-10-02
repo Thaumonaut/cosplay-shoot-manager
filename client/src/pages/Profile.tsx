@@ -352,8 +352,10 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
       queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
       toast({
         title: "Team created",
         description: "Your new team has been created and is now active.",
@@ -378,8 +380,15 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/team-member"] });
       queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/props"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
       toast({
         title: "Team deleted",
         description: "The team has been deleted successfully.",
