@@ -22,6 +22,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -169,7 +180,12 @@ export default function Equipment() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {equipment.map((equip) => (
-            <Card key={equip.id} data-testid={`card-equipment-${equip.id}`}>
+            <Card 
+              key={equip.id} 
+              className="cursor-pointer hover-elevate"
+              onClick={() => openEditDialog(equip)}
+              data-testid={`card-equipment-${equip.id}`}
+            >
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
@@ -188,7 +204,10 @@ export default function Equipment() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => openEditDialog(equip)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(equip);
+                    }}
                     data-testid={`button-edit-equipment-${equip.id}`}
                   >
                     <Pencil className="h-4 w-4" />
@@ -196,7 +215,10 @@ export default function Equipment() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingId(equip.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingId(equip.id);
+                    }}
                     data-testid={`button-delete-equipment-${equip.id}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -305,6 +327,27 @@ export default function Equipment() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="available"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Available</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Is this equipment currently available?
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-equipment-available"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button
                   type="button"
@@ -327,33 +370,29 @@ export default function Equipment() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <DialogContent data-testid="dialog-delete-equipment">
-          <DialogHeader>
-            <DialogTitle>Delete Equipment</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Equipment</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete this equipment? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeletingId(null)}
-              data-testid="button-cancel-delete-equipment"
-            >
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-equipment">
               Cancel
-            </Button>
-            <Button
-              variant="destructive"
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => deletingId && deleteMutation.mutate(deletingId)}
               disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-equipment"
             >
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

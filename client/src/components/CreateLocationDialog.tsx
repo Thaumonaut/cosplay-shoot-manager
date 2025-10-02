@@ -14,8 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
-import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import { Card, CardContent } from "@/components/ui/card";
+import { Check } from "lucide-react";
 import type { Location } from "@shared/schema";
 
 interface CreateLocationDialogProps {
@@ -35,26 +36,27 @@ export function CreateLocationDialog({
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [placeId, setPlaceId] = useState("");
   const [notes, setNotes] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
 
   useEffect(() => {
     if (editItem) {
       setName(editItem.name || "");
       setAddress(editItem.address || "");
+      setPlaceId(editItem.placeId || "");
       setNotes(editItem.notes || "");
-      setImagePreview(editItem.imageUrl || "");
-      setImageFile(null);
     }
   }, [editItem]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (data: any) => {
       const response = await fetch("/api/locations", {
         method: "POST",
         credentials: "include",
-        body: data,
+        body: JSON.stringify(data),
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
       if (!response.ok) {
         const error = await response.text();
@@ -82,11 +84,14 @@ export function CreateLocationDialog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (data: any) => {
       const response = await fetch(`/api/locations/${editItem!.id}`, {
         method: "PATCH",
         credentials: "include",
-        body: data,
+        body: JSON.stringify(data),
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
       if (!response.ok) {
         const error = await response.text();
@@ -117,9 +122,8 @@ export function CreateLocationDialog({
   const resetForm = () => {
     setName("");
     setAddress("");
+    setPlaceId("");
     setNotes("");
-    setImageFile(null);
-    setImagePreview("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,23 +137,37 @@ export function CreateLocationDialog({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", name.trim());
+    const data: any = {
+      name: name.trim(),
+    };
+
     if (address.trim()) {
-      formData.append("address", address.trim());
+      data.address = address.trim();
+    }
+    if (placeId.trim()) {
+      data.placeId = placeId.trim();
     }
     if (notes.trim()) {
-      formData.append("notes", notes.trim());
-    }
-    if (imageFile) {
-      formData.append("image", imageFile);
+      data.notes = notes.trim();
     }
 
     if (editItem) {
-      updateMutation.mutate(formData);
+      updateMutation.mutate(data);
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(data);
     }
+  };
+
+  const handleLocationSelect = (location: {
+    name: string;
+    address: string;
+    placeId: string;
+    latitude: number;
+    longitude: number;
+  }) => {
+    setName(location.name || location.address.split(",")[0]);
+    setAddress(location.address);
+    setPlaceId(location.placeId);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -165,18 +183,48 @@ export function CreateLocationDialog({
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Location" : "Add New Location"}</DialogTitle>
           <DialogDescription>
-            {editItem ? "Update location details" : "Create a new shoot location"}
+            {editItem ? "Update location details" : "Search for a location using Google Maps"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <ImageUploadWithCrop
-            value={imagePreview}
-            onChange={(file, preview) => {
-              setImageFile(file);
-              setImagePreview(preview);
-            }}
-            aspect={1}
-          />
+          {editItem && editItem.placeId && (
+            <Card>
+              <CardContent className="p-0">
+                <iframe
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${editItem.placeId}`}
+                  className="w-full h-[200px] border-0 rounded-md"
+                  frameBorder="0"
+                  allowFullScreen
+                  loading="lazy"
+                  data-testid="map-embed"
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="space-y-2">
+            <Label>Search for Location</Label>
+            <GoogleMapsLocationSearch
+              onLocationSelect={handleLocationSelect}
+              placeholder="Search for a location..."
+            />
+          </div>
+
+          {placeId && (
+            <Card className="bg-muted/50">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">Location Selected</div>
+                    <div className="text-sm text-muted-foreground truncate mt-1">
+                      {address}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
@@ -189,29 +237,15 @@ export function CreateLocationDialog({
             />
           </div>
 
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Search for Address</Label>
-              <GoogleMapsLocationSearch
-                onLocationSelect={(location) => {
-                  setAddress(location.address);
-                  if (!name) {
-                    setName(location.name || location.address.split(",")[0]);
-                  }
-                }}
-                placeholder="Search for a location..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Or enter manually</Label>
-              <InlineEdit
-                value={address}
-                onChange={setAddress}
-                placeholder="123 Main St, New York, NY 10001"
-                type="text"
-                data-testid="input-location-address"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <InlineEdit
+              value={address}
+              onChange={setAddress}
+              placeholder="123 Main St, New York, NY 10001"
+              type="text"
+              data-testid="input-location-address"
+            />
           </div>
 
           <div className="space-y-2">

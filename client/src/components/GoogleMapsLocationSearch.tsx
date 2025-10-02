@@ -7,6 +7,7 @@ interface GoogleMapsLocationSearchProps {
   onLocationSelect: (location: {
     name: string;
     address: string;
+    placeId: string;
     latitude: number;
     longitude: number;
   }) => void;
@@ -104,6 +105,7 @@ export function GoogleMapsLocationSearch({
     onLocationSelect({
       name: prediction.name,
       address: prediction.address,
+      placeId: prediction.placeId,
       latitude: prediction.latitude,
       longitude: prediction.longitude,
     });

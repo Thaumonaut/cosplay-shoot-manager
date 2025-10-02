@@ -12,6 +12,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -191,7 +201,12 @@ export default function Personnel() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {personnel.map((person) => (
-            <Card key={person.id} data-testid={`card-personnel-${person.id}`}>
+            <Card 
+              key={person.id} 
+              className="cursor-pointer hover-elevate"
+              onClick={() => openEditDialog(person)}
+              data-testid={`card-personnel-${person.id}`}
+            >
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <Avatar>
@@ -208,7 +223,10 @@ export default function Personnel() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => openEditDialog(person)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(person);
+                    }}
                     data-testid={`button-edit-personnel-${person.id}`}
                   >
                     <Pencil className="h-4 w-4" />
@@ -216,7 +234,10 @@ export default function Personnel() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingId(person.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingId(person.id);
+                    }}
                     data-testid={`button-delete-personnel-${person.id}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -352,33 +373,29 @@ export default function Personnel() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <DialogContent data-testid="dialog-delete-personnel">
-          <DialogHeader>
-            <DialogTitle>Delete Personnel</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Personnel</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete this person? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeletingId(null)}
-              data-testid="button-cancel-delete-personnel"
-            >
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-personnel">
               Cancel
-            </Button>
-            <Button
-              variant="destructive"
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => deletingId && deleteMutation.mutate(deletingId)}
               disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-personnel"
             >
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

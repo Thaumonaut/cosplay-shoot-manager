@@ -42,7 +42,6 @@ export function CreateCostumesDialog({
   const [characterName, setCharacterName] = useState("");
   const [seriesName, setSeriesName] = useState("");
   const [status, setStatus] = useState("planning");
-  const [completionPercentage, setCompletionPercentage] = useState("0");
   const [notes, setNotes] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -52,7 +51,6 @@ export function CreateCostumesDialog({
       setCharacterName(editItem.characterName || "");
       setSeriesName(editItem.seriesName || "");
       setStatus(editItem.status || "planning");
-      setCompletionPercentage(String(editItem.completionPercentage || 0));
       setNotes(editItem.notes || "");
       setImagePreview(editItem.imageUrl || "");
       setImageFile(null);
@@ -128,7 +126,6 @@ export function CreateCostumesDialog({
     setCharacterName("");
     setSeriesName("");
     setStatus("planning");
-    setCompletionPercentage("0");
     setNotes("");
     setImageFile(null);
     setImagePreview("");
@@ -145,23 +142,12 @@ export function CreateCostumesDialog({
       return;
     }
 
-    const completion = parseInt(completionPercentage);
-    if (isNaN(completion) || completion < 0 || completion > 100) {
-      toast({
-        title: "Error",
-        description: "Completion percentage must be between 0 and 100",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const formData = new FormData();
     formData.append("characterName", characterName.trim());
     if (seriesName.trim()) {
       formData.append("seriesName", seriesName.trim());
     }
     formData.append("status", status);
-    formData.append("completionPercentage", completion.toString());
     if (notes.trim()) {
       formData.append("notes", notes.trim());
     }
@@ -236,19 +222,6 @@ export function CreateCostumesDialog({
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="completionPercentage">Completion Percentage *</Label>
-            <Input
-              id="completionPercentage"
-              type="number"
-              min="0"
-              max="100"
-              value={completionPercentage}
-              onChange={(e) => setCompletionPercentage(e.target.value)}
-              data-testid="input-costumes-completion"
-            />
           </div>
 
           <div className="space-y-2">

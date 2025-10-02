@@ -12,6 +12,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -34,6 +44,7 @@ const locationFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   address: z.string().optional(),
   notes: z.string().optional(),
+  placeId: z.string().optional(),
 });
 
 type LocationForm = z.infer<typeof locationFormSchema>;
@@ -54,27 +65,19 @@ export default function Locations() {
       name: "",
       address: "",
       notes: "",
+      placeId: "",
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: LocationForm }) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("address", data.address || "");
-      formData.append("notes", data.notes || "");
-
-      const res = await fetch(`/api/locations/${id}`, {
-        method: "PATCH",
-        body: formData,
-        credentials: "include",
+      const response = await apiRequest("PATCH", `/api/locations/${id}`, {
+        name: data.name,
+        address: data.address || "",
+        notes: data.notes || "",
+        placeId: data.placeId || null,
       });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res;
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
@@ -126,6 +129,7 @@ export default function Locations() {
       name: location.name,
       address: location.address || "",
       notes: location.notes || "",
+      placeId: location.placeId || "",
     });
   };
 
@@ -179,7 +183,12 @@ export default function Locations() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {locations.map((location) => (
-            <Card key={location.id} data-testid={`card-location-${location.id}`}>
+            <Card 
+              key={location.id} 
+              className="cursor-pointer hover-elevate"
+              onClick={() => openEditDialog(location)}
+              data-testid={`card-location-${location.id}`}
+            >
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
@@ -195,7 +204,10 @@ export default function Locations() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => openEditDialog(location)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(location);
+                    }}
                     data-testid={`button-edit-location-${location.id}`}
                   >
                     <Pencil className="h-4 w-4" />
@@ -203,7 +215,10 @@ export default function Locations() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingId(location.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingId(location.id);
+                    }}
                     data-testid={`button-delete-location-${location.id}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -261,6 +276,7 @@ export default function Locations() {
                   <GoogleMapsLocationSearch
                     onLocationSelect={(location) => {
                       form.setValue("address", location.address);
+                      form.setValue("placeId", location.placeId || "");
                       if (!form.getValues("name")) {
                         form.setValue("name", location.name || location.address.split(",")[0]);
                       }
@@ -328,33 +344,29 @@ export default function Locations() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <DialogContent data-testid="dialog-delete-location">
-          <DialogHeader>
-            <DialogTitle>Delete Location</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Location</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete this location? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeletingId(null)}
-              data-testid="button-cancel-delete-location"
-            >
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-location">
               Cancel
-            </Button>
-            <Button
-              variant="destructive"
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => deletingId && deleteMutation.mutate(deletingId)}
               disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-location"
             >
               Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

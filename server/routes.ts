@@ -1130,7 +1130,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [], participants = [] } = req.body;
       
-      const data = insertShootSchema.parse({ ...shoot, userId, teamId });
+      // Parse instagramLinks if it's a JSON string (from FormData)
+      let shootData = { ...shoot };
+      if (shoot.instagramLinks && typeof shoot.instagramLinks === 'string') {
+        try {
+          shootData.instagramLinks = JSON.parse(shoot.instagramLinks);
+        } catch (e) {
+          console.error("Error parsing instagramLinks:", e);
+          shootData.instagramLinks = [];
+        }
+      }
+      
+      const data = insertShootSchema.parse({ ...shootData, userId, teamId });
       const createdShoot = await storage.createShoot(data);
       
       // Create participant associations from participants array (with roles)
@@ -1921,7 +1932,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/personnel/:id", authenticateUser, upload.single("avatar"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const updated = await storage.updatePersonnel(req.params.id, teamId, req.body);
+      
+      let avatarUrl: string | undefined;
+      if (req.file) {
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
+        }
+
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const fileName = `public/personnel/${teamId}/${Date.now()}-${safeFilename}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: "public, max-age=31536000",
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload avatar: ${error.message}`);
+        }
+        
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        avatarUrl = publicUrlData.publicUrl;
+      }
+      
+      const updateData = {
+        ...req.body,
+        ...(avatarUrl && { avatarUrl })
+      };
+      
+      const updated = await storage.updatePersonnel(req.params.id, teamId, updateData);
       if (!updated) {
         return res.status(404).json({ error: "Personnel not found" });
       }
@@ -1970,10 +2020,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/equipment/:id", authenticateUser, async (req: AuthRequest, res) => {
+  app.patch("/api/equipment/:id", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
-      const updated = await storage.updateEquipment(req.params.id, teamId, req.body);
+      
+      let imageUrl: string | undefined;
+      if (req.file) {
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
+        }
+
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const fileName = `public/equipment/${teamId}/${Date.now()}-${safeFilename}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: "public, max-age=31536000",
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload image: ${error.message}`);
+        }
+        
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = publicUrlData.publicUrl;
+      }
+      
+      const updateData = {
+        ...req.body,
+        ...(imageUrl && { imageUrl })
+      };
+      
+      const updated = await storage.updateEquipment(req.params.id, teamId, updateData);
       if (!updated) {
         return res.status(404).json({ error: "Equipment not found" });
       }
@@ -2010,7 +2099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
+  app.post("/api/locations", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const data = insertLocationSchema.parse({ ...req.body, teamId });
@@ -2022,7 +2111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/locations/:id", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
+  app.patch("/api/locations/:id", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       const updated = await storage.updateLocation(req.params.id, teamId, req.body);

@@ -248,7 +248,12 @@ export default function Costumes() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {costumes.map((costume) => (
-            <Card key={costume.id} data-testid={`card-costume-${costume.id}`}>
+            <Card 
+              key={costume.id} 
+              className="cursor-pointer hover-elevate"
+              onClick={() => handleOpenEditDialog(costume)}
+              data-testid={`card-costume-${costume.id}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-lg font-semibold">
                   {costume.characterName}
@@ -257,7 +262,10 @@ export default function Costumes() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleOpenEditDialog(costume)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditDialog(costume);
+                    }}
                     data-testid={`button-edit-costume-${costume.id}`}
                   >
                     <Pencil className="w-4 h-4" />
@@ -265,7 +273,10 @@ export default function Costumes() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingId(costume.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingId(costume.id);
+                    }}
                     data-testid={`button-delete-costume-${costume.id}`}
                   >
                     <Trash2 className="w-4 h-4" />

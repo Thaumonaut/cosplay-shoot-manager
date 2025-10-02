@@ -214,7 +214,12 @@ export default function Props() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {props.map((prop) => (
-            <Card key={prop.id} data-testid={`card-prop-${prop.id}`}>
+            <Card 
+              key={prop.id} 
+              className="cursor-pointer hover-elevate"
+              onClick={() => handleOpenEditDialog(prop)}
+              data-testid={`card-prop-${prop.id}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-lg font-semibold">
                   {prop.name}
@@ -223,7 +228,10 @@ export default function Props() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleOpenEditDialog(prop)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditDialog(prop);
+                    }}
                     data-testid={`button-edit-prop-${prop.id}`}
                   >
                     <Pencil className="w-4 h-4" />
@@ -231,7 +239,10 @@ export default function Props() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingId(prop.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingId(prop.id);
+                    }}
                     data-testid={`button-delete-prop-${prop.id}`}
                   >
                     <Trash2 className="w-4 h-4" />

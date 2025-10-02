@@ -31,13 +31,14 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2, Edit2, MapPin, Clock, Upload, ImagePlus } from "lucide-react";
+import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2, Edit2, MapPin, Clock, Upload, ImagePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { SiGoogledocs, SiGooglecalendar } from "react-icons/si";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export default function ShootPage() {
   const { id } = useParams();
@@ -81,6 +82,9 @@ export default function ShootPage() {
 
   const [pendingReferenceFiles, setPendingReferenceFiles] = useState<File[]>([]);
   const [isDraggingRef, setIsDraggingRef] = useState(false);
+  
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const { data: existingShoot } = useQuery<any>({
     queryKey: ["/api/shoots", id],
@@ -598,6 +602,116 @@ export default function ShootPage() {
 
   const selectedLocation = locations.find(l => l.id === locationId);
 
+  const generateTitle = (): string => {
+    const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
+    if (selectedCostumeData.length === 0) return "";
+    
+    const characters = selectedCostumeData.map(c => c.characterName);
+    const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
+    const series = Array.from(seriesSet);
+    
+    let generatedTitle = "";
+    if (characters.length === 1) {
+      generatedTitle = characters[0];
+      if (series.length > 0 && series[0]) {
+        generatedTitle += ` - ${series[0]}`;
+      }
+    } else if (characters.length > 1) {
+      generatedTitle = characters.slice(0, 2).join(" & ");
+      if (characters.length > 2) {
+        generatedTitle += ` +${characters.length - 2}`;
+      }
+      if (series.length > 0 && series[0]) {
+        generatedTitle += ` - ${series[0]}`;
+      }
+    }
+    
+    return generatedTitle ? generatedTitle + " Shoot" : "";
+  };
+
+  const allImages = [
+    ...pendingReferenceFiles.map((file, index) => ({
+      id: `pending-${index}`,
+      imageUrl: URL.createObjectURL(file),
+      isPending: true,
+      file,
+      index
+    })),
+    ...(existingShoot?.references || []).map((ref: any) => ({
+      ...ref,
+      isPending: false
+    }))
+  ];
+
+  const openLightbox = (index: number) => {
+    setCurrentImageIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  };
+
+  const handleAddImages = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (!files) return;
+      
+      const fileArray = Array.from(files);
+      
+      if (isNew) {
+        setPendingReferenceFiles([...pendingReferenceFiles, ...fileArray]);
+      } else {
+        for (const file of fileArray) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('shootId', existingShoot?.id || '');
+          
+          try {
+            await fetch('/api/shoot-references', {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (error) {
+            console.error('Failed to upload reference:', error);
+          }
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+      }
+    };
+    input.click();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!lightboxOpen) return;
+      
+      if (e.key === 'Escape') {
+        closeLightbox();
+      } else if (e.key === 'ArrowLeft') {
+        prevImage();
+      } else if (e.key === 'ArrowRight') {
+        nextImage();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxOpen, allImages.length]);
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
       {/* Compact Header */}
@@ -723,44 +837,21 @@ export default function ShootPage() {
             </DropdownMenu>
           </div>
 
-          {selectedCostumes.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Switch
-                checked={!manualTitle}
-                onCheckedChange={(checked) => {
-                  setManualTitle(!checked);
-                  if (checked) {
-                    const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
-                    if (selectedCostumeData.length > 0) {
-                      const characters = selectedCostumeData.map(c => c.characterName);
-                      const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
-                      const series = Array.from(seriesSet);
-                      
-                      let generatedTitle = "";
-                      if (characters.length === 1) {
-                        generatedTitle = characters[0];
-                        if (series.length > 0 && series[0]) {
-                          generatedTitle += ` - ${series[0]}`;
-                        }
-                      } else if (characters.length > 1) {
-                        generatedTitle = characters.slice(0, 2).join(" & ");
-                        if (characters.length > 2) {
-                          generatedTitle += ` +${characters.length - 2}`;
-                        }
-                        if (series.length > 0 && series[0]) {
-                          generatedTitle += ` - ${series[0]}`;
-                        }
-                      }
-                      
-                      if (generatedTitle) {
-                        setTitle(generatedTitle + " Shoot");
-                      }
-                    }
-                  }
+          {selectedCostumes.length > 0 && costumes.length > 0 && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <span>Auto title: "{generateTitle()}"</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-auto p-0 text-primary hover:underline"
+                onClick={() => {
+                  setTitle(generateTitle());
+                  setManualTitle(false);
                 }}
-                data-testid="switch-auto-title"
-              />
-              <span>{manualTitle ? "Using custom title" : "Using auto title"}</span>
+                data-testid="button-use-auto-title"
+              >
+                Use this title
+              </Button>
             </div>
           )}
         </div>
@@ -1318,15 +1409,6 @@ export default function ShootPage() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      {item.imageUrl && (
-                        <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
-                          <img 
-                            src={item.imageUrl} 
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg">{item.name}</h3>
                         <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
@@ -1359,61 +1441,72 @@ export default function ShootPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Reference Images</h2>
 
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDraggingRef ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
-          }`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDraggingRef(true);
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            setIsDraggingRef(false);
-          }}
-          onDrop={async (e) => {
-            e.preventDefault();
-            setIsDraggingRef(false);
-            
-            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-            if (files.length === 0) return;
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {allImages.map((image, index) => (
+            <Card 
+              key={image.id} 
+              className="overflow-hidden hover-elevate cursor-pointer group"
+              data-testid={`card-reference-image-${index}`}
+            >
+              <CardContent 
+                className="p-0 relative aspect-square"
+                onClick={() => openLightbox(index)}
+              >
+                <img 
+                  src={image.imageUrl} 
+                  alt={image.isPending ? "Pending reference" : "Reference"}
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (image.isPending) {
+                      setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== image.index));
+                    } else {
+                      try {
+                        await fetch(`/api/shoot-references/${image.id}`, {
+                          method: 'DELETE',
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                      } catch (error) {
+                        console.error('Failed to delete reference:', error);
+                      }
+                    }
+                  }}
+                  data-testid={`button-remove-reference-${image.id}`}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+          
+          <Card 
+            className="border-dashed cursor-pointer hover-elevate"
+            onClick={handleAddImages}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDraggingRef(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setIsDraggingRef(false);
+            }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setIsDraggingRef(false);
+              
+              const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+              if (files.length === 0) return;
 
-            if (isNew) {
-              setPendingReferenceFiles([...pendingReferenceFiles, ...files]);
-            } else {
-              for (const file of files) {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('shootId', existingShoot?.id || '');
-                
-                try {
-                  await fetch('/api/shoot-references', {
-                    method: 'POST',
-                    body: formData,
-                  });
-                } catch (error) {
-                  console.error('Failed to upload reference:', error);
-                }
-              }
-              
-              queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-            }
-          }}
-          onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.multiple = true;
-            input.onchange = async (e) => {
-              const files = (e.target as HTMLInputElement).files;
-              if (!files) return;
-              
-              const fileArray = Array.from(files);
-              
               if (isNew) {
-                setPendingReferenceFiles([...pendingReferenceFiles, ...fileArray]);
+                setPendingReferenceFiles([...pendingReferenceFiles, ...files]);
               } else {
-                for (const file of fileArray) {
+                for (const file of files) {
                   const formData = new FormData();
                   formData.append('file', file);
                   formData.append('shootId', existingShoot?.id || '');
@@ -1430,83 +1523,15 @@ export default function ShootPage() {
                 
                 queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
               }
-            };
-            input.click();
-          }}
-          data-testid="dropzone-reference-images"
-        >
-          <div className="flex flex-col items-center gap-2 cursor-pointer">
-            <ImagePlus className="h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Drag & drop images here or click to browse
-            </p>
-            <p className="text-xs text-muted-foreground/70">
-              {isNew ? 'Images will be uploaded when shoot is saved' : 'Upload reference photos for your shoot'}
-            </p>
-          </div>
+            }}
+            data-testid="card-add-reference-images"
+          >
+            <CardContent className="aspect-square flex flex-col items-center justify-center p-4">
+              <Plus className="h-8 w-8 mb-2 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground text-center">Add Reference Images</span>
+            </CardContent>
+          </Card>
         </div>
-
-        {(pendingReferenceFiles.length > 0 || (existingShoot?.references && existingShoot.references.length > 0)) && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {pendingReferenceFiles.map((file, index) => (
-              <Card key={`pending-${index}`} className="overflow-hidden hover-elevate group relative">
-                <CardContent className="p-0">
-                  <div className="aspect-square relative">
-                    <img 
-                      src={URL.createObjectURL(file)} 
-                      alt="Pending reference"
-                      className="w-full h-full object-cover"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== index));
-                      }}
-                      data-testid={`button-remove-pending-reference-${index}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {existingShoot?.references && existingShoot.references.map((ref: any) => (
-              <Card key={ref.id} className="overflow-hidden hover-elevate group relative">
-                <CardContent className="p-0">
-                  <div className="aspect-square relative">
-                    <img 
-                      src={ref.imageUrl} 
-                      alt="Reference"
-                      className="w-full h-full object-cover"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={async () => {
-                        try {
-                          await fetch(`/api/shoot-references/${ref.id}`, {
-                            method: 'DELETE',
-                          });
-                          queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-                        } catch (error) {
-                          console.error('Failed to delete reference:', error);
-                        }
-                      }}
-                      data-testid={`button-remove-reference-${ref.id}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Instagram References Section */}
@@ -1634,7 +1659,7 @@ export default function ShootPage() {
           setCreatePersonnelOpen(open);
           if (!open) setEditingPersonnel(null);
         }}
-        editItem={editingPersonnel}
+        editItem={editingPersonnel || undefined}
       />
       <CreateEquipmentDialog
         open={createEquipmentOpen || !!editingEquipment}
@@ -1642,7 +1667,7 @@ export default function ShootPage() {
           setCreateEquipmentOpen(open);
           if (!open) setEditingEquipment(null);
         }}
-        editItem={editingEquipment}
+        editItem={editingEquipment || undefined}
       />
       <CreateLocationDialog
         open={createLocationOpen || !!editingLocation}
@@ -1650,7 +1675,7 @@ export default function ShootPage() {
           setCreateLocationOpen(open);
           if (!open) setEditingLocation(null);
         }}
-        editItem={editingLocation}
+        editItem={editingLocation || undefined}
       />
       <CreatePropsDialog
         open={createPropsOpen || !!editingProp}
@@ -1658,7 +1683,7 @@ export default function ShootPage() {
           setCreatePropsOpen(open);
           if (!open) setEditingProp(null);
         }}
-        editItem={editingProp}
+        editItem={editingProp || undefined}
       />
       <CreateCostumesDialog
         open={createCostumesOpen || !!editingCostume}
@@ -1666,8 +1691,52 @@ export default function ShootPage() {
           setCreateCostumesOpen(open);
           if (!open) setEditingCostume(null);
         }}
-        editItem={editingCostume}
+        editItem={editingCostume || undefined}
       />
+
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-4xl p-0" aria-describedby="lightbox-description">
+          <DialogTitle className="sr-only">Reference Image Viewer</DialogTitle>
+          <div className="relative bg-black" id="lightbox-description">
+            {allImages.length > 0 && allImages[currentImageIndex] && (
+              <img 
+                src={allImages[currentImageIndex].imageUrl} 
+                alt="Reference image"
+                className="w-full h-auto max-h-[80vh] object-contain"
+              />
+            )}
+            
+            {allImages.length > 1 && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2"
+                  onClick={prevImage}
+                  data-testid="button-prev-image"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={nextImage}
+                  data-testid="button-next-image"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </>
+            )}
+          </div>
+          
+          {allImages.length > 0 && (
+            <div className="text-center py-2 text-sm text-muted-foreground">
+              {currentImageIndex + 1} / {allImages.length}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

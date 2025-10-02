@@ -67,6 +67,7 @@ export const locations = pgTable("locations", {
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   address: text("address"),
+  placeId: text("place_id"),
   notes: text("notes"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
