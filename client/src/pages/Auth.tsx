@@ -10,8 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Camera, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { SiGoogle, SiApple } from "react-icons/si";
-import { Mail } from "lucide-react";
+import { SiGoogle, SiFacebook } from "react-icons/si";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -148,7 +147,7 @@ export default function Auth() {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'apple' | 'azure') => {
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     const { error } = await signInWithProvider(provider);
     if (error) {
       toast({
@@ -222,7 +221,7 @@ export default function Auth() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -235,22 +234,11 @@ export default function Auth() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleSocialLogin('apple')}
+                    onClick={() => handleSocialLogin('facebook')}
                     disabled={loading}
-                    data-testid="button-apple-signin"
+                    data-testid="button-facebook-signin"
                   >
-                    <SiApple className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSocialLogin('azure')}
-                    disabled={loading}
-                    data-testid="button-microsoft-signin"
-                    className="gap-2"
-                  >
-                    <Mail className="h-4 w-4" />
-                    <span className="text-xs">MS</span>
+                    <SiFacebook className="h-4 w-4" />
                   </Button>
                 </div>
               </form>
@@ -376,7 +364,7 @@ export default function Auth() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -389,22 +377,11 @@ export default function Auth() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleSocialLogin('apple')}
+                    onClick={() => handleSocialLogin('facebook')}
                     disabled={loading}
-                    data-testid="button-apple-signup"
+                    data-testid="button-facebook-signup"
                   >
-                    <SiApple className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSocialLogin('azure')}
-                    disabled={loading}
-                    data-testid="button-microsoft-signup"
-                    className="gap-2"
-                  >
-                    <Mail className="h-4 w-4" />
-                    <span className="text-xs">MS</span>
+                    <SiFacebook className="h-4 w-4" />
                   </Button>
                 </div>
               </form>

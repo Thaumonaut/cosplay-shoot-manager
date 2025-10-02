@@ -7,7 +7,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithProvider: (provider: 'google' | 'apple' | 'azure') => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: 'google' | 'facebook') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithProvider = async (provider: 'google' | 'apple' | 'azure') => {
+  const signInWithProvider = async (provider: 'google' | 'facebook') => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
