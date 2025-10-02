@@ -720,10 +720,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only owners and admins can change member roles" });
       }
 
-      // Get target member's current details
-      const targetMember = await storage.getTeamMember(teamId, memberId);
+      // Get target member's current details by their record ID
+      const targetMember = await storage.getTeamMemberById(memberId);
       if (!targetMember) {
         return res.status(404).json({ error: "Team member not found" });
+      }
+
+      // Verify the target member belongs to this team
+      if (targetMember.teamId !== teamId) {
+        return res.status(403).json({ error: "Team member not found in this team" });
       }
 
       // Check if actor can modify this target member
