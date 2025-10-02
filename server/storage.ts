@@ -129,7 +129,10 @@ export interface IStorage {
   getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined>;
   createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite>;
   getUserTeamMember(userId: string): Promise<TeamMember | undefined>;
+  getTeamMember(teamId: string, userId: string): Promise<TeamMember | undefined>;
+  getTeamMembers(teamId: string): Promise<TeamMember[]>;
   createTeamMember(member: InsertTeamMember): Promise<TeamMember>;
+  updateTeamMember(id: string, updates: Partial<InsertTeamMember>): Promise<TeamMember | undefined>;
   deleteTeamMember(id: string): Promise<boolean>;
 }
 
@@ -582,9 +585,33 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
+  async getTeamMember(teamId: string, userId: string): Promise<TeamMember | undefined> {
+    const [member] = await db
+      .select()
+      .from(teamMembers)
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+    return member;
+  }
+
+  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
+    return db
+      .select()
+      .from(teamMembers)
+      .where(eq(teamMembers.teamId, teamId));
+  }
+
   async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
     const [newMember] = await db.insert(teamMembers).values(member).returning();
     return newMember;
+  }
+
+  async updateTeamMember(id: string, updates: Partial<InsertTeamMember>): Promise<TeamMember | undefined> {
+    const [updated] = await db
+      .update(teamMembers)
+      .set(updates)
+      .where(eq(teamMembers.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteTeamMember(id: string): Promise<boolean> {
