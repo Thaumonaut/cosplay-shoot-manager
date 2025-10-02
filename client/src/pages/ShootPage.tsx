@@ -478,7 +478,7 @@ export default function ShootPage() {
       return null;
     }
     
-    if (!reminderPreset) return null;
+    if (!reminderPreset || reminderPreset === "none") return null;
     
     const shootDateTime = new Date(date);
     if (time) {
@@ -839,7 +839,7 @@ export default function ShootPage() {
                 <SelectValue placeholder="Set a reminder..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No reminder</SelectItem>
+                <SelectItem value="none">No reminder</SelectItem>
                 <SelectItem value="15min">15 minutes before</SelectItem>
                 <SelectItem value="30min">30 minutes before</SelectItem>
                 <SelectItem value="1hour">1 hour before</SelectItem>
