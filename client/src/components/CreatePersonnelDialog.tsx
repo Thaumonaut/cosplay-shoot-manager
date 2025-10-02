@@ -9,12 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface CreatePersonnelDialogProps {
   open: boolean;
@@ -123,35 +123,33 @@ export function CreatePersonnelDialog({
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              placeholder="e.g., John Doe"
+            <InlineEdit
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
+              placeholder="e.g., John Doe"
+              type="text"
               data-testid="input-personnel-name"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="email">Email (Optional)</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="e.g., john@example.com"
+            <InlineEdit
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={setEmail}
+              placeholder="e.g., john@example.com"
+              type="email"
               data-testid="input-personnel-email"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone (Optional)</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="e.g., +1 (555) 123-4567"
+            <InlineEdit
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={setPhone}
+              placeholder="e.g., +1 (555) 123-4567"
+              type="text"
               data-testid="input-personnel-phone"
             />
           </div>

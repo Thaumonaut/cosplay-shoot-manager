@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface CreateCostumesDialogProps {
   open: boolean;
@@ -140,22 +141,22 @@ export function CreateCostumesDialog({
 
           <div className="space-y-2">
             <Label htmlFor="characterName">Character Name *</Label>
-            <Input
-              id="characterName"
-              placeholder="e.g., Sailor Moon"
+            <InlineEdit
               value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
+              onChange={setCharacterName}
+              placeholder="e.g., Sailor Moon"
+              type="text"
               data-testid="input-costumes-character"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="seriesName">Series Name (Optional)</Label>
-            <Input
-              id="seriesName"
-              placeholder="e.g., Sailor Moon"
+            <InlineEdit
               value={seriesName}
-              onChange={(e) => setSeriesName(e.target.value)}
+              onChange={setSeriesName}
+              placeholder="e.g., Sailor Moon"
+              type="text"
               data-testid="input-costumes-series"
             />
           </div>

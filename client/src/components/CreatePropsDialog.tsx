@@ -9,13 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface CreatePropsDialogProps {
   open: boolean;
@@ -117,23 +116,22 @@ export function CreatePropsDialog({
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Sword of Destiny"
+            <InlineEdit
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
+              placeholder="e.g., Sword of Destiny"
+              type="text"
               data-testid="input-props-name"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              placeholder="Additional details..."
+            <InlineEdit
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              onChange={setDescription}
+              placeholder="Additional details..."
+              type="text"
               data-testid="input-props-description"
             />
           </div>

@@ -11,11 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface CreateEquipmentDialogProps {
   open: boolean;
@@ -140,34 +140,33 @@ export function CreateEquipmentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Canon EOS R5"
+            <InlineEdit
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
+              placeholder="e.g., Canon EOS R5"
+              type="text"
               data-testid="input-equipment-name"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category *</Label>
-            <Input
-              id="category"
-              placeholder="e.g., Camera"
+            <InlineEdit
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={setCategory}
+              placeholder="e.g., Camera"
+              type="text"
               data-testid="input-equipment-category"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              placeholder="Additional details..."
+            <InlineEdit
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
+              onChange={setDescription}
+              placeholder="Additional details..."
+              type="text"
               data-testid="input-equipment-description"
             />
           </div>

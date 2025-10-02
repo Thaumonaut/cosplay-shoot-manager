@@ -9,13 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface CreateLocationDialogProps {
   open: boolean;
@@ -119,11 +119,11 @@ export function CreateLocationDialog({
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Central Park"
+            <InlineEdit
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
+              placeholder="e.g., Central Park"
+              type="text"
               data-testid="input-location-name"
             />
           </div>
@@ -143,12 +143,11 @@ export function CreateLocationDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Or enter manually</Label>
-              <Textarea
-                id="address"
-                placeholder="123 Main St, New York, NY 10001"
+              <InlineEdit
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                rows={2}
+                onChange={setAddress}
+                placeholder="123 Main St, New York, NY 10001"
+                type="text"
                 data-testid="input-location-address"
               />
             </div>
