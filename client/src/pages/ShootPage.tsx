@@ -746,7 +746,7 @@ export default function ShootPage() {
       {/* Quick Details Section */}
       <Card>
         <CardContent className="space-y-4 p-3">
-          {shootDate && shootTime && (
+          {date && time && (
             <div className="space-y-2">
               <Label>Reminder</Label>
               <Select value={reminderPreset} onValueChange={setReminderPreset}>
@@ -865,10 +865,52 @@ export default function ShootPage() {
 
         {selectedLocation && (
           <Card>
-            <CardContent className="p-3">
-              <div className="flex items-start gap-4">
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
+                        {selectedLocation.address && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" />
+                            {selectedLocation.address}
+                          </p>
+                        )}
+                        {selectedLocation.notes && (
+                          <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setLocationId("")}
+                        data-testid="button-remove-location"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                {selectedLocation.placeId && (
+                  <div className="w-full h-64 rounded-lg overflow-hidden border">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${selectedLocation.placeId}`}
+                    />
+                  </div>
+                )}
+                
                 {selectedLocation.imageUrl && (
-                  <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="w-full h-48 rounded-lg overflow-hidden">
                     <img 
                       src={selectedLocation.imageUrl} 
                       alt={selectedLocation.name}
@@ -876,31 +918,6 @@ export default function ShootPage() {
                     />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
-                      {selectedLocation.address && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {selectedLocation.address}
-                        </p>
-                      )}
-                      {selectedLocation.notes && (
-                        <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setLocationId("")}
-                      data-testid="button-remove-location"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -1189,6 +1206,88 @@ export default function ShootPage() {
           </div>
         )}
       </div>
+
+      {/* Reference Images Gallery Section */}
+      {!isNew && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Reference Images</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.multiple = true;
+                input.onchange = async (e) => {
+                  const files = (e.target as HTMLInputElement).files;
+                  if (!files) return;
+                  
+                  for (const file of Array.from(files)) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('shootId', existingShoot?.id || '');
+                    
+                    try {
+                      await fetch('/api/shoot-references', {
+                        method: 'POST',
+                        body: formData,
+                      });
+                    } catch (error) {
+                      console.error('Failed to upload reference:', error);
+                    }
+                  }
+                  
+                  queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                };
+                input.click();
+              }}
+              data-testid="button-add-reference"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Images
+            </Button>
+          </div>
+
+          {existingShoot?.references && existingShoot.references.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {existingShoot.references.map((ref: any) => (
+                <Card key={ref.id} className="overflow-hidden hover-elevate group relative">
+                  <CardContent className="p-0">
+                    <div className="aspect-square relative">
+                      <img 
+                        src={ref.imageUrl} 
+                        alt="Reference"
+                        className="w-full h-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/shoot-references/${ref.id}`, {
+                              method: 'DELETE',
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                          } catch (error) {
+                            console.error('Failed to delete reference:', error);
+                          }
+                        }}
+                        data-testid={`button-remove-reference-${ref.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Instagram References Section */}
       <div className="space-y-4">
