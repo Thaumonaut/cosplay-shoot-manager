@@ -57,7 +57,7 @@ export default function ShootPage() {
   const [customReminderDate, setCustomReminderDate] = useState<Date>();
   const [customReminderTime, setCustomReminderTime] = useState("");
   const [locationId, setLocationId] = useState<string>("");
-  const [notes, setNotes] = useState("");
+  const [description, setDescription] = useState("");
   const [color, setColor] = useState<string>("#3B82F6");
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
@@ -143,7 +143,7 @@ export default function ShootPage() {
       }
       
       setLocationId(existingShoot.locationId || "");
-      setNotes(existingShoot.notes || "");
+      setDescription(existingShoot.description || "");
       setColor(existingShoot.color || "#3B82F6");
       setInstagramLinks(existingShoot.instagramLinks || []);
       setIsPublic(existingShoot.isPublic || false);
@@ -555,7 +555,7 @@ export default function ShootPage() {
       durationMinutes: durationMinutes || null,
       reminderTime: reminderTimeValue,
       locationId: locationId || null,
-      notes: notes.trim() || null,
+      description: description.trim() || null,
       color: color || "#3B82F6",
       instagramLinks: instagramLinks.length > 0 ? instagramLinks : null,
     };
@@ -984,13 +984,13 @@ export default function ShootPage() {
           )}
 
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>Description</Label>
             <Textarea
-              placeholder="Add shoot notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add shoot description..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              data-testid="textarea-notes"
+              data-testid="textarea-description"
             />
           </div>
         </CardContent>

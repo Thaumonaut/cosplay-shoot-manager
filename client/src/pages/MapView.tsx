@@ -401,14 +401,14 @@ function ShootDetails({ shoot }: { shoot: ShootWithLocation }) {
         </div>
       )}
 
-      {shoot.notes && (
-        <div data-testid={`section-notes-${shoot.id}`}>
+      {shoot.description && (
+        <div data-testid={`section-description-${shoot.id}`}>
           <div className="flex items-center gap-2 mb-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
-            <h4 className="font-medium text-sm">Notes</h4>
+            <h4 className="font-medium text-sm">Description</h4>
           </div>
-          <p className="text-sm text-muted-foreground pl-6 whitespace-pre-wrap" data-testid={`text-notes-${shoot.id}`}>
-            {shoot.notes}
+          <p className="text-sm text-muted-foreground pl-6 whitespace-pre-wrap" data-testid={`text-description-${shoot.id}`}>
+            {shoot.description}
           </p>
         </div>
       )}
@@ -416,8 +416,7 @@ function ShootDetails({ shoot }: { shoot: ShootWithLocation }) {
       {!shoot.description &&
         costumes.length === 0 &&
         props.length === 0 &&
-        participants.length === 0 &&
-        !shoot.notes && (
+        participants.length === 0 && (
           <p className="text-sm text-muted-foreground italic" data-testid={`text-no-details-${shoot.id}`}>
             No additional details for this shoot
           </p>
