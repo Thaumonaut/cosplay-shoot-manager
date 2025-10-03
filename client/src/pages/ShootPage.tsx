@@ -92,6 +92,26 @@ export default function ShootPage() {
     enabled: !isNew && !!id,
   });
 
+  const { data: shootParticipants = [] } = useQuery<any[]>({
+    queryKey: ["/api/shoots", id, "participants"],
+    enabled: !isNew && !!id,
+  });
+
+  const { data: shootEquipment = [] } = useQuery<any[]>({
+    queryKey: ["/api/shoots", id, "equipment"],
+    enabled: !isNew && !!id,
+  });
+
+  const { data: shootProps = [] } = useQuery<any[]>({
+    queryKey: ["/api/shoots", id, "props"],
+    enabled: !isNew && !!id,
+  });
+
+  const { data: shootCostumes = [] } = useQuery<any[]>({
+    queryKey: ["/api/shoots", id, "costumes"],
+    enabled: !isNew && !!id,
+  });
+
   const { data: personnel = [] } = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
   });
@@ -148,25 +168,37 @@ export default function ShootPage() {
       setInstagramLinks(existingShoot.instagramLinks || []);
       setIsPublic(existingShoot.isPublic || false);
 
-      if (existingShoot.participants) {
-        setSelectedPersonnel(existingShoot.participants.map((p: any) => p.personnelId));
-        const roles: Record<string, string> = {};
-        existingShoot.participants.forEach((p: any) => {
-          if (p.role) roles[p.personnelId] = p.role;
-        });
-        setPersonnelRoles(roles);
-      }
-      if (existingShoot.equipment) {
-        setSelectedEquipment(existingShoot.equipment.map((e: any) => e.equipmentId));
-      }
-      if (existingShoot.props) {
-        setSelectedProps(existingShoot.props.map((p: any) => p.propId));
-      }
-      if (existingShoot.costumes) {
-        setSelectedCostumes(existingShoot.costumes.map((c: any) => c.costumeId));
-      }
     }
   }, [isNew, existingShoot]);
+
+  useEffect(() => {
+    if (!isNew && shootParticipants.length > 0) {
+      setSelectedPersonnel(shootParticipants.map((p: any) => p.personnelId).filter(Boolean));
+      const roles: Record<string, string> = {};
+      shootParticipants.forEach((p: any) => {
+        if (p.role && p.personnelId) roles[p.personnelId] = p.role;
+      });
+      setPersonnelRoles(roles);
+    }
+  }, [isNew, shootParticipants]);
+
+  useEffect(() => {
+    if (!isNew && shootEquipment.length > 0) {
+      setSelectedEquipment(shootEquipment.map((e: any) => e.equipmentId).filter(Boolean));
+    }
+  }, [isNew, shootEquipment]);
+
+  useEffect(() => {
+    if (!isNew && shootProps.length > 0) {
+      setSelectedProps(shootProps.map((p: any) => p.propId).filter(Boolean));
+    }
+  }, [isNew, shootProps]);
+
+  useEffect(() => {
+    if (!isNew && shootCostumes.length > 0) {
+      setSelectedCostumes(shootCostumes.map((c: any) => c.costumeId).filter(Boolean));
+    }
+  }, [isNew, shootCostumes]);
 
   useEffect(() => {
     if (!manualTitle && costumes.length > 0 && isNew) {
@@ -210,8 +242,7 @@ export default function ShootPage() {
       if (selectedPersonnel.length > 0) {
         await Promise.all(
           selectedPersonnel.map(personnelId =>
-            apiRequest("POST", "/api/shoots/participants", {
-              shootId: newShoot.id,
+            apiRequest("POST", `/api/shoots/${newShoot.id}/participants`, {
               personnelId,
               role: personnelRoles[personnelId] || null,
             })
@@ -219,37 +250,12 @@ export default function ShootPage() {
         );
       }
 
-      if (selectedEquipment.length > 0) {
-        await Promise.all(
-          selectedEquipment.map(equipmentId =>
-            apiRequest("POST", "/api/shoots/equipment", {
-              shootId: newShoot.id,
-              equipmentId,
-            })
-          )
-        );
-      }
-
-      if (selectedProps.length > 0) {
-        await Promise.all(
-          selectedProps.map(propId =>
-            apiRequest("POST", "/api/shoots/props", {
-              shootId: newShoot.id,
-              propId,
-            })
-          )
-        );
-      }
-
-      if (selectedCostumes.length > 0) {
-        await Promise.all(
-          selectedCostumes.map(costumeId =>
-            apiRequest("POST", "/api/shoots/costumes", {
-              shootId: newShoot.id,
-              costumeId,
-            })
-          )
-        );
+      if (selectedEquipment.length > 0 || selectedProps.length > 0 || selectedCostumes.length > 0) {
+        await apiRequest("PATCH", `/api/shoots/${newShoot.id}/resources`, {
+          equipmentIds: selectedEquipment,
+          propIds: selectedProps,
+          costumeIds: selectedCostumes,
+        });
       }
 
       if (pendingReferenceFiles.length > 0) {
@@ -293,55 +299,17 @@ export default function ShootPage() {
     },
     onSuccess: async () => {
       if (id) {
-        await apiRequest("DELETE", `/api/shoots/${id}/participants`);
-        await apiRequest("DELETE", `/api/shoots/${id}/equipment`);
-        await apiRequest("DELETE", `/api/shoots/${id}/props`);
-        await apiRequest("DELETE", `/api/shoots/${id}/costumes`);
+        const participants = selectedPersonnel.map(personnelId => ({
+          personnelId,
+          role: personnelRoles[personnelId] || null,
+        }));
 
-        if (selectedPersonnel.length > 0) {
-          await Promise.all(
-            selectedPersonnel.map(personnelId =>
-              apiRequest("POST", "/api/shoots/participants", {
-                shootId: id,
-                personnelId,
-                role: personnelRoles[personnelId] || null,
-              })
-            )
-          );
-        }
-
-        if (selectedEquipment.length > 0) {
-          await Promise.all(
-            selectedEquipment.map(equipmentId =>
-              apiRequest("POST", "/api/shoots/equipment", {
-                shootId: id,
-                equipmentId,
-              })
-            )
-          );
-        }
-
-        if (selectedProps.length > 0) {
-          await Promise.all(
-            selectedProps.map(propId =>
-              apiRequest("POST", "/api/shoots/props", {
-                shootId: id,
-                propId,
-              })
-            )
-          );
-        }
-
-        if (selectedCostumes.length > 0) {
-          await Promise.all(
-            selectedCostumes.map(costumeId =>
-              apiRequest("POST", "/api/shoots/costumes", {
-                shootId: id,
-                costumeId,
-              })
-            )
-          );
-        }
+        await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+          equipmentIds: selectedEquipment,
+          propIds: selectedProps,
+          costumeIds: selectedCostumes,
+          participants: participants,
+        });
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
