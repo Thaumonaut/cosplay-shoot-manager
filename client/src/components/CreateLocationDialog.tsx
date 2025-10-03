@@ -37,6 +37,8 @@ export function CreateLocationDialog({
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [placeId, setPlaceId] = useState("");
+  const [latitude, setLatitude] = useState<number | undefined>();
+  const [longitude, setLongitude] = useState<number | undefined>();
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -44,6 +46,8 @@ export function CreateLocationDialog({
       setName(editItem.name || "");
       setAddress(editItem.address || "");
       setPlaceId(editItem.placeId || "");
+      setLatitude(editItem.latitude ?? undefined);
+      setLongitude(editItem.longitude ?? undefined);
       setNotes(editItem.notes || "");
     }
   }, [editItem]);
@@ -123,6 +127,8 @@ export function CreateLocationDialog({
     setName("");
     setAddress("");
     setPlaceId("");
+    setLatitude(undefined);
+    setLongitude(undefined);
     setNotes("");
   };
 
@@ -147,6 +153,12 @@ export function CreateLocationDialog({
     if (placeId.trim()) {
       data.placeId = placeId.trim();
     }
+    if (latitude !== undefined) {
+      data.latitude = latitude;
+    }
+    if (longitude !== undefined) {
+      data.longitude = longitude;
+    }
     if (notes.trim()) {
       data.notes = notes.trim();
     }
@@ -168,6 +180,8 @@ export function CreateLocationDialog({
     setName(location.name || location.address.split(",")[0]);
     setAddress(location.address);
     setPlaceId(location.placeId);
+    setLatitude(location.latitude);
+    setLongitude(location.longitude);
   };
 
   const handleOpenChange = (open: boolean) => {

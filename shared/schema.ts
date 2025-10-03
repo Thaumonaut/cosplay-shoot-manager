@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -68,6 +68,8 @@ export const locations = pgTable("locations", {
   name: text("name").notNull(),
   address: text("address"),
   placeId: text("place_id"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   notes: text("notes"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

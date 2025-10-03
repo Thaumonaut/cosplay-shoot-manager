@@ -11,6 +11,7 @@ import { CreateLocationDialog } from "@/components/CreateLocationDialog";
 import { CreatePropsDialog } from "@/components/CreatePropsDialog";
 import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
 import { EditableField } from "@/components/EditableField";
+import { GoogleMap } from "@/components/GoogleMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1071,6 +1072,26 @@ export default function ShootPage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {selectedLocation && selectedLocation.placeId && selectedLocation.latitude !== null && selectedLocation.latitude !== undefined && selectedLocation.longitude !== null && selectedLocation.longitude !== undefined && (
+          <div className="mt-4">
+            <GoogleMap
+              center={{ 
+                lat: selectedLocation.latitude, 
+                lng: selectedLocation.longitude 
+              }}
+              zoom={15}
+              markers={[{
+                position: { 
+                  lat: selectedLocation.latitude, 
+                  lng: selectedLocation.longitude 
+                },
+                title: selectedLocation.name
+              }]}
+              className="h-[300px]"
+            />
+          </div>
         )}
       </div>
 
