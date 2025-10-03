@@ -95,7 +95,9 @@ export function GoogleMapsLocationSearch({
   }, []);
 
   const handleSelect = (prediction: PlacePrediction) => {
-    setQuery(prediction.name || prediction.address);
+    // Clear the query so that the suggestions won't repopulate and reopen
+    // the dropdown. We still blur the input to remove focus from the box.
+    setQuery("");
     setShowSuggestions(false);
     setSuggestions([]);
 

@@ -35,6 +35,7 @@ export function CreatePersonnelDialog({
 }: CreatePersonnelDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dialog = useOptionalDialog();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -74,8 +75,17 @@ export function CreatePersonnelDialog({
       });
       resetForm();
       onOpenChange(false);
+      // Notify parent success handler if provided (named 'onSuccess')
       onSuccess?.(newPersonnel);
-      const dialog = useOptionalDialog();
+      // Also call onSave if parent provided that prop (ShootPage passes onSave)
+      if (onSave) {
+        try {
+          // allow parent to handle persistence/updating UI
+          void Promise.resolve(onSave(newPersonnel));
+        } catch (e) {
+          console.error('CreatePersonnelDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(newPersonnel);
         void dialog.triggerSubmit();
@@ -112,8 +122,16 @@ export function CreatePersonnelDialog({
       });
       resetForm();
       onOpenChange(false);
+      // Notify parent success handler if provided
       onSuccess?.(updatedPersonnel);
-      const dialog = useOptionalDialog();
+      // Also call onSave if parent provided that prop
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(updatedPersonnel));
+        } catch (e) {
+          console.error('CreatePersonnelDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(updatedPersonnel);
         void dialog.triggerSubmit();
