@@ -104,3 +104,16 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
   - Instagram References card: link management
   - Notes card: additional details
   - Submit/Cancel buttons
+
+### Bug Fixes & Feature Additions (October 3, 2025)
+- **Fixed Image Upload for Props and Costumes**: POST endpoints now properly upload images to Supabase Storage
+  - Previously, POST endpoints accepted image files via multer but never uploaded them
+  - Now mirrors PATCH endpoint behavior: uploads to `public/props/{teamId}/` or `public/costumes/{teamId}/`
+  - Returns public URL stored in `imageUrl` field
+- **Added Color Picker UI**: ShootPage now includes color input field for shoot color selection
+  - Color picker appears alongside date/time/duration fields when status is not "idea"
+  - Visual preview dot shows selected color
+  - Data-testid: "input-color"
+- **Improved Error Handling**: Fixed GET /api/shoots/:id endpoint error handling
+  - Changed from returning 401 for all errors to proper 500 server errors
+  - Added console.error logging to help diagnose issues
