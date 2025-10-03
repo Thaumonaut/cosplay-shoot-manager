@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
+import { GoogleMap } from "@/components/GoogleMap";
 import { InlineEdit } from "@/components/InlineEdit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check } from "lucide-react";
@@ -201,21 +202,6 @@ export function CreateLocationDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {editItem && editItem.placeId && (
-            <Card>
-              <CardContent className="p-0">
-                <iframe
-                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=place_id:${editItem.placeId}`}
-                  className="w-full h-[200px] border-0 rounded-md"
-                  frameBorder="0"
-                  allowFullScreen
-                  loading="lazy"
-                  data-testid="map-embed"
-                />
-              </CardContent>
-            </Card>
-          )}
-
           <div className="space-y-2">
             <Label>Search for Location</Label>
             <GoogleMapsLocationSearch
@@ -273,6 +259,26 @@ export function CreateLocationDialog({
               data-testid="input-location-notes"
             />
           </div>
+
+          {placeId && latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined && (
+            <div className="mt-4">
+              <GoogleMap
+                center={{ 
+                  lat: latitude, 
+                  lng: longitude 
+                }}
+                zoom={15}
+                markers={[{
+                  position: { 
+                    lat: latitude, 
+                    lng: longitude 
+                  },
+                  title: name
+                }]}
+                className="h-[300px]"
+              />
+            </div>
+          )}
 
           <DialogFooter>
             <Button
