@@ -22,6 +22,7 @@ import Props from "@/pages/Props";
 import Costumes from "@/pages/Costumes";
 import ShootPage from "@/pages/ShootPage";
 import PublicShootPage from "@/pages/PublicShootPage";
+import MapView from "@/pages/MapView";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
@@ -53,6 +54,11 @@ function AppContent() {
         <Route path="/calendar">
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/map">
+          <ProtectedRoute>
+            <MapView />
           </ProtectedRoute>
         </Route>
         <Route path="/status/:status">
@@ -107,6 +113,11 @@ function AppContent() {
                 <Route path="/calendar">
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                </Route>
+                <Route path="/map">
+                  <ProtectedRoute>
+                    <MapView />
                   </ProtectedRoute>
                 </Route>
                 <Route path="/status/:status">

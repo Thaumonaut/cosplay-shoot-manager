@@ -1,4 +1,4 @@
-import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt } from "lucide-react";
+import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt, Map } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +34,12 @@ const menuItems = [
     url: "/calendar",
     icon: Calendar,
     testId: "link-navigation-calendar",
+  },
+  {
+    title: "Map View",
+    url: "/map",
+    icon: Map,
+    testId: "link-navigation-map",
   },
 ];
 
