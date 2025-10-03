@@ -239,22 +239,23 @@ export default function ShootPage() {
       return await response.json();
     },
     onSuccess: async (newShoot) => {
-      if (selectedPersonnel.length > 0) {
-        await Promise.all(
-          selectedPersonnel.map(personnelId =>
-            apiRequest("POST", `/api/shoots/${newShoot.id}/participants`, {
-              personnelId,
-              role: personnelRoles[personnelId] || null,
-            })
-          )
-        );
-      }
+      // Build participants array
+      const participants = selectedPersonnel.map(personnelId => {
+        const person = personnel.find(p => p.id === personnelId);
+        return {
+          personnelId,
+          name: person?.name || "Unknown",
+          role: personnelRoles[personnelId] || "Participant",
+        };
+      });
 
-      if (selectedEquipment.length > 0 || selectedProps.length > 0 || selectedCostumes.length > 0) {
+      // Use PATCH /api/shoots/:id/resources to set all associations at once
+      if (selectedPersonnel.length > 0 || selectedEquipment.length > 0 || selectedProps.length > 0 || selectedCostumes.length > 0) {
         await apiRequest("PATCH", `/api/shoots/${newShoot.id}/resources`, {
           equipmentIds: selectedEquipment,
           propIds: selectedProps,
           costumeIds: selectedCostumes,
+          participants: participants,
         });
       }
 
@@ -299,10 +300,14 @@ export default function ShootPage() {
     },
     onSuccess: async () => {
       if (id) {
-        const participants = selectedPersonnel.map(personnelId => ({
-          personnelId,
-          role: personnelRoles[personnelId] || null,
-        }));
+        const participants = selectedPersonnel.map(personnelId => {
+          const person = personnel.find(p => p.id === personnelId);
+          return {
+            personnelId,
+            name: person?.name || "Unknown",
+            role: personnelRoles[personnelId] || "Participant",
+          };
+        });
 
         await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
           equipmentIds: selectedEquipment,
