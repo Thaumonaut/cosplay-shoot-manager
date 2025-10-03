@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,96 +13,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Plus, Pencil, Trash2, Package, ImageIcon } from "lucide-react";
 import { CreatePropsDialog } from "@/components/CreatePropsDialog";
 import type { Prop } from "@shared/schema";
 
-const propFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  available: z.boolean().default(true),
-});
-
-type PropForm = z.infer<typeof propFormSchema>;
-
 export default function Props() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingProp, setEditingProp] = useState<Prop | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Prop | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const { data: props = [], isLoading } = useQuery<Prop[]>({
     queryKey: ["/api/props"],
-  });
-
-  const form = useForm<PropForm>({
-    resolver: zodResolver(propFormSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      available: true,
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: PropForm }) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("description", data.description || "");
-      formData.append("available", String(data.available));
-      
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
-
-      const res = await fetch(`/api/props/${id}`, {
-        method: "PATCH",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to update prop");
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/props"] });
-      toast({
-        title: "Success",
-        description: "Prop updated successfully",
-      });
-      setEditingProp(null);
-      form.reset();
-      setImagePreview(null);
-      setImageFile(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update prop",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -139,33 +56,14 @@ export default function Props() {
     },
   });
 
-  const handleOpenEditDialog = (prop: Prop) => {
-    setEditingProp(prop);
-    form.reset({
-      name: prop.name,
-      description: prop.description || "",
-      available: prop.available ?? true,
-    });
-    setImagePreview(prop.imageUrl || null);
-    setImageFile(null);
+  const openEditDialog = (prop: Prop) => {
+    setEditingItem(prop);
+    setEditDialogOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const onEditSubmit = (data: PropForm) => {
-    if (editingProp) {
-      updateMutation.mutate({ id: editingProp.id, data });
-    }
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingItem(undefined);
   };
 
   if (isLoading) {
@@ -217,7 +115,7 @@ export default function Props() {
             <Card 
               key={prop.id} 
               className="cursor-pointer hover-elevate"
-              onClick={() => handleOpenEditDialog(prop)}
+              onClick={() => openEditDialog(prop)}
               data-testid={`card-prop-${prop.id}`}
             >
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
@@ -230,7 +128,7 @@ export default function Props() {
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleOpenEditDialog(prop);
+                      openEditDialog(prop);
                     }}
                     data-testid={`button-edit-prop-${prop.id}`}
                   >
@@ -286,133 +184,15 @@ export default function Props() {
         onOpenChange={setIsAddDialogOpen}
       />
 
-      <Dialog open={editingProp !== null} onOpenChange={(open) => {
-        if (!open) {
-          setEditingProp(null);
-          form.reset();
-          setImagePreview(null);
-          setImageFile(null);
-        }
-      }}>
-        <DialogContent data-testid="dialog-prop-form">
-          <DialogHeader>
-            <DialogTitle>Edit Prop</DialogTitle>
-            <DialogDescription>
-              Update prop details
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <FormLabel>Image (Optional)</FormLabel>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="Enter prop name"
-                        data-testid="input-prop-name"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Enter description"
-                        rows={3}
-                        data-testid="input-prop-description"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="available"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Available</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Is this prop currently available?
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        data-testid="switch-prop-available"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingProp(null);
-                    form.reset();
-                    setImagePreview(null);
-                    setImageFile(null);
-                  }}
-                  data-testid="button-cancel-prop"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  data-testid="button-save-prop"
-                >
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <CreatePropsDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItem={editingItem}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          setEditingItem(undefined);
+        }}
+      />
 
       <AlertDialog open={deletingId !== null} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

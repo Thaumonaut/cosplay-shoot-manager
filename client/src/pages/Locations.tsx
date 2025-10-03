@@ -4,14 +4,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,80 +13,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Plus, Pencil, Trash2, MapPin, Map } from "lucide-react";
-import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
 import { CreateLocationDialog } from "@/components/CreateLocationDialog";
 import type { Location as LocationType } from "@shared/schema";
-
-const locationFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  address: z.string().optional(),
-  notes: z.string().optional(),
-  placeId: z.string().optional(),
-});
-
-type LocationForm = z.infer<typeof locationFormSchema>;
 
 export default function Locations() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<LocationType | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<LocationType | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: locations = [], isLoading } = useQuery<LocationType[]>({
     queryKey: ["/api/locations"],
-  });
-
-  const form = useForm<LocationForm>({
-    resolver: zodResolver(locationFormSchema),
-    defaultValues: {
-      name: "",
-      address: "",
-      notes: "",
-      placeId: "",
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: LocationForm }) => {
-      const response = await apiRequest("PATCH", `/api/locations/${id}`, {
-        name: data.name,
-        address: data.address || "",
-        notes: data.notes || "",
-        placeId: data.placeId || null,
-      });
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
-      setEditingLocation(null);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Location updated successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update location",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -117,25 +49,14 @@ export default function Locations() {
     },
   });
 
-  const onEditSubmit = (data: LocationForm) => {
-    if (editingLocation) {
-      updateMutation.mutate({ id: editingLocation.id, data });
-    }
-  };
-
   const openEditDialog = (location: LocationType) => {
-    setEditingLocation(location);
-    form.reset({
-      name: location.name,
-      address: location.address || "",
-      notes: location.notes || "",
-      placeId: location.placeId || "",
-    });
+    setEditingItem(location);
+    setEditDialogOpen(true);
   };
 
   const closeEditDialog = () => {
-    setEditingLocation(null);
-    form.reset();
+    setEditDialogOpen(false);
+    setEditingItem(undefined);
   };
 
   return (
@@ -247,102 +168,15 @@ export default function Locations() {
         onOpenChange={setIsAddDialogOpen}
       />
 
-      <Dialog open={!!editingLocation} onOpenChange={closeEditDialog}>
-        <DialogContent data-testid="dialog-location-form">
-          <DialogHeader>
-            <DialogTitle>Edit Location</DialogTitle>
-            <DialogDescription>
-              Update the location information
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Central Park" {...field} data-testid="input-location-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <FormLabel>Search for Address</FormLabel>
-                  <GoogleMapsLocationSearch
-                    onLocationSelect={(location) => {
-                      form.setValue("address", location.address);
-                      form.setValue("placeId", location.placeId || "");
-                      if (!form.getValues("name")) {
-                        form.setValue("name", location.name || location.address.split(",")[0]);
-                      }
-                    }}
-                    placeholder="Search for a location..."
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Or enter manually</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="123 Main St, New York, NY 10001"
-                          {...field}
-                          rows={2}
-                          data-testid="input-location-address"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Additional information about this location..."
-                        className="resize-none"
-                        rows={3}
-                        {...field}
-                        data-testid="input-location-notes"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={closeEditDialog}
-                  data-testid="button-cancel-location"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  data-testid="button-save-location"
-                >
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <CreateLocationDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItem={editingItem}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          setEditingItem(undefined);
+        }}
+      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

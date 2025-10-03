@@ -4,26 +4,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,64 +13,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Plus, Pencil, Trash2, Wrench, Package } from "lucide-react";
 import { CreateEquipmentDialog } from "@/components/CreateEquipmentDialog";
 import type { Equipment as EquipmentType } from "@shared/schema";
 
-const equipmentFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  category: z.string().min(1, "Category is required"),
-  description: z.string().optional(),
-  quantity: z.coerce.number().min(1, "Quantity must be at least 1").default(1),
-  available: z.boolean().default(true),
-});
-
-type EquipmentForm = z.infer<typeof equipmentFormSchema>;
-
 export default function Equipment() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingEquipment, setEditingEquipment] = useState<EquipmentType | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<EquipmentType | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: equipment = [], isLoading } = useQuery<EquipmentType[]>({
     queryKey: ["/api/equipment"],
-  });
-
-  const form = useForm<EquipmentForm>({
-    resolver: zodResolver(equipmentFormSchema),
-    defaultValues: {
-      name: "",
-      category: "",
-      description: "",
-      quantity: 1,
-      available: true,
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: EquipmentForm }) =>
-      apiRequest("PATCH", `/api/equipment/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
-      setEditingEquipment(null);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Equipment updated successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update equipment",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -113,26 +50,14 @@ export default function Equipment() {
     },
   });
 
-  const onEditSubmit = (data: EquipmentForm) => {
-    if (editingEquipment) {
-      updateMutation.mutate({ id: editingEquipment.id, data });
-    }
-  };
-
   const openEditDialog = (equip: EquipmentType) => {
-    setEditingEquipment(equip);
-    form.reset({
-      name: equip.name,
-      category: equip.category || "",
-      description: equip.description || "",
-      quantity: equip.quantity ?? 1,
-      available: equip.available ?? true,
-    });
+    setEditingItem(equip);
+    setEditDialogOpen(true);
   };
 
   const closeEditDialog = () => {
-    setEditingEquipment(null);
-    form.reset();
+    setEditDialogOpen(false);
+    setEditingItem(undefined);
   };
 
   return (
@@ -250,125 +175,15 @@ export default function Equipment() {
         onOpenChange={setIsAddDialogOpen}
       />
 
-      <Dialog open={!!editingEquipment} onOpenChange={closeEditDialog}>
-        <DialogContent data-testid="dialog-equipment-form">
-          <DialogHeader>
-            <DialogTitle>Edit Equipment</DialogTitle>
-            <DialogDescription>
-              Update the equipment information
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Canon EOS R5" {...field} data-testid="input-equipment-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Camera, Lighting, Lens, etc."
-                        {...field}
-                        data-testid="input-equipment-category"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantity</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        data-testid="input-equipment-quantity"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Additional details about this equipment..."
-                        className="resize-none"
-                        rows={3}
-                        {...field}
-                        data-testid="input-equipment-description"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="available"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Available</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Is this equipment currently available?
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        data-testid="switch-equipment-available"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={closeEditDialog}
-                  data-testid="button-cancel-equipment"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  data-testid="button-save-equipment"
-                >
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <CreateEquipmentDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItem={editingItem}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          setEditingItem(undefined);
+        }}
+      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

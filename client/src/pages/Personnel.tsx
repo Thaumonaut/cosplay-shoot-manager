@@ -4,14 +4,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,91 +13,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Plus, Mail, Phone, Pencil, Trash2, Users } from "lucide-react";
 import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
 import type { Personnel } from "@shared/schema";
 
-const personnelFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type PersonnelForm = z.infer<typeof personnelFormSchema>;
-
 export default function Personnel() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Personnel | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: personnel = [], isLoading} = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
-  });
-
-  const form = useForm<PersonnelForm>({
-    resolver: zodResolver(personnelFormSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      notes: "",
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: PersonnelForm }) => {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("email", data.email || "");
-      formData.append("phone", data.phone || "");
-      formData.append("notes", data.notes || "");
-
-      const res = await fetch(`/api/personnel/${id}`, {
-        method: "PATCH",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
-      setEditingPersonnel(null);
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Personnel updated successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update personnel",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -127,25 +49,14 @@ export default function Personnel() {
     },
   });
 
-  const onEditSubmit = (data: PersonnelForm) => {
-    if (editingPersonnel) {
-      updateMutation.mutate({ id: editingPersonnel.id, data });
-    }
-  };
-
   const openEditDialog = (person: Personnel) => {
-    setEditingPersonnel(person);
-    form.reset({
-      name: person.name,
-      email: person.email || "",
-      phone: person.phone || "",
-      notes: person.notes || "",
-    });
+    setEditingItem(person);
+    setEditDialogOpen(true);
   };
 
   const closeEditDialog = () => {
-    setEditingPersonnel(null);
-    form.reset();
+    setEditDialogOpen(false);
+    setEditingItem(undefined);
   };
 
   const getInitials = (name: string) => {
@@ -273,105 +184,15 @@ export default function Personnel() {
         onOpenChange={setIsAddDialogOpen}
       />
 
-      <Dialog open={!!editingPersonnel} onOpenChange={closeEditDialog}>
-        <DialogContent data-testid="dialog-personnel-form">
-          <DialogHeader>
-            <DialogTitle>Edit Personnel</DialogTitle>
-            <DialogDescription>
-              Update the personnel information
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} data-testid="input-personnel-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john@example.com"
-                        {...field}
-                        data-testid="input-personnel-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        {...field}
-                        data-testid="input-personnel-phone"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Additional information about this person..."
-                        className="resize-none"
-                        rows={3}
-                        {...field}
-                        data-testid="input-personnel-notes"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={closeEditDialog}
-                  data-testid="button-cancel-personnel"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  data-testid="button-save-personnel"
-                >
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <CreatePersonnelDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItem={editingItem}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          setEditingItem(undefined);
+        }}
+      />
 
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>

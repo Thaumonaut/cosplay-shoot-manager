@@ -4,14 +4,6 @@ import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,115 +13,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Plus, Pencil, Trash2, Shirt, ImageIcon, X, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Shirt, ImageIcon, Check } from "lucide-react";
 import { CreateCostumesDialog } from "@/components/CreateCostumesDialog";
 import type { CostumeProgress } from "@shared/schema";
-
-const costumeFormSchema = z.object({
-  characterName: z.string().min(1, "Character name is required"),
-  seriesName: z.string().optional(),
-  status: z.enum(["planning", "in-progress", "completed"]).default("planning"),
-  todos: z.array(z.string()).default([]),
-  notes: z.string().optional(),
-});
-
-type CostumeForm = z.infer<typeof costumeFormSchema>;
-
-const statusOptions = [
-  { value: "planning", label: "Planning" },
-  { value: "in-progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
-];
 
 export default function Costumes() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingCostume, setEditingCostume] = useState<CostumeProgress | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<CostumeProgress | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [currentTodo, setCurrentTodo] = useState("");
 
   const { data: costumes = [], isLoading } = useQuery<CostumeProgress[]>({
     queryKey: ["/api/costumes"],
-  });
-
-  const form = useForm<CostumeForm>({
-    resolver: zodResolver(costumeFormSchema),
-    defaultValues: {
-      characterName: "",
-      seriesName: "",
-      status: "planning",
-      todos: [],
-      notes: "",
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: CostumeForm }) => {
-      const formData = new FormData();
-      formData.append("characterName", data.characterName);
-      formData.append("seriesName", data.seriesName || "");
-      formData.append("status", data.status);
-      formData.append("todos", JSON.stringify(data.todos || []));
-      formData.append("notes", data.notes || "");
-      
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
-
-      const res = await fetch(`/api/costumes/${id}`, {
-        method: "PATCH",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to update costume");
-      }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
-      toast({
-        title: "Success",
-        description: "Costume updated successfully",
-      });
-      setEditingCostume(null);
-      form.reset();
-      setImagePreview(null);
-      setImageFile(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update costume",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -158,35 +56,14 @@ export default function Costumes() {
     },
   });
 
-  const handleOpenEditDialog = (costume: CostumeProgress) => {
-    setEditingCostume(costume);
-    form.reset({
-      characterName: costume.characterName,
-      seriesName: costume.seriesName || "",
-      status: costume.status as "planning" | "in-progress" | "completed",
-      todos: costume.todos || [],
-      notes: costume.notes || "",
-    });
-    setImagePreview(costume.imageUrl || null);
-    setImageFile(null);
+  const openEditDialog = (costume: CostumeProgress) => {
+    setEditingItem(costume);
+    setEditDialogOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const onEditSubmit = (data: CostumeForm) => {
-    if (editingCostume) {
-      updateMutation.mutate({ id: editingCostume.id, data });
-    }
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingItem(undefined);
   };
 
   const getStatusColor = (status: string) => {
@@ -251,7 +128,7 @@ export default function Costumes() {
             <Card 
               key={costume.id} 
               className="cursor-pointer hover-elevate"
-              onClick={() => handleOpenEditDialog(costume)}
+              onClick={() => openEditDialog(costume)}
               data-testid={`card-costume-${costume.id}`}
             >
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
@@ -264,7 +141,7 @@ export default function Costumes() {
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleOpenEditDialog(costume);
+                      openEditDialog(costume);
                     }}
                     data-testid={`button-edit-costume-${costume.id}`}
                   >
@@ -341,224 +218,15 @@ export default function Costumes() {
         onOpenChange={setIsAddDialogOpen}
       />
 
-      <Dialog open={editingCostume !== null} onOpenChange={(open) => {
-        if (!open) {
-          setEditingCostume(null);
-          form.reset();
-          setImagePreview(null);
-          setImageFile(null);
-        }
-      }}>
-        <DialogContent data-testid="dialog-costume-form">
-          <DialogHeader>
-            <DialogTitle>Edit Costume</DialogTitle>
-            <DialogDescription>
-              Update costume progress
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-20 h-20 rounded-md border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <FormLabel>Image (Optional)</FormLabel>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <FormField
-                control={form.control}
-                name="characterName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Character Name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="Enter character name"
-                        data-testid="input-costume-character"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="seriesName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Series Name (Optional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="Enter series name"
-                        data-testid="input-costume-series"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-costume-status">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {statusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {form.watch("status") !== "completed" && (
-                <FormField
-                  control={form.control}
-                  name="todos"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Todo List</FormLabel>
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <Input
-                            value={currentTodo}
-                            onChange={(e) => setCurrentTodo(e.target.value)}
-                            placeholder="Add a todo item..."
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (currentTodo.trim()) {
-                                  field.onChange([...field.value, currentTodo.trim()]);
-                                  setCurrentTodo("");
-                                }
-                              }
-                            }}
-                            data-testid="input-todo-item"
-                          />
-                          <Button
-                            type="button"
-                            size="icon"
-                            onClick={() => {
-                              if (currentTodo.trim()) {
-                                field.onChange([...field.value, currentTodo.trim()]);
-                                setCurrentTodo("");
-                              }
-                            }}
-                            data-testid="button-add-todo"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        {field.value.length > 0 && (
-                          <div className="space-y-1">
-                            {field.value.map((todo, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center gap-2 p-2 bg-muted rounded-md"
-                                data-testid={`todo-item-${index}`}
-                              >
-                                <Check className="h-4 w-4 text-muted-foreground" />
-                                <span className="flex-1 text-sm">{todo}</span>
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    field.onChange(field.value.filter((_, i) => i !== index));
-                                  }}
-                                  data-testid={`button-remove-todo-${index}`}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Add any notes"
-                        rows={3}
-                        data-testid="input-costume-notes"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditingCostume(null);
-                    form.reset();
-                    setImagePreview(null);
-                    setImageFile(null);
-                  }}
-                  data-testid="button-cancel-costume"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  data-testid="button-save-costume"
-                >
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <CreateCostumesDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItem={editingItem}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          setEditingItem(undefined);
+        }}
+      />
 
       <AlertDialog open={deletingId !== null} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>
