@@ -58,6 +58,7 @@ export const equipment = pgTable("equipment", {
   description: text("description"),
   quantity: integer("quantity").default(1),
   available: boolean("available").default(true),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
