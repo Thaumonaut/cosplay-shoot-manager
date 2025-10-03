@@ -1128,13 +1128,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only team owners and admins can create shoots" });
       }
       
-      const { shoot, personnelIds = [], equipmentIds = [], propIds = [], costumeIds = [], participants = [] } = req.body;
+      // Frontend sends shoot data directly in body, not wrapped in { shoot: ... }
+      const shootData = req.body;
       
-      // Parse instagramLinks if it's a JSON string (from FormData)
-      let shootData = { ...shoot };
-      if (shoot.instagramLinks && typeof shoot.instagramLinks === 'string') {
+      // Parse instagramLinks if it's a JSON string (for compatibility)
+      if (shootData.instagramLinks && typeof shootData.instagramLinks === 'string') {
         try {
-          shootData.instagramLinks = JSON.parse(shoot.instagramLinks);
+          shootData.instagramLinks = JSON.parse(shootData.instagramLinks);
         } catch (e) {
           console.error("Error parsing instagramLinks:", e);
           shootData.instagramLinks = [];
@@ -1144,76 +1144,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertShootSchema.parse({ ...shootData, userId, teamId });
       const createdShoot = await storage.createShoot(data);
       
-      // Create participant associations from participants array (with roles)
-      if (participants.length > 0) {
-        for (const participant of participants) {
-          const personnel = await storage.getPersonnel(participant.personnelId, teamId);
-          if (personnel) {
-            await storage.createShootParticipant({
-              shootId: createdShoot.id,
-              name: personnel.name,
-              role: participant.role || "Participant",
-              email: personnel.email,
-              personnelId: personnel.id,
-            });
-          }
-        }
-      }
-      
-      // Fallback: Create personnel/participant associations from personnelIds (for backward compatibility)
-      if (personnelIds.length > 0 && participants.length === 0) {
-        for (const personnelId of personnelIds) {
-          const personnel = await storage.getPersonnel(personnelId, teamId);
-          if (personnel) {
-            await storage.createShootParticipant({
-              shootId: createdShoot.id,
-              name: personnel.name,
-              role: "Participant",
-              email: personnel.email,
-              personnelId: personnel.id,
-            });
-          }
-        }
-      }
-      
-      // Create resource associations
-      if (equipmentIds.length > 0) {
-        for (const equipmentId of equipmentIds) {
-          await storage.createShootEquipment({
-            shootId: createdShoot.id,
-            equipmentId,
-            quantity: 1,
-          });
-        }
-      }
-      
-      if (propIds.length > 0) {
-        for (const propId of propIds) {
-          await storage.createShootProp({
-            shootId: createdShoot.id,
-            propId,
-          });
-        }
-      }
-      
-      if (costumeIds.length > 0) {
-        for (const costumeId of costumeIds) {
-          await storage.createShootCostume({
-            shootId: createdShoot.id,
-            costumeId,
-          });
-        }
-      }
-      
       res.status(201).json(createdShoot);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors });
       }
+      console.error("Error creating shoot:", error);
       res
-        .status(401)
+        .status(500)
         .json({
-          error: error instanceof Error ? error.message : "Unauthorized",
+          error: error instanceof Error ? error.message : "Internal server error",
         });
     }
   });
