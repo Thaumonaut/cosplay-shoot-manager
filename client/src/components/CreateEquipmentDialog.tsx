@@ -244,6 +244,7 @@ export function CreateEquipmentDialog({
             <InlineEdit
               value={name}
               onChange={setName}
+              autoFocus={true}
               placeholder="e.g., Canon EOS R5"
               type="text"
               data-testid="input-equipment-name"

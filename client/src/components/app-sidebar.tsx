@@ -45,7 +45,7 @@ const menuItems = [
 
 const resourceItems = [
   {
-    title: "Personnel",
+    title: "Crew",
     url: "/personnel",
     icon: Users,
     testId: "link-resource-personnel",

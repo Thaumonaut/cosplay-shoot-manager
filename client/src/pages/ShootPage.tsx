@@ -1429,7 +1429,7 @@ export default function ShootPage() {
                   data-testid={`card-costume-${costumeId}`}
                 >
                   <CardContent className="p-0 relative">
-                    <div className="flex items-start gap-4 p-4">
+                    <div className="flex items-center gap-4 p-4">
                       {costume.imageUrl && (
                         <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                           <img 
@@ -1510,7 +1510,7 @@ export default function ShootPage() {
                   data-testid={`card-prop-${propId}`}
                 >
                   <CardContent className="p-0 relative">
-                    <div className="flex items-start gap-4 p-4">
+                    <div className="flex items-center gap-4 p-4">
                       {prop.imageUrl && (
                         <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
                           <img 
@@ -1550,7 +1550,7 @@ export default function ShootPage() {
       {/* Team Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Team</h2>
+          <h2 className="text-lg font-semibold">Crew</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" data-testid="button-add-personnel">
@@ -1591,8 +1591,8 @@ export default function ShootPage() {
                   data-testid={`card-personnel-${personnelId}`}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12 flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <Avatar className="h-16 w-16 flex-shrink-0">
                         <AvatarImage src={person.avatarUrl || undefined} alt={person.name} />
                         <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
                       </Avatar>
@@ -1720,6 +1720,29 @@ export default function ShootPage() {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
+                      {(item.imageUrl || true) && (
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded overflow-hidden bg-muted">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              role="img"
+                              aria-label="Equipment placeholder"
+                              className="w-full h-full text-muted-foreground"
+                            >
+                              <rect width="100%" height="100%" fill="none" />
+                              <path d="M21 7h-3.2l-1.6-1.6A1 1 0 0 0 15.8 5H8.2a1 1 0 0 0-.8.4L5.8 7H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z" fill="currentColor" opacity="0.06" />
+                              <circle cx="12" cy="13" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            </svg>
+                          )}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg">{item.name}</h3>
                         <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
@@ -2000,7 +2023,14 @@ export default function ShootPage() {
         onSave={async (newEquipment) => {
           const newId = extractId(newEquipment, ['id', 'equipmentId', 'equipment_id']);
           if (!newId) return;
-          await appendAndPersist('equipment', newId);
+          await appendAndPersist(
+            'equipment',
+            newId,
+            { personnelRef, equipmentRef, propsRef, costumesRef },
+            { setSelectedPersonnel, setSelectedEquipment, setSelectedProps, setSelectedCostumes },
+            isNew,
+            id
+          );
           queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
         }}
       />
@@ -2032,7 +2062,14 @@ export default function ShootPage() {
         onSave={async (newProp) => {
           const newId = extractId(newProp, ['id', 'propId', 'prop_id']);
           if (!newId) return;
-          await appendAndPersist('prop', newId);
+          await appendAndPersist(
+            'prop',
+            newId,
+            { personnelRef, equipmentRef, propsRef, costumesRef },
+            { setSelectedPersonnel, setSelectedEquipment, setSelectedProps, setSelectedCostumes },
+            isNew,
+            id
+          );
           queryClient.invalidateQueries({ queryKey: ["/api/props"] });
         }}
       />
@@ -2047,7 +2084,14 @@ export default function ShootPage() {
           const newId = extractId(newCostume, ['id', 'costumeId', 'costume_id']);
           if (!newId) return;
           // Use the shared helper which updates refs and persists using current refs
-          await appendAndPersist('costume', newId);
+          await appendAndPersist(
+            'costume',
+            newId,
+            { personnelRef, equipmentRef, propsRef, costumesRef },
+            { setSelectedPersonnel, setSelectedEquipment, setSelectedProps, setSelectedCostumes },
+            isNew,
+            id
+          );
           queryClient.invalidateQueries({ queryKey: ['/api/costumes'] });
         }}
       />

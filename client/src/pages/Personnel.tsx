@@ -74,10 +74,10 @@ export default function Personnel() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-personnel">
-            Personnel
+            Crew
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your team members, models, photographers, and other contacts
+            Manage your crew members, models, photographers, and other contacts
           </p>
         </div>
         <Button
@@ -103,16 +103,16 @@ export default function Personnel() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No personnel yet</h3>
+            <h3 className="text-lg font-semibold mb-2">No crew yet</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Add your first team member to start tracking your crew
+              Add your first crew member to start tracking your team
             </p>
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               data-testid="button-add-first-personnel"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Personnel
+              Add Crew
             </Button>
           </CardContent>
         </Card>
@@ -125,9 +125,9 @@ export default function Personnel() {
               onClick={() => openEditDialog(person)}
               data-testid={`card-personnel-${person.id}`}
             >
-              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <Avatar>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
                     <AvatarImage src={person.avatarUrl || undefined} />
                     <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
                   </Avatar>

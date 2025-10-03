@@ -193,7 +193,7 @@ export function CreateLocationDialog({ open, onOpenChange, onSuccess, onSave, ed
 
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
-            <InlineEdit value={name} onChange={setName} placeholder={name ? "e.g., Central Park" : (selectedLocationName || "e.g., Central Park")} type="text" data-testid="input-location-name" />
+            <InlineEdit value={name} onChange={setName} placeholder={name ? "e.g., Central Park" : (selectedLocationName || "e.g., Central Park")} type="text" data-testid="input-location-name" autoFocus={true} />
             {selectedLocationName && !name && (
               <div className="text-sm text-muted-foreground mt-1 flex items-center justify-between">
                 <span>Using "{selectedLocationName}" as the default name</span>

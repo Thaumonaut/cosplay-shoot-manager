@@ -208,6 +208,7 @@ export function CreatePropsDialog({
             <InlineEdit
               value={name}
               onChange={setName}
+              autoFocus={true}
               placeholder="e.g., Sword of Destiny"
               type="text"
               data-testid="input-props-name"

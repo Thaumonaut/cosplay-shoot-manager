@@ -222,6 +222,7 @@ export function CreateCostumesDialog({
             <InlineEdit
               value={characterName}
               onChange={setCharacterName}
+              autoFocus={true}
               placeholder="e.g., Sailor Moon"
               type="text"
               data-testid="input-costumes-character"

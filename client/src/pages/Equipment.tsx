@@ -111,10 +111,28 @@ export default function Equipment() {
               onClick={() => openEditDialog(equip)}
               data-testid={`card-equipment-${equip.id}`}
             >
-              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                    <Package className="h-5 w-5" />
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded overflow-hidden bg-muted">
+                    {equip.imageUrl ? (
+                      <img
+                        src={equip.imageUrl}
+                        alt={equip.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        role="img"
+                        aria-label="Equipment placeholder"
+                        className="w-full h-full text-muted-foreground"
+                      >
+                        <rect width="100%" height="100%" fill="none" />
+                        <path d="M21 7h-3.2l-1.6-1.6A1 1 0 0 0 15.8 5H8.2a1 1 0 0 0-.8.4L5.8 7H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z" fill="currentColor" opacity="0.06" />
+                        <circle cx="12" cy="13" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      </svg>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate" data-testid={`text-equipment-name-${equip.id}`}>

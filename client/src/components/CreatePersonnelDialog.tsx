@@ -205,9 +205,9 @@ export function CreatePersonnelDialog({
     <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-personnel">
         <DialogHeader>
-          <DialogTitle>{editItem ? "Edit Person" : "Add New Person"}</DialogTitle>
+          <DialogTitle>{editItem ? "Edit Crew Member" : "Add New Crew Member"}</DialogTitle>
           <DialogDescription>
-            {editItem ? "Update person details" : "Create a new person to add to your team"}
+            {editItem ? "Update crew member details" : "Create a new crew member to add to your team"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -225,6 +225,7 @@ export function CreatePersonnelDialog({
             <InlineEdit
               value={name}
               onChange={setName}
+              autoFocus={true}
               placeholder="e.g., John Doe"
               type="text"
               data-testid="input-personnel-name"

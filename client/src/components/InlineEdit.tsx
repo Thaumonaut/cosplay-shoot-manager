@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 interface InlineEditProps {
   value: string;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
   placeholder?: string;
   className?: string;
   textClassName?: string;
@@ -21,11 +22,13 @@ export function InlineEdit({
   textClassName = "",
   disabled = false,
   type = "text",
+  autoFocus = false,
   "data-testid": testId,
 }: InlineEditProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const suppressBlurRef = useRef(false);
 
   useEffect(() => {
     setEditValue(value);
@@ -33,12 +36,44 @@ export function InlineEdit({
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      if (type === "text" || type === "email") {
-        inputRef.current.select();
-      }
+      // Defer focus so that if the component toggles internal state (e.g. from
+      // readOnly -> editable) the final input node receives focus and the
+      // caret/selection can be set. Avoid forcing a blur here because that can
+      // trigger the onBlur save behavior and immediately exit edit mode.
+      setTimeout(() => {
+        try {
+          inputRef.current?.focus();
+          if (type === "text" || type === "email") {
+            try {
+              const len = inputRef.current?.value?.length ?? 0;
+              inputRef.current?.setSelectionRange?.(len, len);
+            } catch {}
+          }
+        } catch {}
+      }, 0);
     }
   }, [isEditing, type]);
+
+  // If parent requests autoFocus, enter editing mode when mounted/opened.
+  useEffect(() => {
+    if (autoFocus) {
+      // When autoFocus is requested, enter editing mode and focus the input.
+      // Suppress the first onBlur event that may fire due to DOM/React
+      // remounts or focus juggling during dialog open so we don't immediately
+      // commit & exit edit mode.
+      suppressBlurRef.current = true;
+      setTimeout(() => {
+        setIsEditing(true);
+        try {
+          inputRef.current?.focus();
+        } catch {}
+        // Allow a small window for focus to stabilize before honoring blurs.
+        setTimeout(() => {
+          suppressBlurRef.current = false;
+        }, 50);
+      }, 0);
+    }
+  }, [autoFocus]);
 
   const handleSave = () => {
     setIsEditing(false);
@@ -115,7 +150,16 @@ export function InlineEdit({
       }}
       onChange={(e) => setEditValue(e.target.value)}
       // Delay save on blur to avoid interrupting native Tab navigation.
-      onBlur={() => setTimeout(handleSave, 0)}
+      onBlur={() => {
+        // If a dialog is opening globally, ignore the blur because it may be
+        // transient due to remount/focus juggling. Also respect the local
+        // suppress flag used when autoFocus initiated the focus.
+        try {
+          if ((window as any).__dialogOpening) return;
+        } catch {}
+        if (suppressBlurRef.current) return;
+        setTimeout(handleSave, 0);
+      }}
       onKeyDown={handleKeyDown}
       // When not editing, visually style the input to look like plain text
       className={cn(
@@ -126,6 +170,7 @@ export function InlineEdit({
       )}
       data-testid={testId}
       placeholder={placeholder}
+      {...(autoFocus ? { "data-dialog-autofocus": "true" } : {})}
     />
   );
 }
