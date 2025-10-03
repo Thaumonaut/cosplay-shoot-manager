@@ -1032,6 +1032,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Maps JavaScript API configuration endpoint
+  app.get("/api/google-maps-config", authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Google Maps API key not configured" });
+      }
+      res.json({ apiKey });
+    } catch (error) {
+      console.error("Error fetching Google Maps config:", error);
+      res.status(500).json({ error: "Failed to fetch Google Maps configuration" });
+    }
+  });
+
   // Get shoot resources
   app.get("/api/shoots/:id/equipment", authenticateUser, async (req: AuthRequest, res) => {
     try {
