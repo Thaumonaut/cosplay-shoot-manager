@@ -266,3 +266,37 @@ Now you can run `npm run dev` without setting variables each time.
 ## License
 
 MIT
+
+## Docker
+
+You can build and run the whole application in a Docker container. The provided multi-stage `Dockerfile` builds the client and bundles the server into `dist/`, then runs the production server.
+
+Build the image locally:
+
+```powershell
+docker build -t cosplay-shoot-manager:latest .
+```
+
+Run the image (exposes port 5000):
+
+```powershell
+docker run --rm -p 5000:5000 \
+   -e DATABASE_URL="postgresql://user:password@host:5432/db" \
+   -e SUPABASE_URL="your_supabase_url" \
+   -e SUPABASE_ANON_KEY="your_key" \
+   -e SUPABASE_SERVICE_ROLE_KEY="your_key" \
+   cosplay-shoot-manager:latest
+```
+
+Or use docker-compose (build + run):
+
+```powershell
+docker-compose up --build
+```
+
+The server will be available at `http://localhost:5000` (unless you change the `PORT` env var).
+
+Notes:
+- Supply any required environment variables for database and third-party services when running the container.
+- For production deployments, consider using a managed Postgres service and secure secret management.
+
