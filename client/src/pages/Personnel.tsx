@@ -37,15 +37,15 @@ export default function Personnel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
       setDeletingId(null);
-      toast({
-        title: "Success",
-        description: "Personnel deleted successfully",
-      });
+          toast({
+            title: "Success",
+            description: "Crew member deleted successfully",
+          });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to delete personnel",
+            description: "Failed to delete crew member",
         variant: "destructive",
       });
     },
@@ -85,7 +85,7 @@ export default function Personnel() {
           data-testid="button-add-personnel"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Personnel
+          Add Crew
         </Button>
       </div>
 
@@ -205,9 +205,9 @@ export default function Personnel() {
       <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Personnel</AlertDialogTitle>
+            <AlertDialogTitle>Delete Crew Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this person? This action cannot be
+              Are you sure you want to delete this crew member? This action cannot be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

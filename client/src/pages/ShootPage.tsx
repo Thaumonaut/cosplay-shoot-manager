@@ -1572,7 +1572,7 @@ export default function ShootPage() {
                 </DropdownMenuItem>
               ))}
               {availablePersonnel.length === 0 && (
-                <DropdownMenuItem disabled>No personnel available</DropdownMenuItem>
+                <DropdownMenuItem disabled>No crew available</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

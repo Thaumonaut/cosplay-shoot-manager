@@ -33,6 +33,7 @@ export function CreatePersonnelDialog({
   onSave,
   editItem,
 }: CreatePersonnelDialogProps) {
+  console.debug('[test-debug] CreatePersonnelDialog render, open=', open);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const dialog = useOptionalDialog();
@@ -56,6 +57,7 @@ export function CreatePersonnelDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      console.debug('[test-debug] createMutation.mutationFn called');
       const response = await fetch("/api/personnel", {
         method: "POST",
         credentials: "include",
@@ -68,10 +70,11 @@ export function CreatePersonnelDialog({
       return await response.json();
     },
     onSuccess: (newPersonnel) => {
+      console.debug('[test-debug] createMutation.onSuccess', newPersonnel);
       queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
       toast({
         title: "Success",
-        description: "Personnel added successfully",
+        description: "Crew member added successfully",
       });
       resetForm();
       onOpenChange(false);
@@ -98,7 +101,7 @@ export function CreatePersonnelDialog({
       console.error('CreatePersonnelDialog create error', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create personnel",
+        description: error.message || "Failed to create crew member",
         variant: "destructive",
       });
     },
@@ -122,7 +125,7 @@ export function CreatePersonnelDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/personnel", editItem!.id] });
       toast({
         title: "Success",
-        description: "Personnel updated successfully",
+        description: "Crew member updated successfully",
       });
       resetForm();
       onOpenChange(false);
@@ -146,7 +149,7 @@ export function CreatePersonnelDialog({
       console.error('CreatePersonnelDialog update error', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update personnel",
+        description: error.message || "Failed to update crew member",
         variant: "destructive",
       });
     },
@@ -163,6 +166,7 @@ export function CreatePersonnelDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.debug('[test-debug] handleSubmit called, name=', name);
     if (!name.trim()) {
       toast({
         title: "Error",

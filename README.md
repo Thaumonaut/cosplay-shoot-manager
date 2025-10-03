@@ -6,7 +6,7 @@ A comprehensive web application for managing and organizing cosplay photo shoots
 
 - **Team-based collaboration** with role-based permissions (Owner, Admin, Member)
 - **Shoot management** with Kanban board and calendar views
-- **Resource tracking** for personnel, costumes, equipment, props, and locations
+- **Resource tracking** for crew, costumes, equipment, props, and locations
 - **Google Calendar & Google Docs integration** for scheduling and collaboration
 - **Enhanced UI** with detailed resource cards and role assignment
 - **Image reference management** via Instagram links and cloud storage

@@ -67,23 +67,23 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
   - Team member management routes verify admin/owner role for specific team
 
 ### ShootPage UX Enhancements (October 2025)
-- **Inline Resource Creation**: Redesigned all resource dropdowns (Location, Equipment, Props, Costumes, Personnel) to include "Create New..." as the first option
+-- **Inline Resource Creation**: Redesigned all resource dropdowns (Location, Equipment, Props, Costumes, Crew) to include "Create New..." as the first option
   - Removed all standalone "Add" buttons for cleaner interface
   - Selecting "Create New..." opens the respective creation dialog
   - Maintains consistent UX pattern across all resource types
-- **Personnel Role Management**: Enhanced role assignment with dropdown of predefined roles
+-- **Crew Role Management**: Enhanced role assignment with dropdown of predefined roles
   - 7 predefined roles: Photographer, Videographer, Model, Makeup Artist, Stylist, Assistant, Coordinator
   - "Custom Role..." option allows users to enter custom roles via text input
   - Uses "__CUSTOM__" sentinel value to toggle between dropdown and text input
   - Backward compatible with existing custom roles from database
-- **Personnel Avatar Upload**: Added complete avatar upload functionality
+-- **Crew Avatar Upload**: Added complete avatar upload functionality
   - Frontend: Avatar upload input with circular preview (24x24px) in CreatePersonnelDialog
   - Backend: Multer-based file upload to Supabase Storage at `public/personnel/{teamId}/`
   - Returns public URL stored in `personnel.avatar_url` field
   - Follows same pattern as props/costumes image uploads
 
 ### Resource Pages Refactor (October 2025)
-- **Unified Create Dialog Pattern**: All resource pages (Locations, Equipment, Props, Costumes, Personnel) now use dedicated Create dialog components
+-- **Unified Create Dialog Pattern**: All resource pages (Locations, Equipment, Props, Costumes, Crew) now use dedicated Create dialog components
   - Creation: Uses standalone Create dialogs (CreateLocationDialog, CreateEquipmentDialog, etc.)
   - Editing: Retains embedded edit dialogs for inline editing experience
   - Consistent UX across all resource management pages
@@ -100,7 +100,7 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
 - **Cleaner Visual Hierarchy**: Streamlined card structure for better readability
   - Back button + action buttons (Calendar, Docs, Reminders, Delete)
   - Details card: title, status, date/time/duration, reminder, public sharing
-  - Resources card: location, costumes, props, personnel, equipment
+  - Resources card: location, costumes, props, crew, equipment
   - Instagram References card: link management
   - Notes card: additional details
   - Submit/Cancel buttons
