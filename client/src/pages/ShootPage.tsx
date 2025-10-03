@@ -596,7 +596,7 @@ export default function ShootPage() {
     const shootData: any = {
       title: title.trim(),
       status,
-      date: date ? date.toISOString() : null,
+      date: date && date instanceof Date && !isNaN(date.getTime()) ? date.toISOString() : null,
       time: time.trim() || null,
       durationMinutes: durationMinutes || null,
       reminderTime: reminderTimeValue,
