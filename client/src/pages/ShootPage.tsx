@@ -213,13 +213,12 @@ export default function ShootPage() {
     if (!isNew && shootParticipants.length > 0) {
       setSelectedPersonnel(
         shootParticipants
-          .map((p: any) => p.personnelId ?? p.personnel_id)
+          .map((p: any) => p.personnelId)
           .filter(Boolean),
       );
       const roles: Record<string, string> = {};
       shootParticipants.forEach((p: any) => {
-        const personnelId = p.personnelId ?? p.personnel_id;
-        if (p.role && personnelId) roles[personnelId] = p.role;
+        if (p.role && p.personnelId) roles[p.personnelId] = p.role;
       });
       setPersonnelRoles(roles);
     }
@@ -229,7 +228,7 @@ export default function ShootPage() {
     if (!isNew && shootEquipment.length > 0) {
       setSelectedEquipment(
         shootEquipment
-          .map((e: any) => e.equipmentId ?? e.equipment_id)
+          .map((e: any) => e.equipmentId)
           .filter(Boolean),
       );
     }
@@ -238,7 +237,7 @@ export default function ShootPage() {
   useEffect(() => {
     if (!isNew && shootProps.length > 0) {
       setSelectedProps(
-        shootProps.map((p: any) => p.propId ?? p.prop_id).filter(Boolean),
+        shootProps.map((p: any) => p.propId).filter(Boolean),
       );
     }
   }, [isNew, shootProps]);
@@ -247,7 +246,7 @@ export default function ShootPage() {
     if (!isNew && shootCostumes.length > 0) {
       setSelectedCostumes(
         shootCostumes
-          .map((c: any) => c.costumeId ?? c.costume_id)
+          .map((c: any) => c.costumeId)
           .filter(Boolean),
       );
     }
