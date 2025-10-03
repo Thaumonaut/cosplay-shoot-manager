@@ -33,9 +33,13 @@ export function responseToCamelCase(req: Request, res: Response, next: NextFunct
   const originalJson = res.json.bind(res);
   
   res.json = function(body: any) {
-    // Convert the response body to camelCase before sending
-    const camelCaseBody = toCamelCase(body);
-    return originalJson(camelCaseBody);
+    // Only convert if this is a successful response and body is an object
+    // Skip conversion for errors or primitive values
+    if (body && typeof body === 'object' && !body.error && !body.message) {
+      const camelCaseBody = toCamelCase(body);
+      return originalJson(camelCaseBody);
+    }
+    return originalJson(body);
   };
   
   next();
