@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+  import { createCalendarEvent, createCalendarWithProvider, createDocs, createDocsWithProvider, sendReminders, deleteShoot } from "@/lib/shootActions";
 import { extractIds, extractId } from "@/lib/resourceUtils";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge, type ShootStatus } from "@/components/StatusBadge";
@@ -397,7 +398,7 @@ export default function ShootPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/shoots/${id}`);
+      await deleteShoot(id as string);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
@@ -456,17 +457,80 @@ export default function ShootPage() {
 
   const createDocsMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/shoots/${id}/docs`, {});
+      // Build a snapshot of the current page state so the server can
+      // generate a document that reflects unsaved local changes.
+      const participantsSnapshot = [
+        // include manual participants (those without personnelId)
+        ...(shootParticipants || []).filter((p: any) => !p.personnelId).map((p: any) => ({
+          name: p.name,
+          role: p.role,
+          email: p.email || null,
+        })),
+        // include selected personnel
+        ...selectedPersonnel.map(pid => {
+          const person = personnel.find(p => p.id === pid);
+          return {
+            personnelId: pid,
+            name: person?.name || 'Unknown',
+            role: personnelRoles[pid] || 'Participant',
+            email: person?.email || null,
+          };
+        }),
+      ];
+
+      const equipmentSnapshot = selectedEquipment.map(eid => equipment.find(e => e.id === eid)).filter(Boolean);
+      const propsSnapshot = selectedProps.map(pid => props.find(p => p.id === pid)).filter(Boolean);
+      const costumesSnapshot = selectedCostumes.map(cid => costumes.find(c => c.id === cid)).filter(Boolean);
+
+      const locationSnapshot = selectedLocation || (existingShoot?.location || null);
+
+      const shootSnapshot: any = {
+        id: existingShoot?.id || id,
+        title,
+        status,
+        date: date ? date.toISOString() : null,
+        time: time || null,
+        durationMinutes: durationMinutes || null,
+        locationId: locationId || null,
+        location: locationSnapshot,
+        description: description || null,
+        color,
+        instagramLinks: instagramLinks.length > 0 ? instagramLinks : [],
+        participants: participantsSnapshot,
+        references: existingShoot?.references || [],
+        equipment: equipmentSnapshot,
+        props: propsSnapshot,
+        costumes: costumesSnapshot,
+      };
+
+      const response = await createDocs(id as string, shootSnapshot);
       return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+      // Open the created/updated doc in a new tab if provided
+      if (data?.docUrl) {
+        try {
+          window.open(data.docUrl, '_blank', 'noopener');
+        } catch (e) {
+          // ignore popup blockers
+        }
+        setLastResourceLink({ type: 'docs', url: data.docUrl });
+      }
+
       toast({
         title: "Success",
         description: data.message,
       });
     },
     onError: (error: Error) => {
+      const msg = error?.message || '';
+      // If the server indicates the service-account isn't configured, offer OAuth
+      if (msg.includes('503') && msg.toLowerCase().includes('google docs')) {
+        setSaveModalOpen(true);
+        return;
+      }
+
       toast({
         title: "Error",
         description: error.message || "Failed to create/update document",
@@ -475,9 +539,165 @@ export default function ShootPage() {
     },
   });
 
+  // UI state for Save options modal
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  // Small persistent hint for last created resource (doc or calendar event)
+  const [lastResourceLink, setLastResourceLink] = useState<{ type: 'docs' | 'calendar'; url: string } | null>(null);
+
+  const handleDocsButton = () => {
+    // Auto-detect available integrations and pick best flow
+    (async () => {
+      try {
+        const res = await fetch('/api/integrations/check', { credentials: 'include' });
+        if (!res.ok) {
+          setSaveModalOpen(true);
+          return;
+        }
+        const json = await res.json();
+        const { serviceAccountConfigured, oauthClientConfigured, userHasGoogleProvider } = json;
+
+        if (serviceAccountConfigured) {
+          // Prefer service account if available
+          setSaveModalOpen(true);
+          return;
+        }
+
+        if (userHasGoogleProvider) {
+          // Try to create document using the user's provider token (no re-consent)
+          try {
+            const resp = await createDocsWithProvider(id as string);
+            const data = await resp.json();
+            if (data?.docUrl) {
+              try { window.open(data.docUrl, '_blank', 'noopener'); } catch (e) {}
+            }
+            return;
+          } catch (e) {
+            // If provider-based call fails, fall back to OAuth if available
+              if (oauthClientConfigured) {
+              startGoogleOAuth('docs');
+              return;
+            }
+          }
+        }
+
+        if (oauthClientConfigured) {
+          startGoogleOAuth('docs');
+          return;
+        }
+
+        // Fallback - show modal so user can pick
+        setSaveModalOpen(true);
+      } catch (e) {
+        setSaveModalOpen(true);
+      }
+    })();
+  };
+
+  const handleCalendarButton = () => {
+    (async () => {
+      try {
+        const res = await fetch('/api/integrations/check', { credentials: 'include' });
+        if (!res.ok) {
+          // fallback to standard create
+          createCalendarEventMutation.mutate();
+          return;
+        }
+        const json = await res.json();
+        const { serviceAccountConfigured, oauthClientConfigured, userHasGoogleProvider } = json;
+
+        // Prefer provider token if the user signed in with Google
+        if (userHasGoogleProvider) {
+          try {
+            const resp = await createCalendarWithProvider(id as string);
+            const data = await resp.json();
+            if (data?.eventUrl) {
+              try { window.open(data.eventUrl, '_blank', 'noopener'); } catch (e) {}
+            }
+            return;
+          } catch (e) {
+            // If provider-based call fails, fall back to OAuth if available
+            if (oauthClientConfigured) {
+              startGoogleOAuth('calendar');
+              return;
+            }
+          }
+        }
+
+        // If user isn't signed in with Google but OAuth client is configured, prompt for consent
+        if (oauthClientConfigured) {
+          startGoogleOAuth('calendar');
+          return;
+        }
+
+        // Otherwise fall back to service account (server-side) if present
+        if (serviceAccountConfigured) {
+          createCalendarEventMutation.mutate();
+          return;
+        }
+
+        // Final fallback
+        createCalendarEventMutation.mutate();
+      } catch (e) {
+        createCalendarEventMutation.mutate();
+      }
+    })();
+  };
+
+  const startGoogleOAuth = (action: 'docs' | 'calendar') => {
+    // Open popup to server oauth-start route which will redirect to Google
+    const popup = window.open(`/api/google/oauth-start?action=${action}&shootId=${id}`, '_blank', 'noopener');
+    if (!popup) {
+      toast({ title: 'Popup blocked', description: 'Please allow popups to authorize Google', variant: 'destructive' });
+      return;
+    }
+    setSaveModalOpen(false);
+
+    // Listen for messages from the popup: both oauth-not-configured and oauth-success
+    const onMessage = (ev: MessageEvent) => {
+      try {
+        const data = ev.data;
+        if (!data || typeof data !== 'object') return;
+
+        // Fallback when server says OAuth isn't configured
+        if (data.type === 'oauth-not-configured' && data.action === action) {
+          if (action === 'docs') {
+            createDocsMutation.mutate();
+          } else if (action === 'calendar') {
+            createCalendarEventMutation.mutate();
+          }
+          window.removeEventListener('message', onMessage);
+          try { if (popup && !popup.closed) popup.close(); } catch (e) {}
+          return;
+        }
+
+        // Success message: server created the doc or calendar event and posts the URL
+        if (data.type === 'oauth-success' && data.action === action) {
+              if (action === 'docs' && data.docUrl) {
+                try { window.open(data.docUrl, '_blank', 'noopener'); } catch (e) {}
+                toast({ title: 'Document created', description: 'Opened in a new tab' });
+                setLastResourceLink({ type: 'docs', url: data.docUrl });
+              }
+              if (action === 'calendar' && data.eventUrl) {
+                try { window.open(data.eventUrl, '_blank', 'noopener'); } catch (e) {}
+                toast({ title: 'Calendar Event created', description: 'Opened in a new tab' });
+                setLastResourceLink({ type: 'calendar', url: data.eventUrl });
+              }
+
+          window.removeEventListener('message', onMessage);
+          try { if (popup && !popup.closed) popup.close(); } catch (e) {}
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    window.addEventListener('message', onMessage, { once: true });
+  };
+
   const createCalendarEventMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/shoots/${id}/create-calendar-event`, {});
+      const response = await createCalendarEvent(id as string);
       return await response.json();
     },
     onSuccess: (data) => {
@@ -498,7 +718,7 @@ export default function ShootPage() {
 
   const sendRemindersMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/shoots/${id}/send-reminders`, {});
+      const response = await sendReminders(id as string);
       return await response.json();
     },
     onSuccess: (data) => {
@@ -694,6 +914,8 @@ export default function ShootPage() {
     setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
+  // Save options dialog markup will be rendered near the end of component
+
   const handleAddImages = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -748,6 +970,21 @@ export default function ShootPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
+      {lastResourceLink && (
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md flex items-center justify-between">
+          <div className="text-sm">
+            {lastResourceLink.type === 'docs' ? (
+              <span>Document created. </span>
+            ) : (
+              <span>Calendar event created. </span>
+            )}
+            <a href={lastResourceLink.url} target="_blank" rel="noopener noreferrer" className="underline ml-1">Open</a>
+          </div>
+          <div>
+            <button className="text-sm text-muted-foreground" onClick={() => setLastResourceLink(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
       {/* Compact Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -777,7 +1014,7 @@ export default function ShootPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => createCalendarEventMutation.mutate()}
+                onClick={handleCalendarButton}
                 disabled={isNew || createCalendarEventMutation.isPending}
                 data-testid="button-create-calendar"
               >
@@ -802,7 +1039,7 @@ export default function ShootPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => createDocsMutation.mutate()}
+                onClick={handleDocsButton}
                 disabled={isNew || createDocsMutation.isPending}
                 data-testid="button-create-docs"
               >
@@ -1928,6 +2165,30 @@ export default function ShootPage() {
               {currentImageIndex + 1} / {allImages.length}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogTitle>Save options</DialogTitle>
+          <div className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">Choose how you'd like to save this shoot.</p>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-2 border rounded-md"
+                onClick={() => { createDocsMutation.mutate(); setSaveModalOpen(false); }}
+                data-testid="save-with-service-account"
+              >
+                Save with service account
+              </button>
+              <button
+                className="px-3 py-2 bg-blue-600 text-white rounded-md"
+                onClick={() => startGoogleOAuth('docs')}
+                data-testid="save-to-google"
+              >
+                Save to your Google
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -165,7 +165,7 @@ export default function Auth() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Camera className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl">CosPlay Tracker</CardTitle>
+          <CardTitle className="text-2xl">CosPlans</CardTitle>
           <CardDescription>
             Track and manage your cosplay photo shoots
           </CardDescription>

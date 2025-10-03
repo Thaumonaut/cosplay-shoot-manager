@@ -1,50 +1,34 @@
 import { google } from 'googleapis';
 
-let connectionSettings: any;
-
-async function getAccessToken() {
-  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return connectionSettings.settings.access_token;
-  }
-  
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-  }
-
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
-
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Google Calendar not connected');
-  }
-  return accessToken;
-}
-
 async function getUncachableGoogleCalendarClient() {
-  const accessToken = await getAccessToken();
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT || process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) {
+    throw new Error('Google Calendar service account not configured: set GOOGLE_SERVICE_ACCOUNT');
+  }
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
-    access_token: accessToken
-  });
+  let key: any;
+  try {
+    key = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (e) {
+    throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT JSON');
+  }
 
-  return google.calendar({ version: 'v3', auth: oauth2Client });
+  if (!key.client_email || !key.private_key) {
+    throw new Error('Invalid service account key for Google Calendar');
+  }
+
+  const jwtClient = new google.auth.JWT({
+    email: key.client_email,
+    key: key.private_key,
+    scopes: [
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/calendar.events',
+    ],
+  } as any);
+
+  await jwtClient.authorize();
+
+  return google.calendar({ version: 'v3', auth: jwtClient });
 }
 
 export async function createCalendarEvent(

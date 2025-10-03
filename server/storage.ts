@@ -132,6 +132,11 @@ export interface IStorage {
   setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined>;
   ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }>;
 
+  // OAuth tokens
+  getOAuthToken(userId: string, provider: string): Promise<any | undefined>;
+  upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void>;
+  deleteOAuthToken(userId: string, provider: string): Promise<void>;
+
   // Team Invites
   getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined>;
   getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined>;
@@ -391,6 +396,41 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(personnel.id, id), eq(personnel.teamId, teamId)))
       .returning();
     return result.length > 0;
+  }
+
+  async getOAuthToken(userId: string, provider: string): Promise<any | undefined> {
+    const { oauthTokens } = await import('@shared/schema');
+    const [row] = await db.select().from(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
+    return row;
+  }
+
+  async upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void> {
+    const { oauthTokens } = await import('@shared/schema');
+    // Use simple upsert: try update, else insert
+    const existing = await db.select().from(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
+    if (existing.length > 0) {
+      await db.update(oauthTokens).set({
+        accessTokenEncrypted: tokenData.accessTokenEncrypted,
+        refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
+        scope: tokenData.scope,
+        expiresAt: tokenData.expiresAt,
+        updatedAt: new Date(),
+      }).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
+    } else {
+      await db.insert(oauthTokens).values({
+        userId,
+        provider,
+        accessTokenEncrypted: tokenData.accessTokenEncrypted,
+        refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
+        scope: tokenData.scope,
+        expiresAt: tokenData.expiresAt,
+      });
+    }
+  }
+
+  async deleteOAuthToken(userId: string, provider: string): Promise<void> {
+    const { oauthTokens } = await import('@shared/schema');
+    await db.delete(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
   }
 
   // Equipment methods
@@ -950,6 +990,66 @@ export class SupabaseStorage implements IStorage {
       .eq('id', id);
     
     return !error;
+  }
+
+  // OAuth token methods (Supabase-backed)
+  async getOAuthToken(userId: string, provider: string): Promise<any | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+
+    const { data, error } = await supabaseAdmin
+      .from('oauth_tokens')
+      .select()
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .single();
+
+    if (error) return undefined;
+    return toCamelCase(data);
+  }
+
+  async upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+
+    // Check if a row exists and update, otherwise insert
+    const { data: existing } = await supabaseAdmin
+      .from('oauth_tokens')
+      .select()
+      .eq('user_id', userId)
+      .eq('provider', provider);
+
+    const payload = toSnakeCase({
+      userId,
+      provider,
+      accessTokenEncrypted: tokenData.accessTokenEncrypted,
+      refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
+      scope: tokenData.scope,
+      expiresAt: tokenData.expiresAt,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (existing && existing.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('oauth_tokens')
+        .update(payload)
+        .eq('user_id', userId)
+        .eq('provider', provider);
+      if (error) throw new Error(`Failed to update oauth token: ${error.message}`);
+    } else {
+      const { error } = await supabaseAdmin
+        .from('oauth_tokens')
+        .insert(payload);
+      if (error) throw new Error(`Failed to insert oauth token: ${error.message}`);
+    }
+  }
+
+  async deleteOAuthToken(userId: string, provider: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    const { error } = await supabaseAdmin
+      .from('oauth_tokens')
+      .delete()
+      .eq('user_id', userId)
+      .eq('provider', provider);
+    if (error) throw new Error(`Failed to delete oauth token: ${error.message}`);
   }
 
   async getShootEquipment(shootId: string): Promise<Equipment[]> {

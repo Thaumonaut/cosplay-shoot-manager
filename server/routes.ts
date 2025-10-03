@@ -146,6 +146,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Integrations check - returns which server integrations are available and whether
+  // the current user has a Google identity in Supabase (if admin client is configured)
+  app.get('/api/integrations/check', authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const serviceAccountConfigured = !!(process.env.GOOGLE_SERVICE_ACCOUNT || process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+      const oauthClientConfigured = !!(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+      const resendConfigured = !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
+
+      let userHasGoogleProvider = false;
+      if (typeof supabaseAdmin !== 'undefined' && supabaseAdmin) {
+        try {
+          const userId = getUserId(req);
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+          const identities = (userData?.user as any)?.identities || [];
+          userHasGoogleProvider = identities.some((i: any) => i.provider === 'google');
+        } catch (e) {
+          // ignore admin lookup errors - just treat as not having provider info
+          userHasGoogleProvider = false;
+        }
+      }
+
+      res.json({
+        serviceAccountConfigured,
+        oauthClientConfigured,
+        resendConfigured,
+        userHasGoogleProvider,
+      });
+    } catch (error) {
+      console.error('Error checking integrations:', error);
+      res.status(500).json({ error: 'Failed to check integrations' });
+    }
+  });
+
+  // Create a Google Doc using the current user's Supabase Google provider token
+  app.post('/api/google/from-provider/docs', authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { shootId } = req.body as { shootId?: string };
+      if (!shootId) return res.status(400).json({ error: 'Missing shootId' });
+
+      // Try to fetch provider token via Supabase admin (if configured)
+      let providerAccessToken: string | undefined;
+      if (supabaseAdmin) {
+        try {
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+          const identities = (userData?.user as any)?.identities || [];
+          const googleIdentity = identities.find((i: any) => i.provider === 'google');
+          providerAccessToken = googleIdentity?.access_token;
+        } catch (e) {
+          // fall through
+        }
+      }
+
+      if (!providerAccessToken) {
+        return res.status(400).json({ error: 'No provider access token available' });
+      }
+
+      // Fetch shoot details from storage (team context)
+      const teamId = await getUserTeamId(userId);
+      const shoot = await storage.getTeamShoot(shootId, teamId);
+      if (!shoot) return res.status(404).json({ error: 'Shoot not found' });
+
+      const participants = await storage.getShootParticipants(shootId);
+      const references = await storage.getShootReferences(shootId);
+      const shootEquipment = await storage.getShootEquipment(shootId);
+      const shootProps = await storage.getShootProps(shootId);
+      const shootCostumes = await storage.getShootCostumes(shootId);
+
+      const equipmentIds = shootEquipment.map((e: any) => e.equipmentId);
+      const propIds = shootProps.map((p: any) => p.propId);
+      const costumeIds = shootCostumes.map((c: any) => c.costumeId);
+
+      const equipment = await Promise.all(equipmentIds.map(id => storage.getEquipment(id, teamId)));
+      const props = await Promise.all(propIds.map(id => storage.getProp(id, teamId)));
+      const costumes = await Promise.all(costumeIds.map(id => storage.getCostumeProgress(id, teamId)));
+      const location = shoot.locationId ? await storage.getLocation(shoot.locationId, teamId) : null;
+
+      const shootWithDetails = {
+        ...shoot,
+        participants,
+        references,
+        equipment: equipment.filter(Boolean),
+        props: props.filter(Boolean),
+        costumes: costumes.filter(Boolean),
+        location,
+      };
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({ access_token: providerAccessToken });
+      const docsClient = google.docs({ version: 'v1', auth: oauth2Client });
+
+      let result: any;
+      if (shoot.docsId) {
+        const { updateShootDocument } = await import('./services/docs-update');
+        result = await updateShootDocument(shoot.docsId, shootWithDetails as any, docsClient);
+      } else {
+        const { createShootDocument } = await import('./services/docs-export');
+        result = await createShootDocument(shootWithDetails as any, docsClient);
+      }
+
+      if (result?.docUrl) {
+        await storage.updateShoot(shootId, teamId, { docsId: result.docId, docsUrl: result.docUrl });
+      }
+
+      res.json({ docId: result.docId, docUrl: result.docUrl });
+    } catch (error) {
+      console.error('Error creating doc from provider token:', error);
+      res.status(500).json({ error: 'Failed to create doc from provider token' });
+    }
+  });
+
+  // Create or update a Google Calendar event using the current user's Supabase Google provider token
+  app.post('/api/google/from-provider/calendar', authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { shootId } = req.body as { shootId?: string };
+      if (!shootId) return res.status(400).json({ error: 'Missing shootId' });
+
+      // Try to fetch provider token via Supabase admin (if configured)
+      let providerAccessToken: string | undefined;
+      if (supabaseAdmin) {
+        try {
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+          const identities = (userData?.user as any)?.identities || [];
+          const googleIdentity = identities.find((i: any) => i.provider === 'google');
+          providerAccessToken = googleIdentity?.access_token;
+        } catch (e) {
+          // fall through
+        }
+      }
+
+      if (!providerAccessToken) {
+        return res.status(400).json({ error: 'No provider access token available' });
+      }
+
+      // Fetch shoot details from storage (team context)
+      const teamId = await getUserTeamId(userId);
+      const shoot = await storage.getTeamShoot(shootId, teamId);
+      if (!shoot) return res.status(404).json({ error: 'Shoot not found' });
+
+      if (!shoot.date) {
+        return res.status(400).json({ error: 'Shoot must have a date to create calendar event' });
+      }
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({ access_token: providerAccessToken });
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+      const startDate = new Date(shoot.date);
+      const endDate = new Date(startDate);
+      endDate.setHours(endDate.getHours() + 2);
+
+      let eventResult: any;
+      if (shoot.calendarEventId) {
+        // Update existing event
+        const event = {
+          summary: shoot.title,
+          location: shoot.locationNotes || undefined,
+          description: shoot.description || undefined,
+          start: { dateTime: startDate.toISOString(), timeZone: 'UTC' },
+          end: { dateTime: endDate.toISOString(), timeZone: 'UTC' },
+        };
+        eventResult = await calendar.events.update({ calendarId: 'primary', eventId: shoot.calendarEventId, requestBody: event });
+      } else {
+        const event = {
+          summary: shoot.title,
+          location: shoot.locationNotes || undefined,
+          description: shoot.description || undefined,
+          start: { dateTime: startDate.toISOString(), timeZone: 'UTC' },
+          end: { dateTime: endDate.toISOString(), timeZone: 'UTC' },
+        };
+        eventResult = await calendar.events.insert({ calendarId: 'primary', requestBody: event });
+      }
+
+      const eventId = eventResult?.data?.id;
+      const eventUrl = eventResult?.data?.htmlLink;
+
+      if (!eventId || !eventUrl) {
+        return res.status(500).json({ error: 'Failed to create/update calendar event' });
+      }
+
+      await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+
+      res.json({ eventId, eventUrl });
+    } catch (error) {
+      console.error('Error creating/updating calendar event from provider token:', error);
+      res.status(500).json({ error: 'Failed to create/update calendar event from provider token' });
+    }
+  });
+
   // Get current user from cookie
   app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
     try {
@@ -692,36 +884,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Send email using Resend
-      const { Resend } = await import('resend');
-      
-      const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-      const xReplitToken = process.env.REPL_IDENTITY 
-        ? 'repl ' + process.env.REPL_IDENTITY 
-        : process.env.WEB_REPL_RENEWAL 
-        ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-        : null;
-
-      if (!xReplitToken) {
-        throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-      }
-
-      const connectionSettings = await fetch(
-        'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-        {
-          headers: {
-            'Accept': 'application/json',
-            'X_REPLIT_TOKEN': xReplitToken
-          }
-        }
-      ).then(res => res.json()).then(data => data.items?.[0]);
-
-      if (!connectionSettings || !connectionSettings.settings.api_key) {
-        throw new Error('Resend not connected');
-      }
-
-      const resend = new Resend(connectionSettings.settings.api_key);
-      const fromEmail = connectionSettings.settings.from_email;
+      // Send email using Resend configured via environment variables
+      const { getResendClient } = await import('./resend-client');
+      const { client: resend, fromEmail } = await getResendClient();
 
       // Get user profile
       const profile = await storage.getUserProfile(userId);
@@ -753,6 +918,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error sending invite email:", error);
       res.status(500).json({ error: "Failed to send invite email" });
+    }
+  });
+
+  // Start Google OAuth flow for user-driven exports (docs)
+  app.get('/api/google/oauth-start', authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const { action, shootId } = req.query as any;
+      const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/google/oauth-callback`;
+
+  if (!clientId || !clientSecret) {
+        // If OAuth isn't configured, show a friendly HTML page which will
+        // notify the opener window so the client can fall back to the
+        // service-account export. This provides a better UX than returning
+        // a raw JSON error in a popup.
+        return res.send(`
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>Google OAuth Not Configured</title>
+            </head>
+            <body style="font-family: system-ui, -apple-system, Roboto, sans-serif; padding: 24px;">
+              <h2>Google OAuth Not Configured</h2>
+              <p>This instance doesn't have Google OAuth configured on the server.</p>
+              <p>If you're the app owner, set <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code> in the server environment and register <code>${req.protocol}://${req.get('host')}/api/google/oauth-callback</code> as an authorized redirect URI in Google Cloud.</p>
+              <div style="margin-top:18px;">
+                <button id="fallback" style="padding:8px 12px">Use service account export instead</button>
+              </div>
+              <script>
+                const notifyOpener = () => {
+                  try {
+                    if (window.opener && !window.opener.closed) {
+                      window.opener.postMessage({ type: 'oauth-not-configured', action: ${JSON.stringify(action || 'docs')} }, '*');
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                };
+                document.getElementById('fallback').addEventListener('click', () => {
+                  notifyOpener();
+                  window.close();
+                });
+                // Also try to notify immediately in case the user doesn't click
+                notifyOpener();
+              </script>
+            </body>
+          </html>
+        `);
+      }
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+      const state = Buffer.from(JSON.stringify({ action, shootId })).toString('base64');
+
+      const scopes = action === 'calendar' ? [
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.events'
+      ] : [
+        'https://www.googleapis.com/auth/documents',
+        'https://www.googleapis.com/auth/drive.file',
+      ];
+
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: scopes,
+        state,
+        prompt: 'consent',
+      });
+
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error('Error starting Google OAuth:', error);
+      res.status(500).json({ error: 'Failed to start Google OAuth' });
+    }
+  });
+
+  // OAuth callback to handle code exchange and create doc in user's Drive
+  app.get('/api/google/oauth-callback', authenticateUser, async (req: AuthRequest, res) => {
+    try {
+      const code = req.query.code as string | undefined;
+      const state = req.query.state as string | undefined;
+
+      if (!code || !state) {
+        return res.status(400).send('Missing code or state');
+      }
+
+      const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+      const { action, shootId } = decoded as any;
+
+      const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/google/oauth-callback`;
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+      const { tokens } = await oauth2Client.getToken(code);
+      oauth2Client.setCredentials(tokens);
+
+  if (action === 'docs' && shootId) {
+        // Build shootWithDetails like /api/shoots/:id/docs does
+        const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+        const shoot = await storage.getTeamShoot(shootId, teamId);
+        if (!shoot) return res.status(404).send('Shoot not found');
+
+        const participants = await storage.getShootParticipants(shootId);
+        const references = await storage.getShootReferences(shootId);
+        const shootEquipment = await storage.getShootEquipment(shootId);
+        const shootProps = await storage.getShootProps(shootId);
+        const shootCostumes = await storage.getShootCostumes(shootId);
+
+        const equipmentIds = shootEquipment.map((e: any) => e.equipmentId);
+        const propIds = shootProps.map((p: any) => p.propId);
+        const costumeIds = shootCostumes.map((c: any) => c.costumeId);
+
+        const equipment = await Promise.all(equipmentIds.map(id => storage.getEquipment(id, teamId)));
+        const props = await Promise.all(propIds.map(id => storage.getProp(id, teamId)));
+        const costumes = await Promise.all(costumeIds.map(id => storage.getCostumeProgress(id, teamId)));
+        const location = shoot.locationId ? await storage.getLocation(shoot.locationId, teamId) : null;
+
+        const shootWithDetails = {
+          ...shoot,
+          participants,
+          references,
+          equipment: equipment.filter(Boolean),
+          props: props.filter(Boolean),
+          costumes: costumes.filter(Boolean),
+          location,
+        };
+
+        // Use the OAuth2 client (authorized for the user) to create or update the doc in their Drive
+        const docsClient = google.docs({ version: 'v1', auth: oauth2Client });
+        let result: any;
+        if (shoot.docsId) {
+          const { updateShootDocument } = await import('./services/docs-update');
+          result = await updateShootDocument(shoot.docsId, shootWithDetails as any, docsClient);
+        } else {
+          const { createShootDocument } = await import('./services/docs-export');
+          result = await createShootDocument(shootWithDetails as any, docsClient);
+        }
+
+        // Update shoot record to reference doc if successful
+        if (result?.docUrl) {
+          await storage.updateShoot(shootId, teamId, { docsUrl: result.docUrl, docsId: result.docId });
+        }
+
+        // Respond with a small page that notifies the opener (main window) about the created doc
+        // and also tries to open the doc in a new tab as a fallback before closing the popup.
+        return res.send(`
+          <html>
+            <body>
+              <p>Document created. <a href="${result.docUrl}" target="_blank" rel="noopener">Open document</a></p>
+              <script>
+                function notifyOpener() {
+                  try {
+                    if (window.opener && !window.opener.closed) {
+                      window.opener.postMessage({ type: 'oauth-success', action: 'docs', docUrl: ${JSON.stringify(result.docUrl)}, docId: ${JSON.stringify(result.docId)} }, '*');
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+
+                // Notify the opener so it can open the doc in the user's main window/tab
+                notifyOpener();
+
+                // Also attempt to open the document from this popup as a fallback
+                try {
+                  window.open(${JSON.stringify(result.docUrl)}, '_blank');
+                } catch (e) {
+                  // ignore popup blocker
+                }
+
+                // Close the popup after a short delay to give the opener time to act
+                setTimeout(() => { try { window.close(); } catch (e) {} }, 500);
+              </script>
+            </body>
+          </html>
+        `);
+      }
+
+      if (action === 'calendar' && shootId) {
+        const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+        const shoot = await storage.getTeamShoot(shootId, teamId);
+        if (!shoot) return res.status(404).send('Shoot not found');
+
+        if (!shoot.date) return res.status(400).send('Shoot must have a date to create calendar event');
+
+        const startDate = new Date(shoot.date);
+        const endDate = new Date(startDate);
+        endDate.setHours(endDate.getHours() + 2);
+
+        const { google } = await import('googleapis');
+        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+        let eventResult: any;
+        if (shoot.calendarEventId) {
+          const event = {
+            summary: shoot.title,
+            location: shoot.locationNotes || undefined,
+            description: shoot.description || undefined,
+            start: { dateTime: startDate.toISOString(), timeZone: 'UTC' },
+            end: { dateTime: endDate.toISOString(), timeZone: 'UTC' },
+          };
+          eventResult = await calendar.events.update({ calendarId: 'primary', eventId: shoot.calendarEventId, requestBody: event });
+        } else {
+          const event = {
+            summary: shoot.title,
+            location: shoot.locationNotes || undefined,
+            description: shoot.description || undefined,
+            start: { dateTime: startDate.toISOString(), timeZone: 'UTC' },
+            end: { dateTime: endDate.toISOString(), timeZone: 'UTC' },
+          };
+          eventResult = await calendar.events.insert({ calendarId: 'primary', requestBody: event });
+        }
+
+        const eventId = eventResult?.data?.id;
+        const eventUrl = eventResult?.data?.htmlLink;
+
+        if (eventId && eventUrl) {
+          await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+
+          return res.send(`
+            <html>
+              <body>
+                <p>Calendar event created. <a href="${eventUrl}" target="_blank" rel="noopener">Open event</a></p>
+                <script>
+                  try {
+                    if (window.opener && !window.opener.closed) {
+                      window.opener.postMessage({ type: 'oauth-success', action: 'calendar', eventUrl: ${JSON.stringify(eventUrl)}, eventId: ${JSON.stringify(eventId)} }, '*');
+                    }
+                  } catch (e) {}
+                  try { window.open(${JSON.stringify(eventUrl)}, '_blank'); } catch (e) {}
+                  setTimeout(() => { try { window.close(); } catch (e) {} }, 500);
+                </script>
+              </body>
+            </html>
+          `);
+        }
+
+        return res.status(500).send('Failed to create calendar event');
+      }
+
+      res.status(400).send('Unsupported action');
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.status(500).send('OAuth callback failed');
     }
   });
 
@@ -1775,35 +2191,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!shoot) {
         return res.status(404).json({ error: "Shoot not found" });
       }
+      // Allow client to supply a snapshot of the shoot in the request body
+      // so the exported document can reflect unsaved local changes. If no
+      // shoot payload is provided, fall back to loading current data from storage.
+      let shootWithDetails: any;
+      if (req.body && Object.keys(req.body).length > 0 && req.body.shoot) {
+        // Normalize keys to camelCase for tolerance
+        shootWithDetails = convertKeysToCamel(req.body.shoot);
 
-      // Get full shoot details
-      const participants = await storage.getShootParticipants(req.params.id);
-      const references = await storage.getShootReferences(req.params.id);
-      const shootEquipment = await storage.getShootEquipment(req.params.id);
-      const shootProps = await storage.getShootProps(req.params.id);
-      const shootCostumes = await storage.getShootCostumes(req.params.id);
-      
-      const equipmentIds = shootEquipment.map((e: any) => e.equipmentId);
-      const propIds = shootProps.map((p: any) => p.propId);
-      const costumeIds = shootCostumes.map((c: any) => c.costumeId);
+        // Ensure participants/references/etc are arrays
+        shootWithDetails.participants = shootWithDetails.participants || [];
+        shootWithDetails.references = shootWithDetails.references || [];
+        shootWithDetails.equipment = shootWithDetails.equipment || [];
+        shootWithDetails.props = shootWithDetails.props || [];
+        shootWithDetails.costumes = shootWithDetails.costumes || [];
+        // If location is only an id, attempt to fetch full location
+        if (shootWithDetails.location && typeof shootWithDetails.location === 'object' && shootWithDetails.location.id) {
+          try {
+            const loc = await storage.getLocation(shootWithDetails.location.id, teamId);
+            if (loc) shootWithDetails.location = loc;
+          } catch (e) {
+            // ignore and leave provided location object as-is
+          }
+        }
+      } else {
+        // Get full shoot details from storage
+        const participants = await storage.getShootParticipants(req.params.id);
+        const references = await storage.getShootReferences(req.params.id);
+        const shootEquipment = await storage.getShootEquipment(req.params.id);
+        const shootProps = await storage.getShootProps(req.params.id);
+        const shootCostumes = await storage.getShootCostumes(req.params.id);
+        
+        const equipmentIds = shootEquipment.map((e: any) => e.equipmentId);
+        const propIds = shootProps.map((p: any) => p.propId);
+        const costumeIds = shootCostumes.map((c: any) => c.costumeId);
 
-      // Fetch related resources
-      const equipment = await Promise.all(equipmentIds.map(id => storage.getEquipment(id, teamId)));
-      const props = await Promise.all(propIds.map(id => storage.getProp(id, teamId)));
-      const costumes = await Promise.all(costumeIds.map(id => storage.getCostumeProgress(id, teamId)));
-      const location = shoot.locationId ? await storage.getLocation(shoot.locationId, teamId) : null;
+        // Fetch related resources
+        const equipment = await Promise.all(equipmentIds.map(id => storage.getEquipment(id, teamId)));
+        const props = await Promise.all(propIds.map(id => storage.getProp(id, teamId)));
+        const costumes = await Promise.all(costumeIds.map(id => storage.getCostumeProgress(id, teamId)));
+        const location = shoot.locationId ? await storage.getLocation(shoot.locationId, teamId) : null;
 
-      const shootWithDetails = {
-        ...shoot,
-        participants,
-        references,
-        equipment: equipment.filter(Boolean),
-        props: props.filter(Boolean),
-        costumes: costumes.filter(Boolean),
-        location,
-      };
+        shootWithDetails = {
+          ...shoot,
+          participants,
+          references,
+          equipment: equipment.filter(Boolean),
+          props: props.filter(Boolean),
+          costumes: costumes.filter(Boolean),
+          location,
+        };
+      }
 
-      // Check if we should update existing doc or create new one
+  // Check if we should update existing doc or create new one
       let docId: string;
       let docUrl: string;
       
@@ -1831,10 +2271,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating shoot document:", error);
       
-      if (error instanceof Error && error.message.includes('Google Docs not connected')) {
-        return res.status(503).json({
-          error: "Please connect your Google Docs account to use this feature"
-        });
+      if (error instanceof Error) {
+        const msg = error.message || '';
+        // Detect common messages thrown when service-account is not configured
+        if (
+          msg.includes('Google Docs not connected') ||
+          msg.includes('Google Docs service account') ||
+          msg.includes('GOOGLE_SERVICE_ACCOUNT') ||
+          msg.includes('Invalid GOOGLE_SERVICE_ACCOUNT')
+        ) {
+          return res.status(503).json({
+            error: "Google Docs service account not configured on server. You can save using your Google account instead."
+          });
+        }
       }
 
       res.status(500).json({

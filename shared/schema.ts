@@ -126,6 +126,18 @@ export const shoots = pgTable("shoots", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+export const oauthTokens = pgTable("oauth_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  provider: text("provider").notNull(),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  refreshTokenEncrypted: text("refresh_token_encrypted"),
+  scope: text("scope"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 export const shootReferences = pgTable("shoot_references", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
@@ -233,6 +245,12 @@ export const insertShootSchema = createInsertSchema(shoots).omit({
 export const insertShootReferenceSchema = createInsertSchema(shootReferences).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertOAuthTokenSchema = createInsertSchema(oauthTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertShootParticipantSchema = createInsertSchema(shootParticipants).omit({

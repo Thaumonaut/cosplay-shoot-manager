@@ -1,4 +1,4 @@
-import { getGoogleDocsClient } from '../google-docs';
+import { getGoogleDocsClient } from '../google-docs-sa';
 import type { Shoot, ShootParticipant, ShootReference } from '@shared/schema';
 import { format } from 'date-fns';
 
@@ -11,8 +11,8 @@ interface ShootWithDetails extends Shoot {
   costumes?: any[];
 }
 
-export async function updateShootDocument(docId: string, shoot: ShootWithDetails): Promise<{ docId: string; docUrl: string }> {
-  const docs = await getGoogleDocsClient();
+export async function updateShootDocument(docId: string, shoot: ShootWithDetails, providedDocsClient?: any): Promise<{ docId: string; docUrl: string }> {
+  const docs = providedDocsClient || await getGoogleDocsClient();
 
   // Get current document to find the end index
   const doc = await docs.documents.get({
@@ -224,7 +224,7 @@ export async function updateShootDocument(docId: string, shoot: ShootWithDetails
     currentIndex += section.content.length + 2;
   }
 
-  const footerText = `\n\nUpdated by Cosplay Tracker on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}`;
+  const footerText = `\n\nUpdated by CosPlans on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}`;
   requests.push({
     insertText: {
       location: { index: currentIndex },
