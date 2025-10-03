@@ -185,19 +185,19 @@ export default function ShootPage() {
 
   useEffect(() => {
     if (!isNew && shootEquipment.length > 0) {
-      setSelectedEquipment(shootEquipment.map((e: any) => e.equipmentId ?? e.equipment_id).filter(Boolean));
+      setSelectedEquipment(shootEquipment.map((e: any) => e.equipmentId).filter(Boolean));
     }
   }, [isNew, shootEquipment]);
 
   useEffect(() => {
     if (!isNew && shootProps.length > 0) {
-      setSelectedProps(shootProps.map((p: any) => p.propId ?? p.prop_id).filter(Boolean));
+      setSelectedProps(shootProps.map((p: any) => p.propId).filter(Boolean));
     }
   }, [isNew, shootProps]);
 
   useEffect(() => {
     if (!isNew && shootCostumes.length > 0) {
-      setSelectedCostumes(shootCostumes.map((c: any) => c.costumeId ?? c.costume_id).filter(Boolean));
+      setSelectedCostumes(shootCostumes.map((c: any) => c.costumeId).filter(Boolean));
     }
   }, [isNew, shootCostumes]);
 
@@ -310,10 +310,12 @@ export default function ShootPage() {
           };
         });
 
+        // Send camelCase keys to match server's expected body shape
         await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
           equipmentIds: selectedEquipment,
           propIds: selectedProps,
           costumeIds: selectedCostumes,
+          personnelIds: selectedPersonnel,
           participants: participants,
         });
       }

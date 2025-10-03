@@ -111,13 +111,6 @@ export async function updateShootDocument(docId: string, shoot: ShootWithDetails
     });
   }
 
-  if (shoot.notes) {
-    sections.push({
-      heading: 'Notes',
-      content: shoot.notes,
-    });
-  }
-
   if (shoot.participants.length > 0) {
     sections.push({
       heading: 'Participants',

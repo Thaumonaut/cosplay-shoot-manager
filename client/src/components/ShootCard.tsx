@@ -90,7 +90,6 @@ export function ShootCard({
             className="h-8 w-8 shrink-0"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('More options clicked for:', id);
             }}
             data-testid={`button-more-${id}`}
           >
