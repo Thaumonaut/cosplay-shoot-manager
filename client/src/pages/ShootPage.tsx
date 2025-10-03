@@ -185,19 +185,34 @@ export default function ShootPage() {
 
   useEffect(() => {
     if (!isNew && shootEquipment.length > 0) {
-      setSelectedEquipment(shootEquipment.map((e: any) => e.equipmentId).filter(Boolean));
+      // API may return either association objects ({ equipmentId }) or full equipment objects ({ id })
+      setSelectedEquipment(
+        shootEquipment
+          .map((e: any) => e.equipmentId ?? e.equipment_id ?? e.id)
+          .filter(Boolean),
+      );
     }
   }, [isNew, shootEquipment]);
 
   useEffect(() => {
     if (!isNew && shootProps.length > 0) {
-      setSelectedProps(shootProps.map((p: any) => p.propId).filter(Boolean));
+      // Support both association shape ({ propId }) and full prop object ({ id })
+      setSelectedProps(
+        shootProps
+          .map((p: any) => p.propId ?? p.prop_id ?? p.id)
+          .filter(Boolean),
+      );
     }
   }, [isNew, shootProps]);
 
   useEffect(() => {
     if (!isNew && shootCostumes.length > 0) {
-      setSelectedCostumes(shootCostumes.map((c: any) => c.costumeId).filter(Boolean));
+      // Support both association shape ({ costumeId }) and full costume object ({ id })
+      setSelectedCostumes(
+        shootCostumes
+          .map((c: any) => c.costumeId ?? c.costume_id ?? c.id)
+          .filter(Boolean),
+      );
     }
   }, [isNew, shootCostumes]);
 
