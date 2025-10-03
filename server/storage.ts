@@ -788,15 +788,22 @@ export class SupabaseStorage implements IStorage {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
+    const updateData = toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() });
+    console.log('[updateTeamShoot] Updating shoot:', id, 'teamId:', teamId, 'data:', updateData);
+    
     const { data, error } = await supabaseAdmin
       .from('shoots')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(updateData)
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
-    if (error) return undefined;
+    if (error) {
+      console.error('[updateTeamShoot] Error updating shoot:', error);
+      return undefined;
+    }
+    console.log('[updateTeamShoot] Successfully updated shoot:', data);
     return toCamelCase(data) as Shoot;
   }
 
