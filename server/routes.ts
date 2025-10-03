@@ -28,6 +28,21 @@ import multer from "multer";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Helper: convert snake_case keys in request bodies to camelCase to be
+  // tolerant of clients that send snake_case (e.g. some external callers).
+  const toCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+  const convertKeysToCamel = (obj: any): any => {
+    if (obj == null) return obj;
+    if (Array.isArray(obj)) return obj.map(convertKeysToCamel);
+    if (typeof obj === 'object') {
+      const out: any = {};
+      for (const key of Object.keys(obj)) {
+        out[toCamel(key)] = convertKeysToCamel(obj[key]);
+      }
+      return out;
+    }
+    return obj;
+  };
   const getUserId = (req: AuthRequest): string => {
     if (!req.user?.id) {
       throw new Error("Unauthorized");
@@ -1143,8 +1158,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only team owners and admins can create shoots" });
       }
       
-      // Frontend sends shoot data directly in body, not wrapped in { shoot: ... }
-      const shootData = req.body;
+  // Frontend sends shoot data directly in body, not wrapped in { shoot: ... }
+  // Accept either camelCase or snake_case from clients by normalizing keys.
+  const shootData = convertKeysToCamel(req.body);
       
       // Parse instagramLinks if it's a JSON string (for compatibility)
       if (shootData.instagramLinks && typeof shootData.instagramLinks === 'string') {
@@ -1188,8 +1204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ error: "Only team owners and admins can update shoots" });
         }
         
-        const updateSchema = insertShootSchema.omit({ userId: true, teamId: true }).partial();
-        const data = updateSchema.parse(req.body);
+  const updateSchema = insertShootSchema.omit({ userId: true, teamId: true }).partial();
+  // Normalize incoming keys to camelCase before validation
+  const data = updateSchema.parse(convertKeysToCamel(req.body));
         const shoot = await storage.updateTeamShoot(req.params.id, teamId, data);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
@@ -1259,7 +1276,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Shoot not found" });
         }
 
-        const { equipmentIds = [], propIds = [], costumeIds = [], personnelIds = [], participants = [] } = req.body;
+        // Normalize incoming keys (accept snake_case or camelCase)
+        const {
+          equipmentIds = [],
+          propIds = [],
+          costumeIds = [],
+          personnelIds = [],
+          participants = [],
+        } = convertKeysToCamel(req.body || {});
 
         // Delete existing associations
         await storage.deleteShootEquipment(req.params.id);

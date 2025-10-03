@@ -8,3 +8,11 @@ export function extractIds(items: any[], idKeys: string[] = ['id', 'equipmentId'
     return null;
   }).filter(Boolean);
 }
+
+export function extractId(item: any, idKeys: string[] = ['id', 'equipmentId', 'equipment_id', 'propId', 'prop_id', 'costumeId', 'costume_id']) {
+  if (!item) return undefined;
+  for (const key of idKeys) {
+    if (item[key]) return item[key];
+  }
+  return undefined;
+}

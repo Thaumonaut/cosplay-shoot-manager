@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
@@ -21,6 +22,7 @@ interface CreatePersonnelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (personnel: any) => void;
+  onSave?: (data: any) => Promise<any> | void;
   editItem?: Personnel;
 }
 
@@ -28,6 +30,7 @@ export function CreatePersonnelDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSave,
   editItem,
 }: CreatePersonnelDialogProps) {
   const { toast } = useToast();
@@ -72,6 +75,11 @@ export function CreatePersonnelDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newPersonnel);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(newPersonnel);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -105,6 +113,11 @@ export function CreatePersonnelDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedPersonnel);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(updatedPersonnel);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -165,7 +178,7 @@ export function CreatePersonnelDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-personnel">
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Person" : "Add New Person"}</DialogTitle>

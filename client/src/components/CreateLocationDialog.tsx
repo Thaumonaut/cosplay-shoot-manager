@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { GoogleMapsLocationSearch } from "@/components/GoogleMapsLocationSearch";
 import { GoogleMap } from "@/components/GoogleMap";
@@ -24,6 +25,7 @@ interface CreateLocationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (location: any) => void;
+  onSave?: (data: any) => Promise<any> | void;
   editItem?: Location;
 }
 
@@ -31,6 +33,7 @@ export function CreateLocationDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSave,
   editItem,
 }: CreateLocationDialogProps) {
   const { toast } = useToast();
@@ -78,6 +81,11 @@ export function CreateLocationDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newLocation);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(newLocation);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -114,6 +122,11 @@ export function CreateLocationDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedLocation);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(updatedLocation);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -193,7 +206,7 @@ export function CreateLocationDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-location">
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Location" : "Add New Location"}</DialogTitle>

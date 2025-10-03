@@ -6,7 +6,83 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+// DialogController context provides a small API children can use to
+// register a submit handler, set/get result data, and trigger a submit
+// which optionally forwards the data to a parent-provided onSave callback.
+type SubmitHandler = () => Promise<any> | any;
+
+type DialogController = {
+  registerSubmit: (fn: SubmitHandler) => void;
+  unregisterSubmit: () => void;
+  triggerSubmit: () => Promise<any>;
+  setResult: (data: any) => void;
+  getResult: () => any;
+};
+
+const DialogControllerContext = React.createContext<DialogController | null>(null);
+
+function useDialogController() {
+  const ctx = React.useContext(DialogControllerContext);
+  if (!ctx) throw new Error("useDialogController must be used within a Dialog");
+  return ctx;
+}
+
+// Wrap the radix Root so we can provide the controller context to children.
+function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root> & { onSave?: (data: any) => Promise<any> | void }) {
+  const { children, onSave, ...rest } = props as any;
+  const submitRef = React.useRef<SubmitHandler | null>(null);
+  const resultRef = React.useRef<any>(null);
+
+  const registerSubmit = (fn: SubmitHandler) => {
+    submitRef.current = fn;
+  };
+
+  const unregisterSubmit = () => {
+    submitRef.current = null;
+  };
+
+  const setResult = (data: any) => {
+    resultRef.current = data;
+  };
+
+  const getResult = () => resultRef.current;
+
+  const triggerSubmit = async () => {
+    let submittedResult: any = undefined;
+    if (submitRef.current) {
+      // call the registered submit handler (child form) and await result
+      submittedResult = await Promise.resolve(submitRef.current());
+    }
+    // allow parent to persist result to server via onSave
+    try {
+      if (onSave) {
+        // prefer submittedResult but fall back to setResult
+        await Promise.resolve(onSave(submittedResult ?? resultRef.current));
+      }
+    } catch (err) {
+      // swallow here; the child submit handler is responsible for its own errors
+      // parent can handle errors via onSave if desired
+      console.error("Dialog onSave handler failed:", err);
+    }
+    return submittedResult ?? resultRef.current;
+  };
+
+  const controller: DialogController = {
+    registerSubmit,
+    unregisterSubmit,
+    triggerSubmit,
+    setResult,
+    getResult,
+  };
+
+  return (
+    <DialogPrimitive.Root {...(rest as any)}>
+      <DialogControllerContext.Provider value={controller}>
+        {children}
+      </DialogControllerContext.Provider>
+    </DialogPrimitive.Root>
+  );
+}
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -119,4 +195,15 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
+};
+
+// Convenience hook for child components inside a Dialog to interact with
+// the controller (register submit handlers or set result data).
+export function useDialog() {
+  return useDialogController();
+}
+
+// Like useDialog but returns null when not rendered inside a Dialog controller.
+export function useOptionalDialog() {
+  return React.useContext(DialogControllerContext);
 }

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
@@ -22,6 +23,7 @@ interface CreateEquipmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (equipment: any) => void;
+  onSave?: (data: any) => Promise<any> | void;
   editItem?: Equipment;
 }
 
@@ -29,6 +31,7 @@ export function CreateEquipmentDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSave,
   editItem,
 }: CreateEquipmentDialogProps) {
   const { toast } = useToast();
@@ -75,6 +78,11 @@ export function CreateEquipmentDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newEquipment);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(newEquipment);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -108,6 +116,11 @@ export function CreateEquipmentDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedEquipment);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(updatedEquipment);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -183,7 +196,7 @@ export function CreateEquipmentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+  <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-equipment">
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Equipment" : "Add New Equipment"}</DialogTitle>

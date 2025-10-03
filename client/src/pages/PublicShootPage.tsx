@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, MapPin, Users, Camera, Package, Shirt } from "lucide-react";
 import { format } from "date-fns";
+import { extractId } from "@/lib/resourceUtils";
 
 export default function PublicShootPage() {
   const { id } = useParams();
@@ -152,7 +153,7 @@ export default function PublicShootPage() {
             <CardContent>
               <div className="space-y-3">
                 {shoot.costumes.map((item: any) => (
-                  <div key={item.id} className="flex items-center gap-3" data-testid={`costume-${item.costume_id}`}>
+                  <div key={item.id} className="flex items-center gap-3" data-testid={`costume-${extractId(item, ['costume_id', 'costumeId', 'id'])}`}>
                     {item.costume.image_url && (
                       <img 
                         src={item.costume.image_url} 
@@ -185,7 +186,7 @@ export default function PublicShootPage() {
             <CardContent>
               <div className="space-y-2">
                 {shoot.equipment.map((item: any) => (
-                  <div key={item.id} className="flex items-center justify-between" data-testid={`equipment-${item.equipment_id}`}>
+                  <div key={item.id} className="flex items-center justify-between" data-testid={`equipment-${extractId(item, ['equipment_id', 'equipmentId', 'id'])}`}>
                     <span className="font-medium">{item.equipment.name}</span>
                     {item.quantity > 1 && (
                       <Badge variant="outline">×{item.quantity}</Badge>
@@ -209,7 +210,7 @@ export default function PublicShootPage() {
             <CardContent>
               <div className="space-y-2">
                 {shoot.props.map((item: any) => (
-                  <div key={item.id} className="flex items-center gap-3" data-testid={`prop-${item.prop_id}`}>
+                  <div key={item.id} className="flex items-center gap-3" data-testid={`prop-${extractId(item, ['prop_id', 'propId', 'id'])}`}>
                     {item.prop.image_url && (
                       <img 
                         src={item.prop.image_url} 

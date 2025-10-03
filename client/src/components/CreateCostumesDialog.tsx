@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useOptionalDialog } from "@/components/ui/dialog";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
 import { X, Plus } from "lucide-react";
@@ -29,6 +30,7 @@ interface CreateCostumesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (costume: any) => void;
+  onSave?: (data: any) => Promise<any> | void;
   editItem?: CostumeProgress;
 }
 
@@ -36,6 +38,7 @@ export function CreateCostumesDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSave,
   editItem,
 }: CreateCostumesDialogProps) {
   const { toast } = useToast();
@@ -83,6 +86,11 @@ export function CreateCostumesDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newCostume);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(newCostume);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -116,6 +124,11 @@ export function CreateCostumesDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedCostume);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(updatedCostume);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -177,7 +190,7 @@ export function CreateCostumesDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-costumes">
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Costume" : "Add New Costume"}</DialogTitle>

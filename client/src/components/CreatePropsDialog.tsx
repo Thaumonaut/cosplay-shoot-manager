@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
@@ -21,6 +22,7 @@ interface CreatePropsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (prop: any) => void;
+  onSave?: (data: any) => Promise<any> | void;
   editItem?: Prop;
 }
 
@@ -28,6 +30,7 @@ export function CreatePropsDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSave,
   editItem,
 }: CreatePropsDialogProps) {
   const { toast } = useToast();
@@ -70,6 +73,11 @@ export function CreatePropsDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newProp);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(newProp);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -103,6 +111,11 @@ export function CreatePropsDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedProp);
+      const dialog = useOptionalDialog();
+      if (dialog) {
+        dialog.setResult(updatedProp);
+        void dialog.triggerSubmit();
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -157,7 +170,7 @@ export function CreatePropsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onSave={onSave}>
       <DialogContent data-testid="dialog-create-props">
         <DialogHeader>
           <DialogTitle>{editItem ? "Edit Prop" : "Add New Prop"}</DialogTitle>

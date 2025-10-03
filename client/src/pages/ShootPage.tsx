@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { extractIds, extractId } from "@/lib/resourceUtils";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge, type ShootStatus } from "@/components/StatusBadge";
 import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
@@ -68,6 +69,12 @@ export default function ShootPage() {
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedProps, setSelectedProps] = useState<string[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
+
+  // Refs to keep latest values accessible synchronously when persisting
+  const personnelRef = useRef(selectedPersonnel);
+  const equipmentRef = useRef(selectedEquipment);
+  const propsRef = useRef(selectedProps);
+  const costumesRef = useRef(selectedCostumes);
 
   const [createPersonnelOpen, setCreatePersonnelOpen] = useState(false);
   const [createEquipmentOpen, setCreateEquipmentOpen] = useState(false);
@@ -173,46 +180,40 @@ export default function ShootPage() {
 
   useEffect(() => {
     if (!isNew && shootParticipants.length > 0) {
-      setSelectedPersonnel(shootParticipants.map((p: any) => p.personnelId ?? p.personnel_id).filter(Boolean));
+      setSelectedPersonnel(extractIds(shootParticipants, ['personnelId', 'personnel_id', 'id']));
       const roles: Record<string, string> = {};
       shootParticipants.forEach((p: any) => {
-        const personnelId = p.personnelId ?? p.personnel_id;
+        const personnelId = extractId(p, ['personnelId', 'personnel_id', 'id']);
         if (p.role && personnelId) roles[personnelId] = p.role;
       });
       setPersonnelRoles(roles);
     }
   }, [isNew, shootParticipants]);
 
+  // keep refs in sync
+  useEffect(() => { personnelRef.current = selectedPersonnel; }, [selectedPersonnel]);
+  useEffect(() => { equipmentRef.current = selectedEquipment; }, [selectedEquipment]);
+  useEffect(() => { propsRef.current = selectedProps; }, [selectedProps]);
+  useEffect(() => { costumesRef.current = selectedCostumes; }, [selectedCostumes]);
+
   useEffect(() => {
     if (!isNew && shootEquipment.length > 0) {
       // API may return either association objects ({ equipmentId }) or full equipment objects ({ id })
-      setSelectedEquipment(
-        shootEquipment
-          .map((e: any) => e.equipmentId ?? e.equipment_id ?? e.id)
-          .filter(Boolean),
-      );
+      setSelectedEquipment(extractIds(shootEquipment, ['equipmentId', 'equipment_id', 'id']));
     }
   }, [isNew, shootEquipment]);
 
   useEffect(() => {
     if (!isNew && shootProps.length > 0) {
       // Support both association shape ({ propId }) and full prop object ({ id })
-      setSelectedProps(
-        shootProps
-          .map((p: any) => p.propId ?? p.prop_id ?? p.id)
-          .filter(Boolean),
-      );
+      setSelectedProps(extractIds(shootProps, ['propId', 'prop_id', 'id']));
     }
   }, [isNew, shootProps]);
 
   useEffect(() => {
     if (!isNew && shootCostumes.length > 0) {
       // Support both association shape ({ costumeId }) and full costume object ({ id })
-      setSelectedCostumes(
-        shootCostumes
-          .map((c: any) => c.costumeId ?? c.costume_id ?? c.id)
-          .filter(Boolean),
-      );
+      setSelectedCostumes(extractIds(shootCostumes, ['costumeId', 'costume_id', 'id']));
     }
   }, [isNew, shootCostumes]);
 
@@ -308,6 +309,47 @@ export default function ShootPage() {
       });
     },
   });
+
+  // Helper to append a new resource id to local state and persist to the server for existing shoots
+  const appendAndPersist = async (type: "personnel" | "equipment" | "prop" | "costume", newId: string) => {
+    if (!newId) return;
+
+    if (type === "personnel") {
+      setSelectedPersonnel((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
+    } else if (type === "equipment") {
+      setSelectedEquipment((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
+    } else if (type === "prop") {
+      setSelectedProps((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
+    } else if (type === "costume") {
+      setSelectedCostumes((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
+    }
+
+    // If editing an existing shoot, persist associations. Build payload from refs,
+    // adding newId to the affected array if it's not already present.
+    if (!isNew && id) {
+      const equipmentIds = equipmentRef.current.includes(newId) || type !== "equipment"
+        ? equipmentRef.current
+        : [...equipmentRef.current, newId];
+      const propIds = propsRef.current.includes(newId) || type !== "prop"
+        ? propsRef.current
+        : [...propsRef.current, newId];
+      const costumeIds = costumesRef.current.includes(newId) || type !== "costume"
+        ? costumesRef.current
+        : [...costumesRef.current, newId];
+      const personnelIds = personnelRef.current.includes(newId) || type !== "personnel"
+        ? personnelRef.current
+        : [...personnelRef.current, newId];
+
+      await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+        equipmentIds,
+        propIds,
+        costumeIds,
+        personnelIds,
+      }).catch(() => {});
+
+      queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<InsertShoot>) => {
@@ -435,7 +477,7 @@ export default function ShootPage() {
 
   const createCalendarEventMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/shoots/${id}/calendar`, {});
+      const response = await apiRequest("POST", `/api/shoots/${id}/create-calendar-event`, {});
       return await response.json();
     },
     onSuccess: (data) => {
@@ -850,61 +892,134 @@ export default function ShootPage() {
 
         {status !== "idea" && (
           <div className="flex items-center gap-3 flex-wrap">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-select-date"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : <span className="text-muted-foreground">Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="flex items-center gap-2 bg-transparent p-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-select-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : <span className="text-muted-foreground">Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-            <Input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-auto"
-              data-testid="input-time"
-            />
+              {/* Clear date button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setDate(undefined);
+                  setTime("");
+                  setReminderPreset("");
+                  setCustomReminderDate(undefined);
+                  setCustomReminderTime("");
+                }}
+                data-testid="button-clear-date"
+                title="Clear date"
+              >
+                <X className="h-4 w-4" />
+              </Button>
 
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
               <Input
-                type="number"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
-                min="15"
-                step="15"
-                className="w-20"
-                data-testid="input-duration"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-auto border-0 p-0"
+                data-testid="input-time"
               />
-              <span className="text-sm text-muted-foreground">min</span>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <div 
-                className="h-4 w-4 rounded-full border border-border" 
-                style={{ backgroundColor: color }}
-              />
-              <Input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-20 h-9 p-1 cursor-pointer"
-                data-testid="input-color"
-              />
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Select value={String(durationMinutes)} onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}>
+                  <SelectTrigger data-testid="select-duration" className="w-28">
+                    <SelectValue placeholder="Duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 32 }).map((_, i) => {
+                      const minutes = (i + 1) * 15; // 15..480 (8 hours)
+                      let label = "";
+                      if (minutes < 60) {
+                        label = `${minutes} min`;
+                      } else if (minutes % 60 === 0) {
+                        label = `${minutes / 60}h`;
+                      } else {
+                        const hrs = Math.floor(minutes / 60);
+                        const mins = minutes % 60;
+                        label = `${hrs}h ${mins}m`;
+                      }
+                      return (
+                        <SelectItem key={minutes} value={String(minutes)}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Inline reminders */}
+              {date && (
+                <div className="flex items-center gap-2">
+                  <Label className="sr-only">Reminder</Label>
+                  <Select value={reminderPreset} onValueChange={setReminderPreset}>
+                    <SelectTrigger data-testid="select-reminder-inline">
+                      <SelectValue placeholder="Reminder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No reminder</SelectItem>
+                      <SelectItem value="15min">15 minutes before</SelectItem>
+                      <SelectItem value="30min">30 minutes before</SelectItem>
+                      <SelectItem value="1hour">1 hour before</SelectItem>
+                      <SelectItem value="1day">1 day before</SelectItem>
+                      <SelectItem value="custom">Custom...</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {reminderPreset === "custom" && (
+                    <div className="flex gap-2 items-center">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 justify-start text-left font-normal"
+                            data-testid="button-custom-reminder-date-inline"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {customReminderDate ? format(customReminderDate, "PPP") : <span>Pick date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={customReminderDate}
+                            onSelect={setCustomReminderDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Input
+                        type="time"
+                        value={customReminderTime}
+                        onChange={(e) => setCustomReminderTime(e.target.value)}
+                        className="w-32"
+                        data-testid="input-custom-reminder-time-inline"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -915,52 +1030,9 @@ export default function ShootPage() {
         <CardContent className="space-y-4 p-3">
           {date && time && (
             <div className="space-y-2">
+              {/* Reminders are now shown inline with date/time; keep this block for compatibility */}
               <Label>Reminder</Label>
-              <Select value={reminderPreset} onValueChange={setReminderPreset}>
-                <SelectTrigger data-testid="select-reminder">
-                  <SelectValue placeholder="Set a reminder..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No reminder</SelectItem>
-                  <SelectItem value="15min">15 minutes before</SelectItem>
-                  <SelectItem value="30min">30 minutes before</SelectItem>
-                  <SelectItem value="1hour">1 hour before</SelectItem>
-                  <SelectItem value="1day">1 day before</SelectItem>
-                  <SelectItem value="custom">Custom...</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {reminderPreset === "custom" && (
-                <div className="flex gap-2 mt-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex-1 justify-start text-left font-normal"
-                        data-testid="button-custom-reminder-date"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {customReminderDate ? format(customReminderDate, "PPP") : <span>Pick date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={customReminderDate}
-                        onSelect={setCustomReminderDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Input
-                    type="time"
-                    value={customReminderTime}
-                    onChange={(e) => setCustomReminderTime(e.target.value)}
-                    className="flex-1"
-                    data-testid="input-custom-reminder-time"
-                  />
-                </div>
-              )}
+              <div className="text-sm text-muted-foreground">Reminder settings are shown inline in the date/time row above.</div>
             </div>
           )}
 
@@ -997,6 +1069,19 @@ export default function ShootPage() {
               rows={4}
               data-testid="textarea-description"
             />
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color }} />
+                <Input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-20 h-9 p-1 cursor-pointer"
+                  data-testid="input-color"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">Color used in lists</div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1686,6 +1771,24 @@ export default function ShootPage() {
           if (!open) setEditingPersonnel(null);
         }}
         editItem={editingPersonnel || undefined}
+        onSave={async (newPersonnel) => {
+          const newId = extractId(newPersonnel, ['id', 'personnelId', 'personnel_id']);
+          if (!newId) return;
+          setSelectedPersonnel((prev) => {
+            if (prev.includes(newId)) return prev;
+            return [...prev, newId];
+          });
+          if (!isNew && id) {
+            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+              equipmentIds: selectedEquipment,
+              propIds: selectedProps,
+              costumeIds: selectedCostumes,
+              personnelIds: [...selectedPersonnel, newId],
+            }).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
+        }}
       />
       <CreateEquipmentDialog
         open={createEquipmentOpen || !!editingEquipment}
@@ -1694,6 +1797,24 @@ export default function ShootPage() {
           if (!open) setEditingEquipment(null);
         }}
         editItem={editingEquipment || undefined}
+        onSave={async (newEquipment) => {
+          const newId = extractId(newEquipment, ['id', 'equipmentId', 'equipment_id']);
+          if (!newId) return;
+          setSelectedEquipment((prev) => {
+            if (prev.includes(newId)) return prev;
+            return [...prev, newId];
+          });
+          if (!isNew && id) {
+            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+              equipmentIds: [...selectedEquipment, newId],
+              propIds: selectedProps,
+              costumeIds: selectedCostumes,
+              personnelIds: selectedPersonnel,
+            }).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
+        }}
       />
       <CreateLocationDialog
         open={createLocationOpen || !!editingLocation}
@@ -1702,6 +1823,16 @@ export default function ShootPage() {
           if (!open) setEditingLocation(null);
         }}
         editItem={editingLocation || undefined}
+        onSave={async (newLocation) => {
+          const newId = extractId(newLocation, ['id', 'locationId', 'location_id']);
+          if (!newId) return;
+          setLocationId(newId);
+          if (!isNew && id) {
+            await apiRequest("PATCH", `/api/shoots/${id}`, { locationId: newId }).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+        }}
       />
       <CreatePropsDialog
         open={createPropsOpen || !!editingProp}
@@ -1710,6 +1841,24 @@ export default function ShootPage() {
           if (!open) setEditingProp(null);
         }}
         editItem={editingProp || undefined}
+        onSave={async (newProp) => {
+          const newId = extractId(newProp, ['id', 'propId', 'prop_id']);
+          if (!newId) return;
+          setSelectedProps((prev) => {
+            if (prev.includes(newId)) return prev;
+            return [...prev, newId];
+          });
+          if (!isNew && id) {
+            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+              equipmentIds: selectedEquipment,
+              propIds: [...selectedProps, newId],
+              costumeIds: selectedCostumes,
+              personnelIds: selectedPersonnel,
+            }).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/props"] });
+        }}
       />
       <CreateCostumesDialog
         open={createCostumesOpen || !!editingCostume}
@@ -1718,6 +1867,24 @@ export default function ShootPage() {
           if (!open) setEditingCostume(null);
         }}
         editItem={editingCostume || undefined}
+        onSave={async (newCostume) => {
+          const newId = extractId(newCostume, ['id', 'costumeId', 'costume_id']);
+          if (!newId) return;
+          setSelectedCostumes((prev) => {
+            if (prev.includes(newId)) return prev;
+            return [...prev, newId];
+          });
+          if (!isNew && id) {
+            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
+              equipmentIds: selectedEquipment,
+              propIds: selectedProps,
+              costumeIds: [...selectedCostumes, newId],
+              personnelIds: selectedPersonnel,
+            }).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
+        }}
       />
 
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
