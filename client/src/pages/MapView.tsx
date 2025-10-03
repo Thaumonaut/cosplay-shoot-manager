@@ -64,7 +64,39 @@ export default function MapView() {
   );
 
   useEffect(() => {
-    if (shootsWithValidLocations.length > 0) {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setMapCenter({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setMapZoom(12);
+        },
+        (error) => {
+          console.log("Geolocation denied or unavailable, using shoot locations");
+          if (shootsWithValidLocations.length > 0) {
+            const avgLat =
+              shootsWithValidLocations.reduce(
+                (sum, shoot) => sum + (shoot.location!.latitude || 0),
+                0
+              ) / shootsWithValidLocations.length;
+
+            const avgLng =
+              shootsWithValidLocations.reduce(
+                (sum, shoot) => sum + (shoot.location!.longitude || 0),
+                0
+              ) / shootsWithValidLocations.length;
+
+            setMapCenter({ lat: avgLat, lng: avgLng });
+          }
+        },
+        {
+          timeout: 5000,
+          maximumAge: 300000,
+        }
+      );
+    } else if (shootsWithValidLocations.length > 0) {
       const avgLat =
         shootsWithValidLocations.reduce(
           (sum, shoot) => sum + (shoot.location!.latitude || 0),
