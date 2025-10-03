@@ -50,7 +50,6 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, sql as rawSql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
-import { toSnakeCase, toCamelCase } from './middleware/caseConverter';
 
 export interface IStorage {
   // Shoots
@@ -77,9 +76,9 @@ export interface IStorage {
   deleteShootParticipant(id: string): Promise<boolean>;
 
   // Shoot Resource Associations
-  getShootEquipment(shootId: string): Promise<ShootEquipment[]>;
-  getShootProps(shootId: string): Promise<ShootProp[]>;
-  getShootCostumes(shootId: string): Promise<ShootCostume[]>;
+  getShootEquipment(shootId: string): Promise<Equipment[]>;
+  getShootProps(shootId: string): Promise<Prop[]>;
+  getShootCostumes(shootId: string): Promise<CostumeProgress[]>;
   createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment>;
   createShootProp(association: InsertShootProp): Promise<ShootProp>;
   createShootCostume(association: InsertShootCostume): Promise<ShootCostume>;
@@ -300,28 +299,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shoot Resource Association methods
-  async getShootEquipment(shootId: string): Promise<ShootEquipment[]> {
+  async getShootEquipment(shootId: string): Promise<Equipment[]> {
     const results = await db
-      .select()
+      .select({ equipment: equipment })
       .from(shootEquipment)
+      .innerJoin(equipment, eq(shootEquipment.equipmentId, equipment.id))
       .where(eq(shootEquipment.shootId, shootId));
-    return results;
+    return results.map(r => r.equipment);
   }
 
-  async getShootProps(shootId: string): Promise<ShootProp[]> {
+  async getShootProps(shootId: string): Promise<Prop[]> {
     const results = await db
-      .select()
+      .select({ prop: props })
       .from(shootProps)
+      .innerJoin(props, eq(shootProps.propId, props.id))
       .where(eq(shootProps.shootId, shootId));
-    return results;
+    return results.map(r => r.prop);
   }
 
-  async getShootCostumes(shootId: string): Promise<ShootCostume[]> {
+  async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
     const results = await db
-      .select()
+      .select({ costume: costumeProgress })
       .from(shootCostumes)
+      .innerJoin(costumeProgress, eq(shootCostumes.costumeId, costumeProgress.id))
       .where(eq(shootCostumes.shootId, shootId));
-    return results;
+    return results.map(r => r.costume);
   }
 
   async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
@@ -691,6 +693,34 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+// Helper function to convert camelCase to snake_case for Supabase
+function toSnakeCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(toSnakeCase);
+  if (typeof obj !== 'object') return obj;
+  
+  const snakeCaseObj: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snakeCaseObj[snakeKey] = value;
+  }
+  return snakeCaseObj;
+}
+
+// Helper function to convert snake_case to camelCase from Supabase
+function toCamelCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  if (typeof obj !== 'object') return obj;
+  
+  const camelCaseObj: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    camelCaseObj[camelKey] = toCamelCase(value);
+  }
+  return camelCaseObj;
+}
+
 export class SupabaseStorage implements IStorage {
   async getShoot(id: string, userId: string): Promise<Shoot | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
@@ -788,31 +818,15 @@ export class SupabaseStorage implements IStorage {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
-    
-    // Filter out undefined values and empty objects before converting
-    const cleanedUpdates: any = {};
-    for (const [key, value] of Object.entries(allowedUpdates)) {
-      if (value !== undefined && !(typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 0)) {
-        cleanedUpdates[key] = value;
-      }
-    }
-    
-    const updateData = toSnakeCase({ ...cleanedUpdates, updated_at: new Date().toISOString() });
-    console.log('[updateTeamShoot] Updating shoot:', id, 'teamId:', teamId, 'data:', updateData);
-    
     const { data, error } = await supabaseAdmin
       .from('shoots')
-      .update(updateData)
+      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
       .single();
     
-    if (error) {
-      console.error('[updateTeamShoot] Error updating shoot:', error);
-      return undefined;
-    }
-    console.log('[updateTeamShoot] Successfully updated shoot:', data);
+    if (error) return undefined;
     return toCamelCase(data) as Shoot;
   }
 
@@ -938,40 +952,64 @@ export class SupabaseStorage implements IStorage {
     return !error;
   }
 
-  async getShootEquipment(shootId: string): Promise<ShootEquipment[]> {
+  async getShootEquipment(shootId: string): Promise<Equipment[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data, error } = await supabaseAdmin
+    const { data: associations, error: assocError } = await supabaseAdmin
       .from('shoot_equipment')
       .select()
       .eq('shoot_id', shootId);
     
+    if (assocError || !associations?.length) return [];
+    
+    const equipmentIds = associations.map(a => a.equipment_id);
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .in('id', equipmentIds);
+    
     if (error) return [];
-    return (data || []).map(toCamelCase) as ShootEquipment[];
+    return (data || []).map(toCamelCase) as Equipment[];
   }
 
-  async getShootProps(shootId: string): Promise<ShootProp[]> {
+  async getShootProps(shootId: string): Promise<Prop[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data, error } = await supabaseAdmin
+    const { data: associations, error: assocError } = await supabaseAdmin
       .from('shoot_props')
       .select()
       .eq('shoot_id', shootId);
     
+    if (assocError || !associations?.length) return [];
+    
+    const propIds = associations.map(a => a.prop_id);
+    const { data, error } = await supabaseAdmin
+      .from('props')
+      .select()
+      .in('id', propIds);
+    
     if (error) return [];
-    return (data || []).map(toCamelCase) as ShootProp[];
+    return (data || []).map(toCamelCase) as Prop[];
   }
 
-  async getShootCostumes(shootId: string): Promise<ShootCostume[]> {
+  async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data, error } = await supabaseAdmin
+    const { data: associations, error: assocError } = await supabaseAdmin
       .from('shoot_costumes')
       .select()
       .eq('shoot_id', shootId);
     
+    if (assocError || !associations?.length) return [];
+    
+    const costumeIds = associations.map(a => a.costume_id);
+    const { data, error } = await supabaseAdmin
+      .from('costume_progress')
+      .select()
+      .in('id', costumeIds);
+    
     if (error) return [];
-    return (data || []).map(toCamelCase) as ShootCostume[];
+    return (data || []).map(toCamelCase) as CostumeProgress[];
   }
 
   async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {

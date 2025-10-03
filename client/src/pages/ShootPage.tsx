@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type {
-  InsertShoot,
-  Equipment,
-  Location,
-  Prop,
-  CostumeProgress,
-  Personnel,
-} from "@shared/schema";
+import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge, type ShootStatus } from "@/components/StatusBadge";
@@ -37,29 +30,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import {
-  CalendarIcon,
-  X,
-  Plus,
-  ArrowLeft,
-  Trash2,
-  Mail,
-  ExternalLink,
-  Share2,
-  Edit2,
-  MapPin,
-  Clock,
-  Upload,
-  ImagePlus,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { CalendarIcon, X, Plus, ArrowLeft, Trash2, Mail, ExternalLink, Share2, Edit2, MapPin, Clock, Upload, ImagePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { SiGoogledocs, SiGooglecalendar } from "react-icons/si";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,11 +62,9 @@ export default function ShootPage() {
   const [instagramLinks, setInstagramLinks] = useState<string[]>([]);
   const [currentLink, setCurrentLink] = useState("");
   const [isPublic, setIsPublic] = useState<boolean>(false);
-
+  
   const [selectedPersonnel, setSelectedPersonnel] = useState<string[]>([]);
-  const [personnelRoles, setPersonnelRoles] = useState<Record<string, string>>(
-    {},
-  );
+  const [personnelRoles, setPersonnelRoles] = useState<Record<string, string>>({});
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [selectedProps, setSelectedProps] = useState<string[]>([]);
   const [selectedCostumes, setSelectedCostumes] = useState<string[]>([]);
@@ -105,22 +76,14 @@ export default function ShootPage() {
   const [createCostumesOpen, setCreateCostumesOpen] = useState(false);
 
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
-  const [editingCostume, setEditingCostume] = useState<CostumeProgress | null>(
-    null,
-  );
+  const [editingCostume, setEditingCostume] = useState<CostumeProgress | null>(null);
   const [editingProp, setEditingProp] = useState<Prop | null>(null);
-  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(
-    null,
-  );
-  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(
-    null,
-  );
+  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
 
-  const [pendingReferenceFiles, setPendingReferenceFiles] = useState<File[]>(
-    [],
-  );
+  const [pendingReferenceFiles, setPendingReferenceFiles] = useState<File[]>([]);
   const [isDraggingRef, setIsDraggingRef] = useState(false);
-
+  
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -177,13 +140,13 @@ export default function ShootPage() {
       setDate(existingShoot.date ? new Date(existingShoot.date) : undefined);
       setTime(existingShoot.time || "");
       setDurationMinutes(existingShoot.durationMinutes || 60);
-
+      
       if (existingShoot.reminderTime && existingShoot.date) {
         const shootDateTime = new Date(existingShoot.date);
         const reminderDateTime = new Date(existingShoot.reminderTime);
         const diffMs = shootDateTime.getTime() - reminderDateTime.getTime();
         const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
+        
         if (diffMinutes === 15) {
           setReminderPreset("15min");
         } else if (diffMinutes === 30) {
@@ -195,30 +158,26 @@ export default function ShootPage() {
         } else {
           setReminderPreset("custom");
           setCustomReminderDate(reminderDateTime);
-          setCustomReminderTime(
-            `${String(reminderDateTime.getHours()).padStart(2, "0")}:${String(reminderDateTime.getMinutes()).padStart(2, "0")}`,
-          );
+          setCustomReminderTime(`${String(reminderDateTime.getHours()).padStart(2, '0')}:${String(reminderDateTime.getMinutes()).padStart(2, '0')}`);
         }
       }
-
+      
       setLocationId(existingShoot.locationId || "");
       setDescription(existingShoot.description || "");
       setColor(existingShoot.color || "#3B82F6");
       setInstagramLinks(existingShoot.instagramLinks || []);
       setIsPublic(existingShoot.isPublic || false);
+
     }
   }, [isNew, existingShoot]);
 
   useEffect(() => {
     if (!isNew && shootParticipants.length > 0) {
-      setSelectedPersonnel(
-        shootParticipants
-          .map((p: any) => p.personnelId)
-          .filter(Boolean),
-      );
+      setSelectedPersonnel(shootParticipants.map((p: any) => p.personnelId ?? p.personnel_id).filter(Boolean));
       const roles: Record<string, string> = {};
       shootParticipants.forEach((p: any) => {
-        if (p.role && p.personnelId) roles[p.personnelId] = p.role;
+        const personnelId = p.personnelId ?? p.personnel_id;
+        if (p.role && personnelId) roles[personnelId] = p.role;
       });
       setPersonnelRoles(roles);
     }
@@ -226,44 +185,30 @@ export default function ShootPage() {
 
   useEffect(() => {
     if (!isNew && shootEquipment.length > 0) {
-      setSelectedEquipment(
-        shootEquipment
-          .map((e: any) => e.equipmentId)
-          .filter(Boolean),
-      );
+      setSelectedEquipment(shootEquipment.map((e: any) => e.equipmentId ?? e.equipment_id).filter(Boolean));
     }
   }, [isNew, shootEquipment]);
 
   useEffect(() => {
     if (!isNew && shootProps.length > 0) {
-      setSelectedProps(
-        shootProps.map((p: any) => p.propId).filter(Boolean),
-      );
+      setSelectedProps(shootProps.map((p: any) => p.propId ?? p.prop_id).filter(Boolean));
     }
   }, [isNew, shootProps]);
 
   useEffect(() => {
     if (!isNew && shootCostumes.length > 0) {
-      setSelectedCostumes(
-        shootCostumes
-          .map((c: any) => c.costumeId)
-          .filter(Boolean),
-      );
+      setSelectedCostumes(shootCostumes.map((c: any) => c.costumeId ?? c.costume_id).filter(Boolean));
     }
   }, [isNew, shootCostumes]);
 
   useEffect(() => {
     if (!manualTitle && costumes.length > 0 && isNew) {
-      const selectedCostumeData = costumes.filter((c) =>
-        selectedCostumes.includes(c.id),
-      );
+      const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
       if (selectedCostumeData.length > 0) {
-        const characters = selectedCostumeData.map((c) => c.characterName);
-        const seriesSet = new Set(
-          selectedCostumeData.map((c) => c.seriesName).filter(Boolean),
-        );
+        const characters = selectedCostumeData.map(c => c.characterName);
+        const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
         const series = Array.from(seriesSet);
-
+        
         let generatedTitle = "";
         if (characters.length === 1) {
           generatedTitle = characters[0];
@@ -279,7 +224,7 @@ export default function ShootPage() {
             generatedTitle += ` - ${series[0]}`;
           }
         }
-
+        
         if (generatedTitle) {
           setTitle(generatedTitle + " Shoot");
         }
@@ -296,8 +241,8 @@ export default function ShootPage() {
     },
     onSuccess: async (newShoot) => {
       // Build participants array
-      const participants = selectedPersonnel.map((personnelId) => {
-        const person = personnel.find((p) => p.id === personnelId);
+      const participants = selectedPersonnel.map(personnelId => {
+        const person = personnel.find(p => p.id === personnelId);
         return {
           personnelId,
           name: person?.name || "Unknown",
@@ -306,16 +251,11 @@ export default function ShootPage() {
       });
 
       // Use PATCH /api/shoots/:id/resources to set all associations at once
-      if (
-        selectedPersonnel.length > 0 ||
-        selectedEquipment.length > 0 ||
-        selectedProps.length > 0 ||
-        selectedCostumes.length > 0
-      ) {
+      if (selectedPersonnel.length > 0 || selectedEquipment.length > 0 || selectedProps.length > 0 || selectedCostumes.length > 0) {
         await apiRequest("PATCH", `/api/shoots/${newShoot.id}/resources`, {
-          equipment_ids: selectedEquipment,
-          prop_ids: selectedProps,
-          costume_ids: selectedCostumes,
+          equipmentIds: selectedEquipment,
+          propIds: selectedProps,
+          costumeIds: selectedCostumes,
           participants: participants,
         });
       }
@@ -323,16 +263,16 @@ export default function ShootPage() {
       if (pendingReferenceFiles.length > 0) {
         for (const file of pendingReferenceFiles) {
           const formData = new FormData();
-          formData.append("file", file);
-          formData.append("shootId", newShoot.id);
-
+          formData.append('file', file);
+          formData.append('shootId', newShoot.id);
+          
           try {
-            await fetch("/api/shoot-references", {
-              method: "POST",
+            await fetch('/api/shoot-references', {
+              method: 'POST',
               body: formData,
             });
           } catch (error) {
-            console.error("Failed to upload reference:", error);
+            console.error('Failed to upload reference:', error);
           }
         }
         setPendingReferenceFiles([]);
@@ -361,8 +301,8 @@ export default function ShootPage() {
     },
     onSuccess: async () => {
       if (id) {
-        const participants = selectedPersonnel.map((personnelId) => {
-          const person = personnel.find((p) => p.id === personnelId);
+        const participants = selectedPersonnel.map(personnelId => {
+          const person = personnel.find(p => p.id === personnelId);
           return {
             personnelId,
             name: person?.name || "Unknown",
@@ -371,9 +311,9 @@ export default function ShootPage() {
         });
 
         await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
-          equipment_ids: selectedEquipment,
-          prop_ids: selectedProps,
-          costume_ids: selectedCostumes,
+          equipmentIds: selectedEquipment,
+          propIds: selectedProps,
+          costumeIds: selectedCostumes,
           participants: participants,
         });
       }
@@ -419,9 +359,7 @@ export default function ShootPage() {
 
   const togglePublicMutation = useMutation({
     mutationFn: async (newIsPublic: boolean) => {
-      const response = await apiRequest("PATCH", `/api/shoots/${id}`, {
-        isPublic: newIsPublic,
-      });
+      const response = await apiRequest("PATCH", `/api/shoots/${id}`, { isPublic: newIsPublic });
       return await response.json();
     },
     onSuccess: (data) => {
@@ -430,9 +368,7 @@ export default function ShootPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
       toast({
         title: "Success",
-        description: data.isPublic
-          ? "Shoot is now public"
-          : "Shoot is now private",
+        description: data.isPublic ? "Shoot is now public" : "Shoot is now private",
       });
     },
     onError: (error: Error) => {
@@ -482,11 +418,7 @@ export default function ShootPage() {
 
   const createCalendarEventMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(
-        "POST",
-        `/api/shoots/${id}/calendar`,
-        {},
-      );
+      const response = await apiRequest("POST", `/api/shoots/${id}/calendar`, {});
       return await response.json();
     },
     onSuccess: (data) => {
@@ -507,11 +439,7 @@ export default function ShootPage() {
 
   const sendRemindersMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(
-        "POST",
-        `/api/shoots/${id}/send-reminders`,
-        {},
-      );
+      const response = await apiRequest("POST", `/api/shoots/${id}/send-reminders`, {});
       return await response.json();
     },
     onSuccess: (data) => {
@@ -542,27 +470,27 @@ export default function ShootPage() {
 
   const calculateReminderTime = (): string | null => {
     if (!date) return null;
-
+    
     if (reminderPreset === "custom") {
       if (customReminderDate && customReminderTime) {
-        const [hours, minutes] = customReminderTime.split(":").map(Number);
+        const [hours, minutes] = customReminderTime.split(':').map(Number);
         const reminderDateTime = new Date(customReminderDate);
         reminderDateTime.setHours(hours, minutes, 0, 0);
         return reminderDateTime.toISOString();
       }
       return null;
     }
-
+    
     if (!reminderPreset || reminderPreset === "none") return null;
-
+    
     const shootDateTime = new Date(date);
     if (time) {
-      const [hours, minutes] = time.split(":").map(Number);
+      const [hours, minutes] = time.split(':').map(Number);
       shootDateTime.setHours(hours, minutes, 0, 0);
     }
-
+    
     const reminderDateTime = new Date(shootDateTime);
-
+    
     switch (reminderPreset) {
       case "15min":
         reminderDateTime.setMinutes(reminderDateTime.getMinutes() - 15);
@@ -577,7 +505,7 @@ export default function ShootPage() {
         reminderDateTime.setDate(reminderDateTime.getDate() - 1);
         break;
     }
-
+    
     return reminderDateTime.toISOString();
   };
 
@@ -596,7 +524,7 @@ export default function ShootPage() {
     const shootData: any = {
       title: title.trim(),
       status,
-      date: date && date instanceof Date && !isNaN(date.getTime()) ? date.toISOString() : null,
+      date: date ? date.toISOString() : null,
       time: time.trim() || null,
       durationMinutes: durationMinutes || null,
       reminderTime: reminderTimeValue,
@@ -615,58 +543,48 @@ export default function ShootPage() {
 
   const getInitials = (name: string) => {
     return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
+      .split(' ')
+      .map(n => n[0])
+      .join('')
       .toUpperCase()
       .slice(0, 2);
   };
 
   const removePersonnel = (pId: string) => {
-    setSelectedPersonnel(selectedPersonnel.filter((id) => id !== pId));
+    setSelectedPersonnel(selectedPersonnel.filter(id => id !== pId));
     const newRoles = { ...personnelRoles };
     delete newRoles[pId];
     setPersonnelRoles(newRoles);
   };
 
   const removeEquipment = (eId: string) => {
-    setSelectedEquipment(selectedEquipment.filter((id) => id !== eId));
+    setSelectedEquipment(selectedEquipment.filter(id => id !== eId));
   };
 
   const removeProp = (pId: string) => {
-    setSelectedProps(selectedProps.filter((id) => id !== pId));
+    setSelectedProps(selectedProps.filter(id => id !== pId));
   };
 
   const removeCostume = (cId: string) => {
-    setSelectedCostumes(selectedCostumes.filter((id) => id !== cId));
+    setSelectedCostumes(selectedCostumes.filter(id => id !== cId));
   };
 
-  const availablePersonnel = personnel.filter(
-    (p) => !selectedPersonnel.includes(p.id),
-  );
-  const availableEquipment = equipment.filter(
-    (e) => !selectedEquipment.includes(e.id),
-  );
-  const availableProps = props.filter((p) => !selectedProps.includes(p.id));
-  const availableCostumes = costumes.filter(
-    (c) => !selectedCostumes.includes(c.id),
-  );
-  const availableLocations = locations.filter((l) => l.id !== locationId);
+  const availablePersonnel = personnel.filter(p => !selectedPersonnel.includes(p.id));
+  const availableEquipment = equipment.filter(e => !selectedEquipment.includes(e.id));
+  const availableProps = props.filter(p => !selectedProps.includes(p.id));
+  const availableCostumes = costumes.filter(c => !selectedCostumes.includes(c.id));
+  const availableLocations = locations.filter(l => l.id !== locationId);
 
-  const selectedLocation = locations.find((l) => l.id === locationId);
+  const selectedLocation = locations.find(l => l.id === locationId);
 
   const generateTitle = (): string => {
-    const selectedCostumeData = costumes.filter((c) =>
-      selectedCostumes.includes(c.id),
-    );
+    const selectedCostumeData = costumes.filter(c => selectedCostumes.includes(c.id));
     if (selectedCostumeData.length === 0) return "";
-
-    const characters = selectedCostumeData.map((c) => c.characterName);
-    const seriesSet = new Set(
-      selectedCostumeData.map((c) => c.seriesName).filter(Boolean),
-    );
+    
+    const characters = selectedCostumeData.map(c => c.characterName);
+    const seriesSet = new Set(selectedCostumeData.map(c => c.seriesName).filter(Boolean));
     const series = Array.from(seriesSet);
-
+    
     let generatedTitle = "";
     if (characters.length === 1) {
       generatedTitle = characters[0];
@@ -682,7 +600,7 @@ export default function ShootPage() {
         generatedTitle += ` - ${series[0]}`;
       }
     }
-
+    
     return generatedTitle ? generatedTitle + " Shoot" : "";
   };
 
@@ -692,12 +610,12 @@ export default function ShootPage() {
       imageUrl: URL.createObjectURL(file),
       isPending: true,
       file,
-      index,
+      index
     })),
     ...(existingShoot?.references || []).map((ref: any) => ({
       ...ref,
-      isPending: false,
-    })),
+      isPending: false
+    }))
   ];
 
   const openLightbox = (index: number) => {
@@ -714,43 +632,39 @@ export default function ShootPage() {
   };
 
   const prevImage = () => {
-    setCurrentImageIndex(
-      (prev) => (prev - 1 + allImages.length) % allImages.length,
-    );
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
   const handleAddImages = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     input.multiple = true;
     input.onchange = async (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (!files) return;
-
+      
       const fileArray = Array.from(files);
-
+      
       if (isNew) {
         setPendingReferenceFiles([...pendingReferenceFiles, ...fileArray]);
       } else {
         for (const file of fileArray) {
           const formData = new FormData();
-          formData.append("file", file);
-          formData.append("shootId", existingShoot?.id || "");
-
+          formData.append('file', file);
+          formData.append('shootId', existingShoot?.id || '');
+          
           try {
-            await fetch("/api/shoot-references", {
-              method: "POST",
+            await fetch('/api/shoot-references', {
+              method: 'POST',
               body: formData,
             });
           } catch (error) {
-            console.error("Failed to upload reference:", error);
+            console.error('Failed to upload reference:', error);
           }
         }
-
-        queryClient.invalidateQueries({
-          queryKey: ["/api/shoots", existingShoot?.id],
-        });
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
       }
     };
     input.click();
@@ -759,18 +673,18 @@ export default function ShootPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!lightboxOpen) return;
-
-      if (e.key === "Escape") {
+      
+      if (e.key === 'Escape') {
         closeLightbox();
-      } else if (e.key === "ArrowLeft") {
+      } else if (e.key === 'ArrowLeft') {
         prevImage();
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key === 'ArrowRight') {
         nextImage();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxOpen, allImages.length]);
 
   return (
@@ -795,11 +709,7 @@ export default function ShootPage() {
                 asChild
                 data-testid="button-view-calendar"
               >
-                <a
-                  href={existingShoot?.calendarEventUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={existingShoot?.calendarEventUrl} target="_blank" rel="noopener noreferrer">
                   <SiGooglecalendar className="h-4 w-4 mr-2" />
                   Calendar
                 </a>
@@ -824,11 +734,7 @@ export default function ShootPage() {
                 asChild
                 data-testid="button-view-docs"
               >
-                <a
-                  href={existingShoot.docsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={existingShoot.docsUrl} target="_blank" rel="noopener noreferrer">
                   <SiGoogledocs className="h-4 w-4 mr-2" />
                   Docs
                 </a>
@@ -850,11 +756,7 @@ export default function ShootPage() {
               variant="outline"
               size="sm"
               onClick={() => sendRemindersMutation.mutate()}
-              disabled={
-                isNew ||
-                selectedPersonnel.length === 0 ||
-                sendRemindersMutation.isPending
-              }
+              disabled={isNew || selectedPersonnel.length === 0 || sendRemindersMutation.isPending}
               data-testid="button-send-reminders"
             >
               <Mail className="h-4 w-4 mr-2" />
@@ -889,36 +791,21 @@ export default function ShootPage() {
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  className="cursor-pointer"
-                  data-testid="button-edit-status"
-                >
+                <button className="cursor-pointer" data-testid="button-edit-status">
                   <StatusBadge status={status} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => setStatus("idea" as any)}
-                  data-testid="status-option-idea"
-                >
+                <DropdownMenuItem onClick={() => setStatus("idea" as any)} data-testid="status-option-idea">
                   Idea
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setStatus("planning" as any)}
-                  data-testid="status-option-planning"
-                >
+                <DropdownMenuItem onClick={() => setStatus("planning" as any)} data-testid="status-option-planning">
                   Planning
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setStatus("ready to shoot" as any)}
-                  data-testid="status-option-ready"
-                >
+                <DropdownMenuItem onClick={() => setStatus("ready to shoot" as any)} data-testid="status-option-ready">
                   Ready to Shoot
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setStatus("completed" as any)}
-                  data-testid="status-option-completed"
-                >
+                <DropdownMenuItem onClick={() => setStatus("completed" as any)} data-testid="status-option-completed">
                   Completed
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -928,9 +815,9 @@ export default function ShootPage() {
           {selectedCostumes.length > 0 && costumes.length > 0 && (
             <div className="text-sm text-muted-foreground flex items-center gap-2">
               <span>Auto title: "{generateTitle()}"</span>
-              <Button
-                variant="ghost"
-                size="sm"
+              <Button 
+                variant="ghost" 
+                size="sm" 
                 className="h-auto p-0 text-primary hover:underline"
                 onClick={() => {
                   setTitle(generateTitle());
@@ -954,11 +841,7 @@ export default function ShootPage() {
                   data-testid="button-select-date"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? (
-                    format(date, "PPP")
-                  ) : (
-                    <span className="text-muted-foreground">Pick a date</span>
-                  )}
+                  {date ? format(date, "PPP") : <span className="text-muted-foreground">Pick a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -984,9 +867,7 @@ export default function ShootPage() {
               <Input
                 type="number"
                 value={durationMinutes}
-                onChange={(e) =>
-                  setDurationMinutes(parseInt(e.target.value) || 60)
-                }
+                onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
                 min="15"
                 step="15"
                 className="w-20"
@@ -996,8 +877,8 @@ export default function ShootPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div
-                className="h-4 w-4 rounded-full border border-border"
+              <div 
+                className="h-4 w-4 rounded-full border border-border" 
                 style={{ backgroundColor: color }}
               />
               <Input
@@ -1042,11 +923,7 @@ export default function ShootPage() {
                         data-testid="button-custom-reminder-date"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {customReminderDate ? (
-                          format(customReminderDate, "PPP")
-                        ) : (
-                          <span>Pick date</span>
-                        )}
+                        {customReminderDate ? format(customReminderDate, "PPP") : <span>Pick date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -1113,11 +990,7 @@ export default function ShootPage() {
           <h2 className="text-lg font-semibold">Location</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                data-testid="button-add-location"
-              >
+              <Button variant="outline" size="sm" data-testid="button-add-location">
                 <Plus className="h-4 w-4 mr-2" />
                 {selectedLocation ? "Change" : "Add"}
               </Button>
@@ -1128,25 +1001,20 @@ export default function ShootPage() {
                 Create New...
               </DropdownMenuItem>
               {availableLocations.map((loc) => (
-                <DropdownMenuItem
-                  key={loc.id}
-                  onSelect={() => setLocationId(loc.id)}
-                >
+                <DropdownMenuItem key={loc.id} onSelect={() => setLocationId(loc.id)}>
                   {loc.name}
                 </DropdownMenuItem>
               ))}
               {availableLocations.length === 0 && !selectedLocation && (
-                <DropdownMenuItem disabled>
-                  No locations available
-                </DropdownMenuItem>
+                <DropdownMenuItem disabled>No locations available</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         {selectedLocation && (
-          <Card
-            className="cursor-pointer hover-elevate"
+          <Card 
+            className="cursor-pointer hover-elevate" 
             onClick={() => setEditingLocation(selectedLocation)}
             data-testid={`card-location-${selectedLocation.id}`}
           >
@@ -1154,8 +1022,8 @@ export default function ShootPage() {
               <div className="flex items-start gap-4">
                 {selectedLocation.imageUrl && (
                   <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
-                    <img
-                      src={selectedLocation.imageUrl}
+                    <img 
+                      src={selectedLocation.imageUrl} 
                       alt={selectedLocation.name}
                       className="w-full h-full object-cover"
                     />
@@ -1164,9 +1032,7 @@ export default function ShootPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-semibold text-lg">
-                        {selectedLocation.name}
-                      </h3>
+                      <h3 className="font-semibold text-lg">{selectedLocation.name}</h3>
                       {selectedLocation.address && (
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <MapPin className="h-3 w-3" />
@@ -1174,9 +1040,7 @@ export default function ShootPage() {
                         </p>
                       )}
                       {selectedLocation.notes && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {selectedLocation.notes}
-                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">{selectedLocation.notes}</p>
                       )}
                     </div>
                     <Button
@@ -1198,32 +1062,25 @@ export default function ShootPage() {
           </Card>
         )}
 
-        {selectedLocation &&
-          selectedLocation.placeId &&
-          selectedLocation.latitude !== null &&
-          selectedLocation.latitude !== undefined &&
-          selectedLocation.longitude !== null &&
-          selectedLocation.longitude !== undefined && (
-            <div className="mt-4">
-              <GoogleMap
-                center={{
-                  lat: selectedLocation.latitude,
-                  lng: selectedLocation.longitude,
-                }}
-                zoom={15}
-                markers={[
-                  {
-                    position: {
-                      lat: selectedLocation.latitude,
-                      lng: selectedLocation.longitude,
-                    },
-                    title: selectedLocation.name,
-                  },
-                ]}
-                className="h-[300px]"
-              />
-            </div>
-          )}
+        {selectedLocation && selectedLocation.placeId && selectedLocation.latitude !== null && selectedLocation.latitude !== undefined && selectedLocation.longitude !== null && selectedLocation.longitude !== undefined && (
+          <div className="mt-4">
+            <GoogleMap
+              center={{ 
+                lat: selectedLocation.latitude, 
+                lng: selectedLocation.longitude 
+              }}
+              zoom={15}
+              markers={[{
+                position: { 
+                  lat: selectedLocation.latitude, 
+                  lng: selectedLocation.longitude 
+                },
+                title: selectedLocation.name
+              }]}
+              className="h-[300px]"
+            />
+          </div>
+        )}
       </div>
 
       {/* Costumes Section */}
@@ -1232,11 +1089,7 @@ export default function ShootPage() {
           <h2 className="text-lg font-semibold">Characters & Costumes</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                data-testid="button-add-costume"
-              >
+              <Button variant="outline" size="sm" data-testid="button-add-costume">
                 <Plus className="h-4 w-4 mr-2" />
                 Add
               </Button>
@@ -1247,20 +1100,15 @@ export default function ShootPage() {
                 Create New...
               </DropdownMenuItem>
               {availableCostumes.map((costume) => (
-                <DropdownMenuItem
-                  key={costume.id}
-                  onSelect={() =>
-                    setSelectedCostumes([...selectedCostumes, costume.id])
-                  }
+                <DropdownMenuItem 
+                  key={costume.id} 
+                  onSelect={() => setSelectedCostumes([...selectedCostumes, costume.id])}
                 >
-                  {costume.characterName}{" "}
-                  {costume.seriesName ? `- ${costume.seriesName}` : ""}
+                  {costume.characterName} {costume.seriesName ? `- ${costume.seriesName}` : ''}
                 </DropdownMenuItem>
               ))}
               {availableCostumes.length === 0 && (
-                <DropdownMenuItem disabled>
-                  No costumes available
-                </DropdownMenuItem>
+                <DropdownMenuItem disabled>No costumes available</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1269,11 +1117,11 @@ export default function ShootPage() {
         {selectedCostumes.length > 0 && (
           <div className="space-y-3">
             {selectedCostumes.map((costumeId) => {
-              const costume = costumes.find((c) => c.id === costumeId);
+              const costume = costumes.find(c => c.id === costumeId);
               if (!costume) return null;
               return (
-                <Card
-                  key={costumeId}
+                <Card 
+                  key={costumeId} 
                   className="overflow-hidden cursor-pointer hover-elevate"
                   onClick={() => setEditingCostume(costume)}
                   data-testid={`card-costume-${costumeId}`}
@@ -1282,21 +1130,17 @@ export default function ShootPage() {
                     <div className="flex items-start gap-4 p-4">
                       {costume.imageUrl && (
                         <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
-                          <img
-                            src={costume.imageUrl}
+                          <img 
+                            src={costume.imageUrl} 
                             alt={costume.characterName}
                             className="w-full h-full object-cover"
                           />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg">
-                          {costume.characterName}
-                        </h3>
+                        <h3 className="font-semibold text-lg">{costume.characterName}</h3>
                         {costume.seriesName && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {costume.seriesName}
-                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">{costume.seriesName}</p>
                         )}
                       </div>
                       <Button
@@ -1337,8 +1181,8 @@ export default function ShootPage() {
                 Create New...
               </DropdownMenuItem>
               {availableProps.map((prop) => (
-                <DropdownMenuItem
-                  key={prop.id}
+                <DropdownMenuItem 
+                  key={prop.id} 
                   onSelect={() => setSelectedProps([...selectedProps, prop.id])}
                 >
                   {prop.name}
@@ -1354,11 +1198,11 @@ export default function ShootPage() {
         {selectedProps.length > 0 && (
           <div className="space-y-3">
             {selectedProps.map((propId) => {
-              const prop = props.find((p) => p.id === propId);
+              const prop = props.find(p => p.id === propId);
               if (!prop) return null;
               return (
-                <Card
-                  key={propId}
+                <Card 
+                  key={propId} 
                   className="overflow-hidden cursor-pointer hover-elevate"
                   onClick={() => setEditingProp(prop)}
                   data-testid={`card-prop-${propId}`}
@@ -1367,8 +1211,8 @@ export default function ShootPage() {
                     <div className="flex items-start gap-4 p-4">
                       {prop.imageUrl && (
                         <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden">
-                          <img
-                            src={prop.imageUrl}
+                          <img 
+                            src={prop.imageUrl} 
                             alt={prop.name}
                             className="w-full h-full object-cover"
                           />
@@ -1376,10 +1220,7 @@ export default function ShootPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg">{prop.name}</h3>
-                        <Badge
-                          variant={prop.available ? "default" : "secondary"}
-                          className="mt-2"
-                        >
+                        <Badge variant={prop.available ? "default" : "secondary"} className="mt-2">
                           {prop.available ? "Available" : "In Use"}
                         </Badge>
                       </div>
@@ -1410,11 +1251,7 @@ export default function ShootPage() {
           <h2 className="text-lg font-semibold">Team</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                data-testid="button-add-personnel"
-              >
+              <Button variant="outline" size="sm" data-testid="button-add-personnel">
                 <Plus className="h-4 w-4 mr-2" />
                 Add
               </Button>
@@ -1425,19 +1262,15 @@ export default function ShootPage() {
                 Create New...
               </DropdownMenuItem>
               {availablePersonnel.map((person) => (
-                <DropdownMenuItem
-                  key={person.id}
-                  onSelect={() =>
-                    setSelectedPersonnel([...selectedPersonnel, person.id])
-                  }
+                <DropdownMenuItem 
+                  key={person.id} 
+                  onSelect={() => setSelectedPersonnel([...selectedPersonnel, person.id])}
                 >
                   {person.name}
                 </DropdownMenuItem>
               ))}
               {availablePersonnel.length === 0 && (
-                <DropdownMenuItem disabled>
-                  No personnel available
-                </DropdownMenuItem>
+                <DropdownMenuItem disabled>No personnel available</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1446,11 +1279,11 @@ export default function ShootPage() {
         {selectedPersonnel.length > 0 && (
           <div className="space-y-3">
             {selectedPersonnel.map((personnelId) => {
-              const person = personnel.find((p) => p.id === personnelId);
+              const person = personnel.find(p => p.id === personnelId);
               if (!person) return null;
               return (
-                <Card
-                  key={personnelId}
+                <Card 
+                  key={personnelId} 
                   className="cursor-pointer hover-elevate"
                   onClick={() => setEditingPersonnel(person)}
                   data-testid={`card-personnel-${personnelId}`}
@@ -1458,26 +1291,19 @@ export default function ShootPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-12 flex-shrink-0">
-                        <AvatarImage
-                          src={person.avatarUrl || undefined}
-                          alt={person.name}
-                        />
-                        <AvatarFallback>
-                          {getInitials(person.name)}
-                        </AvatarFallback>
+                        <AvatarImage src={person.avatarUrl || undefined} alt={person.name} />
+                        <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-lg">{person.name}</p>
                         {personnelRoles[personnelId] === "__CUSTOM__" ? (
                           <Input
-                            value={
-                              personnelRoles[`${personnelId}_custom`] || ""
-                            }
+                            value={personnelRoles[`${personnelId}_custom`] || ""}
                             onChange={(e) => {
                               e.stopPropagation();
                               setPersonnelRoles({
                                 ...personnelRoles,
-                                [`${personnelId}_custom`]: e.target.value,
+                                [`${personnelId}_custom`]: e.target.value
                               });
                             }}
                             onClick={(e) => e.stopPropagation()}
@@ -1486,7 +1312,7 @@ export default function ShootPage() {
                             data-testid={`input-custom-role-${personnelId}`}
                             onBlur={(e) => {
                               if (!e.target.value) {
-                                const newRoles = { ...personnelRoles };
+                                const newRoles = {...personnelRoles};
                                 delete newRoles[personnelId];
                                 delete newRoles[`${personnelId}_custom`];
                                 setPersonnelRoles(newRoles);
@@ -1498,48 +1324,30 @@ export default function ShootPage() {
                             value={personnelRoles[personnelId] || ""}
                             onValueChange={(value) => {
                               if (value === "__CUSTOM__") {
-                                setPersonnelRoles({
-                                  ...personnelRoles,
-                                  [personnelId]: "__CUSTOM__",
-                                });
+                                setPersonnelRoles({...personnelRoles, [personnelId]: "__CUSTOM__"});
                               } else {
-                                const newRoles = {
-                                  ...personnelRoles,
-                                  [personnelId]: value,
-                                };
+                                const newRoles = {...personnelRoles, [personnelId]: value};
                                 delete newRoles[`${personnelId}_custom`];
                                 setPersonnelRoles(newRoles);
                               }
                             }}
                           >
-                            <SelectTrigger
-                              className="mt-1 h-8 text-sm"
+                            <SelectTrigger 
+                              className="mt-1 h-8 text-sm" 
                               data-testid={`select-role-${personnelId}`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <SelectValue placeholder="Select role..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Photographer">
-                                Photographer
-                              </SelectItem>
-                              <SelectItem value="Videographer">
-                                Videographer
-                              </SelectItem>
+                              <SelectItem value="Photographer">Photographer</SelectItem>
+                              <SelectItem value="Videographer">Videographer</SelectItem>
                               <SelectItem value="Model">Model</SelectItem>
-                              <SelectItem value="Makeup Artist">
-                                Makeup Artist
-                              </SelectItem>
+                              <SelectItem value="Makeup Artist">Makeup Artist</SelectItem>
                               <SelectItem value="Stylist">Stylist</SelectItem>
-                              <SelectItem value="Assistant">
-                                Assistant
-                              </SelectItem>
-                              <SelectItem value="Coordinator">
-                                Coordinator
-                              </SelectItem>
-                              <SelectItem value="__CUSTOM__">
-                                Custom Role...
-                              </SelectItem>
+                              <SelectItem value="Assistant">Assistant</SelectItem>
+                              <SelectItem value="Coordinator">Coordinator</SelectItem>
+                              <SelectItem value="__CUSTOM__">Custom Role...</SelectItem>
                             </SelectContent>
                           </Select>
                         )}
@@ -1571,11 +1379,7 @@ export default function ShootPage() {
           <h2 className="text-lg font-semibold">Equipment</h2>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                data-testid="button-add-equipment"
-              >
+              <Button variant="outline" size="sm" data-testid="button-add-equipment">
                 <Plus className="h-4 w-4 mr-2" />
                 Add
               </Button>
@@ -1586,19 +1390,15 @@ export default function ShootPage() {
                 Create New...
               </DropdownMenuItem>
               {availableEquipment.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  onSelect={() =>
-                    setSelectedEquipment([...selectedEquipment, item.id])
-                  }
+                <DropdownMenuItem 
+                  key={item.id} 
+                  onSelect={() => setSelectedEquipment([...selectedEquipment, item.id])}
                 >
                   {item.name} - {item.category}
                 </DropdownMenuItem>
               ))}
               {availableEquipment.length === 0 && (
-                <DropdownMenuItem disabled>
-                  No equipment available
-                </DropdownMenuItem>
+                <DropdownMenuItem disabled>No equipment available</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1607,11 +1407,11 @@ export default function ShootPage() {
         {selectedEquipment.length > 0 && (
           <div className="space-y-3">
             {selectedEquipment.map((equipmentId) => {
-              const item = equipment.find((e) => e.id === equipmentId);
+              const item = equipment.find(e => e.id === equipmentId);
               if (!item) return null;
               return (
-                <Card
-                  key={equipmentId}
+                <Card 
+                  key={equipmentId} 
                   className="cursor-pointer hover-elevate"
                   onClick={() => setEditingEquipment(item)}
                   data-testid={`card-equipment-${equipmentId}`}
@@ -1620,13 +1420,8 @@ export default function ShootPage() {
                     <div className="flex items-center gap-4">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {item.category}
-                        </p>
-                        <Badge
-                          variant={item.available ? "default" : "secondary"}
-                          className="mt-2"
-                        >
+                        <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
+                        <Badge variant={item.available ? "default" : "secondary"} className="mt-2">
                           {item.available ? "Available" : "In Use"}
                         </Badge>
                       </div>
@@ -1657,17 +1452,17 @@ export default function ShootPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {allImages.map((image, index) => (
-            <Card
-              key={image.id}
+            <Card 
+              key={image.id} 
               className="overflow-hidden hover-elevate cursor-pointer group"
               data-testid={`card-reference-image-${index}`}
             >
-              <CardContent
+              <CardContent 
                 className="p-0 relative aspect-square"
                 onClick={() => openLightbox(index)}
               >
-                <img
-                  src={image.imageUrl}
+                <img 
+                  src={image.imageUrl} 
                   alt={image.isPending ? "Pending reference" : "Reference"}
                   className="w-full h-full object-cover"
                 />
@@ -1679,21 +1474,15 @@ export default function ShootPage() {
                   onClick={async (e) => {
                     e.stopPropagation();
                     if (image.isPending) {
-                      setPendingReferenceFiles(
-                        pendingReferenceFiles.filter(
-                          (_, i) => i !== image.index,
-                        ),
-                      );
+                      setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== image.index));
                     } else {
                       try {
                         await fetch(`/api/shoot-references/${image.id}`, {
-                          method: "DELETE",
+                          method: 'DELETE',
                         });
-                        queryClient.invalidateQueries({
-                          queryKey: ["/api/shoots", existingShoot?.id],
-                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
                       } catch (error) {
-                        console.error("Failed to delete reference:", error);
+                        console.error('Failed to delete reference:', error);
                       }
                     }
                   }}
@@ -1704,8 +1493,8 @@ export default function ShootPage() {
               </CardContent>
             </Card>
           ))}
-
-          <Card
+          
+          <Card 
             className="border-dashed cursor-pointer hover-elevate"
             onClick={handleAddImages}
             onDragOver={(e) => {
@@ -1719,10 +1508,8 @@ export default function ShootPage() {
             onDrop={async (e) => {
               e.preventDefault();
               setIsDraggingRef(false);
-
-              const files = Array.from(e.dataTransfer.files).filter((f) =>
-                f.type.startsWith("image/"),
-              );
+              
+              const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
               if (files.length === 0) return;
 
               if (isNew) {
@@ -1730,31 +1517,27 @@ export default function ShootPage() {
               } else {
                 for (const file of files) {
                   const formData = new FormData();
-                  formData.append("file", file);
-                  formData.append("shootId", existingShoot?.id || "");
-
+                  formData.append('file', file);
+                  formData.append('shootId', existingShoot?.id || '');
+                  
                   try {
-                    await fetch("/api/shoot-references", {
-                      method: "POST",
+                    await fetch('/api/shoot-references', {
+                      method: 'POST',
                       body: formData,
                     });
                   } catch (error) {
-                    console.error("Failed to upload reference:", error);
+                    console.error('Failed to upload reference:', error);
                   }
                 }
-
-                queryClient.invalidateQueries({
-                  queryKey: ["/api/shoots", existingShoot?.id],
-                });
+                
+                queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
               }
             }}
             data-testid="card-add-reference-images"
           >
             <CardContent className="aspect-square flex flex-col items-center justify-center p-4">
               <Plus className="h-8 w-8 mb-2 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground text-center">
-                Add Reference Images
-              </span>
+              <span className="text-sm text-muted-foreground text-center">Add Reference Images</span>
             </CardContent>
           </Card>
         </div>
@@ -1763,14 +1546,14 @@ export default function ShootPage() {
       {/* Instagram References Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Instagram References</h2>
-
+        
         <div className="flex gap-2">
           <Input
             placeholder="https://instagram.com/p/... or https://instagram.com/reel/..."
             value={currentLink}
             onChange={(e) => setCurrentLink(e.target.value)}
             onKeyPress={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === 'Enter') {
                 e.preventDefault();
                 addInstagramLink();
               }
@@ -1807,10 +1590,7 @@ export default function ShootPage() {
               const embedUrl = getEmbedUrl(link);
 
               return (
-                <Card
-                  key={index}
-                  className="hover-elevate relative overflow-hidden"
-                >
+                <Card key={index} className="hover-elevate relative overflow-hidden">
                   <CardContent className="p-0">
                     {embedUrl ? (
                       <div className="relative">
@@ -1835,9 +1615,9 @@ export default function ShootPage() {
                       </div>
                     ) : (
                       <div className="p-3 flex items-center justify-between gap-2">
-                        <a
-                          href={link}
-                          target="_blank"
+                        <a 
+                          href={link} 
+                          target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm truncate flex-1 hover:underline"
                           data-testid={`link-instagram-${index}`}
@@ -1877,11 +1657,7 @@ export default function ShootPage() {
           disabled={createMutation.isPending || updateMutation.isPending}
           data-testid="button-submit"
         >
-          {createMutation.isPending || updateMutation.isPending
-            ? "Saving..."
-            : isNew
-              ? "Create Shoot"
-              : "Update Shoot"}
+          {createMutation.isPending || updateMutation.isPending ? "Saving..." : isNew ? "Create Shoot" : "Update Shoot"}
         </Button>
       </div>
 
@@ -1928,20 +1704,17 @@ export default function ShootPage() {
       />
 
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent
-          className="max-w-4xl p-0"
-          aria-describedby="lightbox-description"
-        >
+        <DialogContent className="max-w-4xl p-0" aria-describedby="lightbox-description">
           <DialogTitle className="sr-only">Reference Image Viewer</DialogTitle>
           <div className="relative bg-black" id="lightbox-description">
             {allImages.length > 0 && allImages[currentImageIndex] && (
-              <img
-                src={allImages[currentImageIndex].imageUrl}
+              <img 
+                src={allImages[currentImageIndex].imageUrl} 
                 alt="Reference image"
                 className="w-full h-auto max-h-[80vh] object-contain"
               />
             )}
-
+            
             {allImages.length > 1 && (
               <>
                 <Button
@@ -1965,7 +1738,7 @@ export default function ShootPage() {
               </>
             )}
           </div>
-
+          
           {allImages.length > 0 && (
             <div className="text-center py-2 text-sm text-muted-foreground">
               {currentImageIndex + 1} / {allImages.length}
