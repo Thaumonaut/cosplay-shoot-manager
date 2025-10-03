@@ -23,10 +23,12 @@ export default function Personnel() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Personnel | undefined>(undefined);
+  const [editingItem, setEditingItem] = useState<Personnel | undefined>(
+    undefined,
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data: personnel = [], isLoading} = useQuery<Personnel[]>({
+  const { data: personnel = [], isLoading } = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
   });
 
@@ -71,7 +73,9 @@ export default function Personnel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="heading-personnel">Personnel</h1>
+          <h1 className="text-3xl font-bold" data-testid="heading-personnel">
+            Personnel
+          </h1>
           <p className="text-muted-foreground mt-1">
             Manage your team members, models, photographers, and other contacts
           </p>
@@ -103,7 +107,10 @@ export default function Personnel() {
             <p className="text-muted-foreground text-center mb-4">
               Add your first team member to start tracking your crew
             </p>
-            <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-first-personnel">
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              data-testid="button-add-first-personnel"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Personnel
             </Button>
@@ -112,8 +119,8 @@ export default function Personnel() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {personnel.map((person) => (
-            <Card 
-              key={person.id} 
+            <Card
+              key={person.id}
               className="cursor-pointer hover-elevate"
               onClick={() => openEditDialog(person)}
               data-testid={`card-personnel-${person.id}`}
@@ -125,7 +132,10 @@ export default function Personnel() {
                     <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base truncate" data-testid={`text-personnel-name-${person.id}`}>
+                    <CardTitle
+                      className="text-base truncate"
+                      data-testid={`text-personnel-name-${person.id}`}
+                    >
                       {person.name}
                     </CardTitle>
                   </div>
@@ -156,23 +166,21 @@ export default function Personnel() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                {person.email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4 shrink-0" />
-                    <span className="truncate" data-testid={`text-email-${person.id}`}>{person.email}</span>
-                  </div>
-                )}
-                {person.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4 shrink-0" />
-                    <span data-testid={`text-phone-${person.id}`}>{person.phone}</span>
-                  </div>
-                )}
-                {person.notes && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-2" data-testid={`text-notes-${person.id}`}>
-                    {person.notes}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span
+                    className="truncate"
+                    data-testid={`text-email-${person.id}`}
+                  >
+                    {person.email || "none"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4 shrink-0" />
+                  <span data-testid={`text-phone-${person.id}`}>
+                    {person.phone || "none"}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -199,7 +207,8 @@ export default function Personnel() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Personnel</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this person? This action cannot be undone.
+              Are you sure you want to delete this person? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

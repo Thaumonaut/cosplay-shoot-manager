@@ -2109,10 +2109,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/props", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
+      
+      let imageUrl: string | undefined;
+      if (req.file) {
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
+        }
+
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const fileName = `public/props/${teamId}/${Date.now()}-${safeFilename}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: "public, max-age=31536000",
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload image: ${error.message}`);
+        }
+        
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = publicUrlData.publicUrl;
+      }
+      
       const bodyData = { 
         ...req.body, 
         teamId,
-        available: req.body.available === "true" || req.body.available === true
+        available: req.body.available === "true" || req.body.available === true,
+        ...(imageUrl && { imageUrl })
       };
       const data = insertPropSchema.parse(bodyData);
       const prop = await storage.createProp(data);
@@ -2206,11 +2241,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/costumes", authenticateUser, upload.single("image"), async (req: AuthRequest, res) => {
     try {
       const teamId = await getUserTeamId(getUserId(req));
+      
+      let imageUrl: string | undefined;
+      if (req.file) {
+        if (!supabaseAdmin) {
+          throw new Error("Supabase admin client not configured");
+        }
+
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const basename = path.basename(req.file.originalname, ext)
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .substring(0, 50);
+        const safeFilename = `${basename}${ext}`;
+
+        const fileName = `public/costumes/${teamId}/${Date.now()}-${safeFilename}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+          .from('shoot-images')
+          .upload(fileName, req.file.buffer, {
+            contentType: req.file.mimetype,
+            cacheControl: "public, max-age=31536000",
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload image: ${error.message}`);
+        }
+        
+        const { data: publicUrlData } = supabaseAdmin.storage
+          .from('shoot-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = publicUrlData.publicUrl;
+      }
+      
       const bodyData = {
         ...req.body,
         teamId,
         completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : 0,
-        todos: req.body.todos ? JSON.parse(req.body.todos) : []
+        todos: req.body.todos ? JSON.parse(req.body.todos) : [],
+        ...(imageUrl && { imageUrl })
       };
       const data = insertCostumeProgressSchema.parse(bodyData);
       const costume = await storage.createCostumeProgress(data);
