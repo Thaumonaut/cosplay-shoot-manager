@@ -5,6 +5,7 @@ import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel
 import { apiRequest, queryClient } from "@/lib/queryClient";
   import { createCalendarEvent, createCalendarWithProvider, createDocs, createDocsWithProvider, sendReminders, deleteShoot } from "@/lib/shootActions";
 import { extractIds, extractId } from "@/lib/resourceUtils";
+import appendAndPersist from '@/lib/appendAndPersist';
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge, type ShootStatus } from "@/components/StatusBadge";
 import { CreatePersonnelDialog } from "@/components/CreatePersonnelDialog";
@@ -312,45 +313,7 @@ export default function ShootPage() {
   });
 
   // Helper to append a new resource id to local state and persist to the server for existing shoots
-  const appendAndPersist = async (type: "personnel" | "equipment" | "prop" | "costume", newId: string) => {
-    if (!newId) return;
-
-    if (type === "personnel") {
-      setSelectedPersonnel((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
-    } else if (type === "equipment") {
-      setSelectedEquipment((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
-    } else if (type === "prop") {
-      setSelectedProps((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
-    } else if (type === "costume") {
-      setSelectedCostumes((prev) => (prev.includes(newId) ? prev : [...prev, newId]));
-    }
-
-    // If editing an existing shoot, persist associations. Build payload from refs,
-    // adding newId to the affected array if it's not already present.
-    if (!isNew && id) {
-      const equipmentIds = equipmentRef.current.includes(newId) || type !== "equipment"
-        ? equipmentRef.current
-        : [...equipmentRef.current, newId];
-      const propIds = propsRef.current.includes(newId) || type !== "prop"
-        ? propsRef.current
-        : [...propsRef.current, newId];
-      const costumeIds = costumesRef.current.includes(newId) || type !== "costume"
-        ? costumesRef.current
-        : [...costumesRef.current, newId];
-      const personnelIds = personnelRef.current.includes(newId) || type !== "personnel"
-        ? personnelRef.current
-        : [...personnelRef.current, newId];
-
-      await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
-        equipmentIds,
-        propIds,
-        costumeIds,
-        personnelIds,
-      }).catch(() => {});
-
-      queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
-    }
-  };
+  // using centralized appendAndPersist helper (keeps same behavior as before)
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<InsertShoot>) => {
@@ -2037,19 +2000,7 @@ export default function ShootPage() {
         onSave={async (newEquipment) => {
           const newId = extractId(newEquipment, ['id', 'equipmentId', 'equipment_id']);
           if (!newId) return;
-          setSelectedEquipment((prev) => {
-            if (prev.includes(newId)) return prev;
-            return [...prev, newId];
-          });
-          if (!isNew && id) {
-            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
-              equipmentIds: [...selectedEquipment, newId],
-              propIds: selectedProps,
-              costumeIds: selectedCostumes,
-              personnelIds: selectedPersonnel,
-            }).catch(() => {});
-            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
-          }
+          await appendAndPersist('equipment', newId);
           queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
         }}
       />
@@ -2081,19 +2032,7 @@ export default function ShootPage() {
         onSave={async (newProp) => {
           const newId = extractId(newProp, ['id', 'propId', 'prop_id']);
           if (!newId) return;
-          setSelectedProps((prev) => {
-            if (prev.includes(newId)) return prev;
-            return [...prev, newId];
-          });
-          if (!isNew && id) {
-            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
-              equipmentIds: selectedEquipment,
-              propIds: [...selectedProps, newId],
-              costumeIds: selectedCostumes,
-              personnelIds: selectedPersonnel,
-            }).catch(() => {});
-            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
-          }
+          await appendAndPersist('prop', newId);
           queryClient.invalidateQueries({ queryKey: ["/api/props"] });
         }}
       />
@@ -2107,20 +2046,9 @@ export default function ShootPage() {
         onSave={async (newCostume) => {
           const newId = extractId(newCostume, ['id', 'costumeId', 'costume_id']);
           if (!newId) return;
-          setSelectedCostumes((prev) => {
-            if (prev.includes(newId)) return prev;
-            return [...prev, newId];
-          });
-          if (!isNew && id) {
-            await apiRequest("PATCH", `/api/shoots/${id}/resources`, {
-              equipmentIds: selectedEquipment,
-              propIds: selectedProps,
-              costumeIds: [...selectedCostumes, newId],
-              personnelIds: selectedPersonnel,
-            }).catch(() => {});
-            queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
-          }
-          queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
+          // Use the shared helper which updates refs and persists using current refs
+          await appendAndPersist('costume', newId);
+          queryClient.invalidateQueries({ queryKey: ['/api/costumes'] });
         }}
       />
 

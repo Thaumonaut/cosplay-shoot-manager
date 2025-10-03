@@ -36,6 +36,7 @@ export function CreateEquipmentDialog({
 }: CreateEquipmentDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dialog = useOptionalDialog();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
@@ -57,11 +58,13 @@ export function CreateEquipmentDialog({
   }, [editItem]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (data: any) => {
+      // Server expects JSON for creating equipment (POST)
       const response = await fetch("/api/equipment", {
         method: "POST",
         credentials: "include",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
       if (!response.ok) {
         const error = await response.text();
@@ -78,7 +81,15 @@ export function CreateEquipmentDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newEquipment);
-      const dialog = useOptionalDialog();
+      // Also call parent onSave if provided so parent pages can append/persist
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(newEquipment));
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('CreateEquipmentDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(newEquipment);
         void dialog.triggerSubmit();
@@ -116,7 +127,14 @@ export function CreateEquipmentDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedEquipment);
-      const dialog = useOptionalDialog();
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(updatedEquipment));
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('CreateEquipmentDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(updatedEquipment);
         void dialog.triggerSubmit();
@@ -169,22 +187,29 @@ export function CreateEquipmentDialog({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("name", name.trim());
-    formData.append("category", category.trim());
-    if (description.trim()) {
-      formData.append("description", description.trim());
-    }
-    formData.append("quantity", qty.toString());
-    formData.append("available", available.toString());
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
-
+    // For create (POST) the server expects JSON (no file upload supported on POST)
     if (editItem) {
+      const formData = new FormData();
+      formData.append("name", name.trim());
+      formData.append("category", category.trim());
+      if (description.trim()) {
+        formData.append("description", description.trim());
+      }
+      formData.append("quantity", qty.toString());
+      formData.append("available", available.toString());
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
       updateMutation.mutate(formData);
     } else {
-      createMutation.mutate(formData);
+      const payload = {
+        name: name.trim(),
+        category: category.trim(),
+        description: description.trim() || undefined,
+        quantity: qty,
+        available,
+      } as any;
+      createMutation.mutate(payload);
     }
   };
 

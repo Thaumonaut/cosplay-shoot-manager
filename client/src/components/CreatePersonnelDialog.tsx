@@ -92,6 +92,10 @@ export function CreatePersonnelDialog({
       }
     },
     onError: (error: Error) => {
+      // Log full error so browser console will show stack trace for debugging
+      // (helps identify where the invalid hook call originated)
+      // eslint-disable-next-line no-console
+      console.error('CreatePersonnelDialog create error', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create personnel",
@@ -138,6 +142,8 @@ export function CreatePersonnelDialog({
       }
     },
     onError: (error: Error) => {
+      // eslint-disable-next-line no-console
+      console.error('CreatePersonnelDialog update error', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update personnel",

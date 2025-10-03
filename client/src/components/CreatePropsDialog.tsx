@@ -35,6 +35,7 @@ export function CreatePropsDialog({
 }: CreatePropsDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dialog = useOptionalDialog();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [available, setAvailable] = useState(true);
@@ -73,7 +74,14 @@ export function CreatePropsDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newProp);
-      const dialog = useOptionalDialog();
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(newProp));
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('CreatePropsDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(newProp);
         void dialog.triggerSubmit();
@@ -111,7 +119,14 @@ export function CreatePropsDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedProp);
-      const dialog = useOptionalDialog();
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(updatedProp));
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('CreatePropsDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(updatedProp);
         void dialog.triggerSubmit();

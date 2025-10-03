@@ -124,6 +124,8 @@ export function CreateLocationDialog({ open, onOpenChange, onSuccess, onSave, ed
           }
         },
         onError: (err: any) => {
+          // eslint-disable-next-line no-console
+          console.error('CreateLocationDialog update error', err);
           toast({ title: "Error", description: err?.message || "Failed to update location", variant: "destructive" });
         },
       });
@@ -144,6 +146,8 @@ export function CreateLocationDialog({ open, onOpenChange, onSuccess, onSave, ed
           }
         },
         onError: (err: any) => {
+          // eslint-disable-next-line no-console
+          console.error('CreateLocationDialog create error', err);
           toast({ title: "Error", description: err?.message || "Failed to create location", variant: "destructive" });
         },
       });

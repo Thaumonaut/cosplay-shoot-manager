@@ -43,6 +43,7 @@ export function CreateCostumesDialog({
 }: CreateCostumesDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dialog = useOptionalDialog();
   const [characterName, setCharacterName] = useState("");
   const [seriesName, setSeriesName] = useState("");
   const [status, setStatus] = useState("planning");
@@ -86,7 +87,16 @@ export function CreateCostumesDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(newCostume);
-      const dialog = useOptionalDialog();
+      // Also call parent onSave if provided so pages using this dialog (e.g. ShootPage)
+      // can immediately append and persist the new resource. Match CreatePersonnelDialog.
+      if (onSave) {
+        try {
+          void Promise.resolve(onSave(newCostume));
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('CreateCostumesDialog: onSave handler failed', e);
+        }
+      }
       if (dialog) {
         dialog.setResult(newCostume);
         void dialog.triggerSubmit();
@@ -124,7 +134,6 @@ export function CreateCostumesDialog({
       resetForm();
       onOpenChange(false);
       onSuccess?.(updatedCostume);
-      const dialog = useOptionalDialog();
       if (dialog) {
         dialog.setResult(updatedCostume);
         void dialog.triggerSubmit();
