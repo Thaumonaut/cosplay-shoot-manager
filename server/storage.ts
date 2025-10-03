@@ -788,7 +788,16 @@ export class SupabaseStorage implements IStorage {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
-    const updateData = toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() });
+    
+    // Filter out undefined values and empty objects before converting
+    const cleanedUpdates: any = {};
+    for (const [key, value] of Object.entries(allowedUpdates)) {
+      if (value !== undefined && !(typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 0)) {
+        cleanedUpdates[key] = value;
+      }
+    }
+    
+    const updateData = toSnakeCase({ ...cleanedUpdates, updated_at: new Date().toISOString() });
     console.log('[updateTeamShoot] Updating shoot:', id, 'teamId:', teamId, 'data:', updateData);
     
     const { data, error } = await supabaseAdmin
