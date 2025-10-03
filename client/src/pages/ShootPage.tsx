@@ -901,6 +901,20 @@ export default function ShootPage() {
               />
               <span className="text-sm text-muted-foreground">min</span>
             </div>
+
+            <div className="flex items-center gap-2">
+              <div 
+                className="h-4 w-4 rounded-full border border-border" 
+                style={{ backgroundColor: color }}
+              />
+              <Input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-20 h-9 p-1 cursor-pointer"
+                data-testid="input-color"
+              />
+            </div>
           </div>
         )}
       </div>

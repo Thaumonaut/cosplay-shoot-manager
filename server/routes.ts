@@ -1121,10 +1121,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         res.json(shoot);
       } catch (error) {
+        console.error("Error fetching shoot:", error);
         res
-          .status(401)
+          .status(500)
           .json({
-            error: error instanceof Error ? error.message : "Unauthorized",
+            error: error instanceof Error ? error.message : "Failed to load shoot",
           });
       }
     },
