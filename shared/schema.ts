@@ -143,6 +143,7 @@ export const shootReferences = pgTable("shoot_references", {
   shootId: varchar("shoot_id").notNull().references(() => shoots.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   url: text("url").notNull(),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

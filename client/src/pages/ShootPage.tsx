@@ -281,26 +281,29 @@ export default function ShootPage() {
 
       if (pendingReferenceFiles.length > 0) {
         for (const file of pendingReferenceFiles) {
-          try {
-            // Upload directly to Supabase storage and then POST imageUrl to server
-            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
-            const filePath = `public/shoot-references/${Date.now()}-${safeName}`;
-            const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
-            if (uploadError) {
-              console.error('Failed to upload reference to Supabase', uploadError);
-              // fallback to previous server upload
-              const formData = new FormData();
-              formData.append('file', file);
-              formData.append('shootId', newShoot.id);
-              await fetch('/api/shoot-references', { method: 'POST', body: formData });
-              continue;
-            }
+            try {
+              // Upload directly to Supabase storage and then POST imageUrl to server
+              const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+              const filePath = `public/shoot-references/${Date.now()}-${safeName}`;
+              const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+              if (uploadError) {
+                console.error('Failed to upload reference to Supabase', uploadError);
+                // fallback to previous server upload
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                  await fetch(`/api/shoots/${newShoot.id}/references`, { method: 'POST', body: formData });
+                } catch (e) {
+                  console.error('Fallback reference upload failed', e);
+                }
+                continue;
+              }
 
-            const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
-            await apiRequest('POST', '/api/shoot-references', { shootId: newShoot.id, imageUrl: publicUrlData.publicUrl });
-          } catch (error) {
-            console.error('Failed to upload reference:', error);
-          }
+              const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+              await apiRequest('POST', `/api/shoots/${newShoot.id}/references`, { url: publicUrlData.publicUrl, type: 'image' });
+            } catch (error) {
+              console.error('Failed to upload reference:', error);
+            }
         }
         setPendingReferenceFiles([]);
       }
@@ -908,7 +911,7 @@ export default function ShootPage() {
           formData.append('shootId', existingShoot?.id || '');
           
           try {
-            await fetch('/api/shoot-references', {
+            await fetch(`/api/shoots/${existingShoot?.id}/references`, {
               method: 'POST',
               body: formData,
             });
@@ -1809,16 +1812,16 @@ export default function ShootPage() {
                     e.stopPropagation();
                     if (image.isPending) {
                       setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== image.index));
-                    } else {
-                      try {
-                        await fetch(`/api/shoot-references/${image.id}`, {
-                          method: 'DELETE',
-                        });
-                        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-                      } catch (error) {
-                        console.error('Failed to delete reference:', error);
+                      } else {
+                        try {
+                          await fetch(`/api/references/${image.id}`, {
+                            method: 'DELETE',
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                        } catch (error) {
+                          console.error('Failed to delete reference:', error);
+                        }
                       }
-                    }
                   }}
                   data-testid={`button-remove-reference-${image.id}`}
                 >
@@ -1855,7 +1858,7 @@ export default function ShootPage() {
                   formData.append('shootId', existingShoot?.id || '');
                   
                   try {
-                    await fetch('/api/shoot-references', {
+                    await fetch(`/api/shoots/${existingShoot?.id}/references`, {
                       method: 'POST',
                       body: formData,
                     });

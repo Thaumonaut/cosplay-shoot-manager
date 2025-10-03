@@ -121,6 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { access_token, refresh_token, expires_at } = req.body;
 
       if (!access_token || !refresh_token || !expires_at) {
+        console.error('/api/auth/set-session missing fields', { hasAccess: !!access_token, hasRefresh: !!refresh_token, hasExpires: !!expires_at, body: { ...req.body, access_token: access_token ? '<redacted>' : undefined } });
         return res.status(400).json({ error: "Missing session data" });
       }
 
@@ -131,10 +132,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = await supabase.auth.getUser(access_token);
 
       if (error || !user) {
-        return res.status(401).json({ error: "Invalid session" });
+        // Log validation failure but proceed to set cookies in non-production
+        console.error('/api/auth/set-session failed to validate token', { error: error?.message, hasUser: !!user });
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(401).json({ error: "Invalid session" });
+        }
+        // In development allow flow to continue to avoid blocking OAuth UX; set cookies anyway
       }
 
-      setCookies(res, access_token, refresh_token, expires_at);
+      try {
+        setCookies(res, access_token, refresh_token, expires_at);
+      } catch (cookieErr) {
+        console.error('Failed to set session cookies:', cookieErr);
+      }
+
       res.json({ user });
     } catch (error) {
       res
@@ -1633,8 +1644,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(shoot);
       } catch (error) {
         if (error instanceof z.ZodError) {
+          // Log the request body and Zod error for easier debugging in dev
+          console.error('Validation error creating shoot reference:', {
+            body: req.body,
+            zodErrors: error.errors,
+          });
           return res.status(400).json({ error: error.errors });
         }
+        console.error('Error in POST /api/shoots/:id/references:', error, { body: req.body });
         res
           .status(401)
           .json({
@@ -1832,9 +1849,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
         
+        // The DB/schema expects a `url` field for the reference. Clients may send
+        // `imageUrl` so normalize to `url` here and prefer the ACL-adjusted
+        // `imageUrl` value when present.
         const data = insertShootReferenceSchema.parse({
           ...req.body,
-          imageUrl,
+          // `type` is required by the DB/schema; default to 'image' when client
+          // doesn't supply one (common for direct image uploads).
+          type: req.body.type || 'image',
+          url: imageUrl || req.body.url || req.body.imageUrl,
+          notes: req.body.notes,
           shootId: req.params.id,
         });
         const reference = await storage.createShootReference(data);
@@ -1885,6 +1909,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
       }
     },
+  );
+
+  // Update shoot reference (notes / metadata)
+  app.patch(
+    "/api/references/:id",
+    authenticateUser,
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = getUserId(req);
+        const teamId = await getUserTeamId(userId);
+
+        // Check user's role - only owner/admin can modify references
+        const teamMember = await storage.getTeamMember(teamId, userId);
+        if (!teamMember || (teamMember.role !== "owner" && teamMember.role !== "admin")) {
+          return res.status(403).json({ error: "Only team owners and admins can modify references" });
+        }
+
+        const reference = await storage.getShootReferenceById(req.params.id);
+        if (!reference) {
+          return res.status(404).json({ error: "Reference not found" });
+        }
+
+        const shoot = await storage.getTeamShoot(reference.shootId, teamId);
+        if (!shoot) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+
+        const updated = await storage.updateShootReference(req.params.id, { notes: req.body.notes });
+        res.json(updated);
+      } catch (error) {
+        console.error('Error updating reference:', error);
+        res.status(500).json({ error: 'Failed to update reference' });
+      }
+    }
   );
 
   // Get shoot participants

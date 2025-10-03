@@ -68,6 +68,7 @@ export interface IStorage {
   getShootReferenceById(id: string): Promise<ShootReference | undefined>;
   createShootReference(reference: InsertShootReference): Promise<ShootReference>;
   deleteShootReference(id: string): Promise<boolean>;
+  updateShootReference(id: string, updates: Partial<InsertShootReference>): Promise<ShootReference | undefined>;
   
   // Participants
   getShootParticipants(shootId: string): Promise<ShootParticipant[]>;
@@ -272,6 +273,15 @@ export class DatabaseStorage implements IStorage {
   async deleteShootReference(id: string): Promise<boolean> {
     const result = await db.delete(shootReferences).where(eq(shootReferences.id, id)).returning();
     return result.length > 0;
+  }
+
+  async updateShootReference(id: string, updates: Partial<InsertShootReference>): Promise<ShootReference | undefined> {
+    const [updated] = await db
+      .update(shootReferences)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(shootReferences.id, id))
+      .returning();
+    return updated;
   }
 
   async getShootParticipants(shootId: string): Promise<ShootParticipant[]> {
@@ -941,6 +951,20 @@ export class SupabaseStorage implements IStorage {
       .eq('id', id);
     
     return !error;
+  }
+
+  async updateShootReference(id: string, updates: Partial<InsertShootReference>): Promise<ShootReference | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+
+    const { data, error } = await supabaseAdmin
+      .from('shoot_references')
+      .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return undefined;
+    return toCamelCase(data) as ShootReference;
   }
 
   async getShootParticipants(shootId: string): Promise<ShootParticipant[]> {
