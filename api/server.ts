@@ -1,13 +1,14 @@
 import { createApp } from '../server/app';
-import serverless from 'serverless-http';
 
-let handler: any = null;
+let appPromise: Promise<any> | null = null;
 
-export default async function handlerWrapper(req: any, res: any) {
-  if (!handler) {
-    const app = await createApp();
-    handler = serverless(app as any);
+export default async function handler(req: any, res: any) {
+  if (!appPromise) {
+    appPromise = createApp();
   }
 
-  return handler(req, res);
+  const app = await appPromise;
+
+  // Express apps are callable as functions (req, res, next). Call and return.
+  return app(req, res);
 }

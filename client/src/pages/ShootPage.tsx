@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InsertShoot, Equipment, Location, Prop, CostumeProgress, Personnel } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
   import { createCalendarEvent, createCalendarWithProvider, createDocs, createDocsWithProvider, sendReminders, deleteShoot } from "@/lib/shootActions";
 import { extractIds, extractId } from "@/lib/resourceUtils";
 import appendAndPersist from '@/lib/appendAndPersist';
@@ -280,15 +281,23 @@ export default function ShootPage() {
 
       if (pendingReferenceFiles.length > 0) {
         for (const file of pendingReferenceFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('shootId', newShoot.id);
-          
           try {
-            await fetch('/api/shoot-references', {
-              method: 'POST',
-              body: formData,
-            });
+            // Upload directly to Supabase storage and then POST imageUrl to server
+            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+            const filePath = `public/shoot-references/${Date.now()}-${safeName}`;
+            const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+            if (uploadError) {
+              console.error('Failed to upload reference to Supabase', uploadError);
+              // fallback to previous server upload
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('shootId', newShoot.id);
+              await fetch('/api/shoot-references', { method: 'POST', body: formData });
+              continue;
+            }
+
+            const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+            await apiRequest('POST', '/api/shoot-references', { shootId: newShoot.id, imageUrl: publicUrlData.publicUrl });
           } catch (error) {
             console.error('Failed to upload reference:', error);
           }

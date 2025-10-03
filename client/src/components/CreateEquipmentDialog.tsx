@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
 import type { Equipment } from "@shared/schema";
@@ -59,18 +60,9 @@ export function CreateEquipmentDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Server expects JSON for creating equipment (POST)
-      const response = await fetch("/api/equipment", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to create equipment");
-      }
-      return await response.json();
+      // If an imageFile was provided, it should have been uploaded by caller
+      const res = await apiRequest('POST', '/api/equipment', data);
+      return await res.json();
     },
     onSuccess: (newEquipment) => {
       queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });
@@ -105,17 +97,30 @@ export function CreateEquipmentDialog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch(`/api/equipment/${editItem!.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to update equipment");
+    mutationFn: async (data: FormData | any) => {
+      // Support either FormData (legacy) or plain object with optional imageFile
+      let payload: any;
+      if (data instanceof FormData) {
+        payload = {} as any;
+        for (const [k, v] of Array.from(data.entries())) payload[k] = v as any;
+      } else {
+        payload = { ...data };
       }
-      return await response.json();
+
+      // If an imageFile is supplied, upload directly to Supabase and set imageUrl
+      if (payload.imageFile instanceof File) {
+        const file = payload.imageFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/equipment/${Date.now()}-${safeName}`;
+        const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+        if (uploadError) throw new Error(uploadError.message || 'Failed to upload image');
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.imageUrl = publicUrlData.publicUrl;
+        delete payload.imageFile;
+      }
+
+      const res = await apiRequest('PATCH', `/api/equipment/${editItem!.id}`, payload);
+      return await res.json();
     },
     onSuccess: (updatedEquipment) => {
       queryClient.invalidateQueries({ queryKey: ["/api/equipment"] });

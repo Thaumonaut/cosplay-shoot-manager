@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
 import type { Personnel } from "@shared/schema";
@@ -56,18 +57,40 @@ export function CreatePersonnelDialog({
   }, [editItem]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (form: FormData | { name: string; email?: string; phone?: string; notes?: string; avatarFile?: File | null }) => {
       console.debug('[test-debug] createMutation.mutationFn called');
-      const response = await fetch("/api/personnel", {
-        method: "POST",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to create personnel");
+      let payload: any = {};
+
+      if (form instanceof FormData) {
+        // legacy branch - convert entries to object
+        for (const [k, v] of Array.from(form.entries())) payload[k] = v as any;
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      // If an avatar file is provided, upload directly to Supabase storage
+      if (payload.avatarFile instanceof File) {
+        const file = payload.avatarFile as File;
+        const ext = file.name.split('.').pop() || 'jpg';
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/personnel/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) {
+          throw new Error(uploadError.message || 'Failed to upload avatar');
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.avatarUrl = publicUrlData.publicUrl;
+        delete payload.avatarFile;
+      }
+
+      // POST JSON to server (server now accepts avatarUrl)
+      const res = await apiRequest('POST', '/api/personnel', payload);
+      return await res.json();
     },
     onSuccess: (newPersonnel) => {
       console.debug('[test-debug] createMutation.onSuccess', newPersonnel);
@@ -108,17 +131,34 @@ export function CreatePersonnelDialog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch(`/api/personnel/${editItem!.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to update personnel");
+    mutationFn: async (form: FormData | { name?: string; email?: string; phone?: string; notes?: string; avatarFile?: File | null }) => {
+      let payload: any = {};
+      if (form instanceof FormData) {
+        for (const [k, v] of Array.from(form.entries())) payload[k] = v as any;
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      if (payload.avatarFile instanceof File) {
+        const file = payload.avatarFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/personnel/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) {
+          throw new Error(uploadError.message || 'Failed to upload avatar');
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.avatarUrl = publicUrlData.publicUrl;
+        delete payload.avatarFile;
+      }
+
+      const res = await apiRequest('PATCH', `/api/personnel/${editItem!.id}`, payload);
+      return await res.json();
     },
     onSuccess: (updatedPersonnel) => {
       queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });

@@ -20,9 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { useOptionalDialog } from "@/components/ui/dialog";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import { supabase } from "@/lib/supabase";
 import { X, Plus } from "lucide-react";
 import type { CostumeProgress } from "@shared/schema";
 
@@ -66,17 +68,36 @@ export function CreateCostumesDialog({
   }, [editItem]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch("/api/costumes", {
-        method: "POST",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to create costume");
+    mutationFn: async (form: FormData | { characterName: string; seriesName?: string; status?: string; notes?: string; todos?: string[]; imageFile?: File | null }) => {
+      let payload: any = {};
+      if (form instanceof FormData) {
+        for (const [k, v] of Array.from(form.entries())) {
+          if (k === 'image') payload.imageFile = v as any;
+          else if (k === 'todos') payload.todos = JSON.parse(v as string);
+          else payload[k] = v as any;
+        }
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      if (payload.imageFile instanceof File) {
+        const file = payload.imageFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/costumes/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) throw new Error(uploadError.message || 'Failed to upload image');
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.imageUrl = publicUrlData.publicUrl;
+        delete payload.imageFile;
+      }
+
+      const res = await apiRequest('POST', '/api/costumes', payload);
+      return await res.json();
     },
     onSuccess: (newCostume) => {
       queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });
@@ -112,17 +133,36 @@ export function CreateCostumesDialog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch(`/api/costumes/${editItem!.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to update costume");
+    mutationFn: async (form: FormData | { characterName?: string; seriesName?: string; status?: string; notes?: string; todos?: string[]; imageFile?: File | null }) => {
+      let payload: any = {};
+      if (form instanceof FormData) {
+        for (const [k, v] of Array.from(form.entries())) {
+          if (k === 'image') payload.imageFile = v as any;
+          else if (k === 'todos') payload.todos = JSON.parse(v as string);
+          else payload[k] = v as any;
+        }
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      if (payload.imageFile instanceof File) {
+        const file = payload.imageFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/costumes/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) throw new Error(uploadError.message || 'Failed to upload image');
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.imageUrl = publicUrlData.publicUrl;
+        delete payload.imageFile;
+      }
+
+      const res = await apiRequest('PATCH', `/api/costumes/${editItem!.id}`, payload);
+      return await res.json();
     },
     onSuccess: (updatedCostume) => {
       queryClient.invalidateQueries({ queryKey: ["/api/costumes"] });

@@ -432,9 +432,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "First name and last name are required" });
       }
 
-      // Upload avatar to object storage if provided
-      let avatarUrl: string | undefined;
-      if (req.file) {
+      // Prefer client-supplied public URL (direct-to-supabase upload). If not present,
+      // fall back to server-side multer buffer upload.
+      let avatarUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.avatarUrl === 'string' && req.body.avatarUrl) {
+        avatarUrl = req.body.avatarUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
@@ -2308,14 +2311,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      // Upload avatar to object storage if provided
-      let avatarUrl: string | undefined;
-      if (req.file) {
+      // Support client-side direct uploads by accepting avatarUrl in JSON body
+      let avatarUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.avatarUrl === 'string' && req.body.avatarUrl) {
+        avatarUrl = req.body.avatarUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
 
-        // Sanitize filename to prevent path traversal
         const ext = path.extname(req.file.originalname).toLowerCase();
         const basename = path.basename(req.file.originalname, ext)
           .replace(/[^a-zA-Z0-9]/g, '-')
@@ -2336,7 +2340,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error(`Failed to upload avatar: ${error.message}`);
         }
         
-        // Get the public URL
         const { data: publicUrlData } = supabaseAdmin.storage
           .from('shoot-images')
           .getPublicUrl(fileName);
@@ -2361,8 +2364,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      let avatarUrl: string | undefined;
-      if (req.file) {
+      let avatarUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.avatarUrl === 'string' && req.body.avatarUrl) {
+        avatarUrl = req.body.avatarUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
@@ -2452,8 +2457,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      let imageUrl: string | undefined;
-      if (req.file) {
+      // Prefer client-supplied public URL (direct upload) then fall back to server-side file
+      let imageUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.imageUrl === 'string' && req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
@@ -2583,8 +2591,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      let imageUrl: string | undefined;
-      if (req.file) {
+      let imageUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.imageUrl === 'string' && req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
@@ -2715,8 +2725,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      let imageUrl: string | undefined;
-      if (req.file) {
+      let imageUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.imageUrl === 'string' && req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }
@@ -2768,8 +2780,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const teamId = await getUserTeamId(getUserId(req));
       
-      let imageUrl: string | undefined;
-      if (req.file) {
+      let imageUrl: string | undefined = undefined;
+      if (req.body && typeof req.body.imageUrl === 'string' && req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else if (req.file) {
         if (!supabaseAdmin) {
           throw new Error("Supabase admin client not configured");
         }

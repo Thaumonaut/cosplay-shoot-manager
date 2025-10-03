@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useOptionalDialog } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
 import type { Prop } from "@shared/schema";
@@ -53,17 +54,42 @@ export function CreatePropsDialog({
   }, [editItem]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch("/api/props", {
-        method: "POST",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to create prop");
+    mutationFn: async (form: FormData | { name: string; description?: string; available?: boolean; imageFile?: File | null }) => {
+      let payload: any = {};
+      if (form instanceof FormData) {
+        for (const [k, v] of Array.from(form.entries())) {
+          // map legacy key 'image' -> imageFile
+          if (k === 'image') payload.imageFile = v as any;
+          else payload[k] = v as any;
+        }
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      // normalise available
+      if (typeof payload.available === 'string') {
+        payload.available = payload.available === 'true';
+      }
+
+      // If an image file is supplied, upload directly to Supabase
+      if (payload.imageFile instanceof File) {
+        const file = payload.imageFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/props/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) throw new Error(uploadError.message || 'Failed to upload image');
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.imageUrl = publicUrlData.publicUrl;
+        delete payload.imageFile;
+      }
+
+      const res = await apiRequest('POST', '/api/props', payload);
+      return await res.json();
     },
     onSuccess: (newProp) => {
       queryClient.invalidateQueries({ queryKey: ["/api/props"] });
@@ -97,17 +123,39 @@ export function CreatePropsDialog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch(`/api/props/${editItem!.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        body: data,
-      });
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to update prop");
+    mutationFn: async (form: FormData | { name?: string; description?: string; available?: boolean; imageFile?: File | null }) => {
+      let payload: any = {};
+      if (form instanceof FormData) {
+        for (const [k, v] of Array.from(form.entries())) {
+          if (k === 'image') payload.imageFile = v as any;
+          else payload[k] = v as any;
+        }
+      } else {
+        payload = { ...form };
       }
-      return await response.json();
+
+      if (typeof payload.available === 'string') {
+        payload.available = payload.available === 'true';
+      }
+
+      if (payload.imageFile instanceof File) {
+        const file = payload.imageFile as File;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/props/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) throw new Error(uploadError.message || 'Failed to upload image');
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.imageUrl = publicUrlData.publicUrl;
+        delete payload.imageFile;
+      }
+
+      const res = await apiRequest('PATCH', `/api/props/${editItem!.id}`, payload);
+      return await res.json();
     },
     onSuccess: (updatedProp) => {
       queryClient.invalidateQueries({ queryKey: ["/api/props"] });

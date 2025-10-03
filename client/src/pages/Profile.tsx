@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
@@ -159,24 +160,27 @@ export default function Profile() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("firstName", firstName);
-      formData.append("lastName", lastName);
+      let payload: any = { firstName, lastName };
+
       if (avatarFile) {
-        formData.append("avatar", avatarFile);
+        const file = avatarFile;
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+        const filePath = `public/avatars/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shoot-images')
+          .upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+
+        if (uploadError) {
+          throw new Error(uploadError.message || 'Failed to upload avatar');
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+        payload.avatarUrl = publicUrlData.publicUrl;
       }
 
-      const response = await fetch("/api/user/profile", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update profile");
-      }
-
-      return response.json();
+      const res = await apiRequest('POST', '/api/user/profile', payload);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
