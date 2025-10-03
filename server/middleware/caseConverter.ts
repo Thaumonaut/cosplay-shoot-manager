@@ -4,12 +4,16 @@ import { Request, Response, NextFunction } from 'express';
 export function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
-  if (typeof obj !== 'object') return obj;
+  // Don't recursively convert Date objects, strings, numbers, etc.
+  if (obj instanceof Date || typeof obj !== 'object') return obj;
   
   const snakeCaseObj: any = {};
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-    snakeCaseObj[snakeKey] = toSnakeCase(value);
+    // Skip undefined values instead of converting them
+    if (value !== undefined) {
+      snakeCaseObj[snakeKey] = toSnakeCase(value);
+    }
   }
   return snakeCaseObj;
 }
@@ -18,7 +22,8 @@ export function toSnakeCase(obj: any): any {
 export function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(toCamelCase);
-  if (typeof obj !== 'object') return obj;
+  // Don't recursively convert Date objects, strings, numbers, etc.
+  if (obj instanceof Date || typeof obj !== 'object') return obj;
   
   const camelCaseObj: any = {};
   for (const [key, value] of Object.entries(obj)) {
