@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadWithCrop } from "@/components/ImageUploadWithCrop";
 import { InlineEdit } from "@/components/InlineEdit";
+import { X, Plus } from "lucide-react";
 import type { CostumeProgress } from "@shared/schema";
 
 interface CreateCostumesDialogProps {
@@ -43,6 +44,8 @@ export function CreateCostumesDialog({
   const [seriesName, setSeriesName] = useState("");
   const [status, setStatus] = useState("planning");
   const [notes, setNotes] = useState("");
+  const [todos, setTodos] = useState<string[]>([]);
+  const [currentTodo, setCurrentTodo] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
 
@@ -52,6 +55,7 @@ export function CreateCostumesDialog({
       setSeriesName(editItem.seriesName || "");
       setStatus(editItem.status || "planning");
       setNotes(editItem.notes || "");
+      setTodos(editItem.todos || []);
       setImagePreview(editItem.imageUrl || "");
       setImageFile(null);
     }
@@ -127,6 +131,8 @@ export function CreateCostumesDialog({
     setSeriesName("");
     setStatus("planning");
     setNotes("");
+    setTodos([]);
+    setCurrentTodo("");
     setImageFile(null);
     setImagePreview("");
   };
@@ -151,6 +157,7 @@ export function CreateCostumesDialog({
     if (notes.trim()) {
       formData.append("notes", notes.trim());
     }
+    formData.append("todos", JSON.stringify(todos));
     if (imageFile) {
       formData.append("image", imageFile);
     }
@@ -234,6 +241,61 @@ export function CreateCostumesDialog({
               rows={3}
               data-testid="input-costumes-notes"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="todos">Todo List (Optional)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="todos"
+                placeholder="Add a todo item..."
+                value={currentTodo}
+                onChange={(e) => setCurrentTodo(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentTodo.trim()) {
+                      setTodos([...todos, currentTodo.trim()]);
+                      setCurrentTodo("");
+                    }
+                  }
+                }}
+                data-testid="input-costumes-todo"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (currentTodo.trim()) {
+                    setTodos([...todos, currentTodo.trim()]);
+                    setCurrentTodo("");
+                  }
+                }}
+                data-testid="button-add-todo"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {todos.length > 0 && (
+              <div className="space-y-1 mt-2">
+                {todos.map((todo, index) => (
+                  <div key={index} className="flex items-center gap-2 p-2 rounded bg-muted" data-testid={`todo-item-${index}`}>
+                    <span className="flex-1 text-sm">{todo}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setTodos(todos.filter((_, i) => i !== index))}
+                      data-testid={`button-remove-todo-${index}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
