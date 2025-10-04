@@ -85,11 +85,34 @@ export function ImageUploadWithCrop({
     });
   };
 
+
+  // Helper: upload file to Supabase using presigned URL
+  const uploadToSupabase = async (file: File): Promise<string | null> => {
+    // Step 1: Get presigned URL from API
+    const res = await fetch('/api/objects/upload', { method: 'POST' });
+    if (!res.ok) return null;
+    const { uploadURL } = await res.json();
+    if (!uploadURL) return null;
+    // Step 2: Upload file to presigned URL
+    const uploadRes = await fetch(uploadURL, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!uploadRes.ok) return null;
+    // Step 3: Return public URL (if available)
+    // You may need to parse the uploadURL or get the public URL from your API
+    // For now, return uploadURL (or update as needed)
+    return uploadURL;
+  };
+
   const handleCropSave = async () => {
     const result = await createCroppedImage();
     if (result) {
       const file = new File([result.blob], "cropped-image.jpg", { type: "image/jpeg" });
-      onChange(file, result.url);
+      // Upload to Supabase
+      const publicUrl = await uploadToSupabase(file);
+      onChange(file, publicUrl || result.url);
     }
     setShowCropDialog(false);
     setImageSrc(null);
