@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react'
 import { Button } from './ui/button'
 import { Upload, X, File, Image } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import NextImage from 'next/image'
 
 interface UploadedFile {
   id: string
@@ -207,10 +208,12 @@ export function FileUploader({
               >
                 {file.type.startsWith('image/') ? (
                   <div className="relative h-10 w-10 overflow-hidden rounded">
-                    <img
+                    <NextImage
                       src={file.url}
                       alt={file.filename}
                       className="h-full w-full object-cover"
+                      fill
+                      sizes="40px"
                     />
                   </div>
                 ) : (

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Lightbulb, Clock, Calendar, CheckCircle2, Image as ImageIcon } from "lucide-react";
 import { SiGooglecalendar, SiGoogledocs } from "react-icons/si";
+import NextImage from 'next/image';
 
 interface KanbanShoot {
   id: string;
@@ -55,10 +56,12 @@ export function KanbanBoard({ columns, onShootClick }: KanbanBoardProps) {
                 >
                   {shoot.image && (
                     <div className="relative aspect-[3/2] bg-muted overflow-hidden">
-                      <img
+                      <NextImage
                         src={shoot.image}
                         alt={shoot.title}
                         className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                       {(shoot.hasCalendar || shoot.hasDocs) && (
                         <div className="absolute bottom-2 right-2 flex gap-1">

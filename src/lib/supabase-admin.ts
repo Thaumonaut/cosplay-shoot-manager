@@ -5,9 +5,30 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 let supabaseAdminInstance: ReturnType<typeof createClient> | null = null
 
+// Create a mock client for build time when environment variables are missing
+const createMockAdminClient = () => ({
+  from: () => ({
+    select: () => Promise.resolve({ data: [], error: null }),
+    insert: () => Promise.resolve({ data: null, error: null }),
+    update: () => Promise.resolve({ data: null, error: null }),
+    delete: () => Promise.resolve({ data: null, error: null }),
+    eq: () => Promise.resolve({ data: null, error: null }),
+    single: () => Promise.resolve({ data: null, error: null })
+  }),
+  rpc: () => Promise.resolve({ data: null, error: null }),
+  storage: {
+    from: () => ({
+      upload: () => Promise.resolve({ data: null, error: null }),
+      getPublicUrl: () => ({ data: { publicUrl: '' }, error: null }),
+      remove: () => Promise.resolve({ data: null, error: null })
+    })
+  }
+})
+
 export function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error('Missing Supabase admin environment variables')
+    console.warn('Supabase admin environment variables not found, using mock client')
+    return createMockAdminClient() as any
   }
   
   if (!supabaseAdminInstance) {

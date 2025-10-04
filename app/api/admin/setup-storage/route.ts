@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     
     // Create uploads bucket if it doesn't exist
     const { data: buckets } = await supabaseAdmin.storage.listBuckets()
-    const uploadsBucket = buckets?.find(b => b.name === 'uploads')
+    const uploadsBucket = buckets?.find((b: any) => b.name === 'uploads')
     
     if (!uploadsBucket) {
       const { data: newBucket, error: bucketError } = await supabaseAdmin.storage

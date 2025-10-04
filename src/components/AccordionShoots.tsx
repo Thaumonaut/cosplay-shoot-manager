@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, Clock, Calendar, CheckCircle2, MapPin, Users, Image } from "lucide-react";
 import { format } from "date-fns";
+import NextImage from 'next/image';
 
 interface EnrichedShoot extends Shoot {
   participantCount?: number;
@@ -136,14 +137,17 @@ export function AccordionShoots({ shoots, onShootClick }: AccordionShootsProps) 
                       >
                         <div className="relative h-32 w-full overflow-hidden bg-muted">
                           {shoot.firstReferenceUrl ? (
-                            <img
+                            <NextImage
                               src={shoot.firstReferenceUrl}
                               alt={shoot.title}
                               className="w-full h-full object-cover"
                               data-testid={`image-shoot-thumbnail-${shoot.id}`}
+                              fill
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-purple-600/20 flex items-center justify-center">
+                              {/* eslint-disable-next-line jsx-a11y/alt-text */}
                               <Image className="h-12 w-12 text-muted-foreground/40" />
                             </div>
                           )}

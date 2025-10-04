@@ -19,12 +19,12 @@ export async function verifyDatabaseSchema() {
 
     console.log('Storage buckets:', { buckets, bucketsError })
 
-    const uploadsBucket = buckets?.find(b => b.name === 'uploads')
+    const uploadsBucket = buckets?.find((b: any) => b.name === 'uploads')
     
     return {
       filesTableExists: !!tables && tables.length > 0,
       uploadsBucketExists: !!uploadsBucket,
-      buckets: buckets?.map(b => b.name) || []
+      buckets: buckets?.map((b: any) => b.name) || []
     }
   } catch (error) {
     console.error('Schema verification error:', error)

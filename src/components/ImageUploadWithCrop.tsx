@@ -3,6 +3,7 @@ import Cropper from "react-easy-crop";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Upload, X } from "lucide-react";
+import NextImage from 'next/image';
 
 interface ImageUploadWithCropProps {
   value?: string;
@@ -127,10 +128,13 @@ export function ImageUploadWithCrop({
       <div className={`relative ${className}`}>
         {value ? (
           <div className="relative group">
-            <img
+            <NextImage
               src={value}
               alt="Upload preview"
               className="w-full h-40 object-cover rounded-lg"
+              width={400}
+              height={160}
+              sizes="(max-width: 768px) 100vw, 400px"
             />
             <Button
               type="button"

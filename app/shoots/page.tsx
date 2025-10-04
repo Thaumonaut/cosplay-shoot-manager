@@ -11,6 +11,7 @@ import { AccordionShoots } from '@/components/AccordionShoots'
 import { ShootCalendar } from '@/components/ShootCalendar'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { Plus, Grid, List, Calendar, Kanban, MapPin, Lightbulb, Clock, CheckCircle2 } from 'lucide-react'
+import NextImage from 'next/image'
 
 interface Shoot {
   id: string
@@ -190,10 +191,12 @@ export default function ShootsPage() {
                 <Card key={shoot.id} className="hover-elevate cursor-pointer" onClick={() => handleShootClick(shoot)}>
                   {shoot.coverImage && (
                     <div className="aspect-video bg-muted overflow-hidden rounded-t-lg">
-                      <img
+                      <NextImage
                         src={shoot.coverImage}
                         alt={shoot.title}
                         className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
                   )}

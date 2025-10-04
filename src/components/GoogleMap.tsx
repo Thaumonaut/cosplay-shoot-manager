@@ -152,7 +152,7 @@ export function GoogleMap({
       markersRef.current.forEach(marker => marker.setMap(null));
       markersRef.current = [];
     };
-  }, []);
+  }, [center, zoom, onMapClick]);
 
   useEffect(() => {
     if (!mapRef.current || !window.google?.maps) return;

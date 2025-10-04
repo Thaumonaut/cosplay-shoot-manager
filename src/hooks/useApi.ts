@@ -118,7 +118,7 @@ export function useMutation<TArgs extends any[], TResult>(
       setLoading(false)
       throw error
     }
-  }, [])
+  }, [mutationFn])
 
   return {
     mutate,

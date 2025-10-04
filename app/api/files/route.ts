@@ -62,20 +62,21 @@ export async function POST(req: NextRequest) {
       .getPublicUrl(fileName)
 
     // Store file metadata in database
-    const { data: fileRecord, error: dbError } = await supabaseAdmin
-      .from('files')
-      // Cast to any until Supabase DB types are generated
-      .insert({
-        id: crypto.randomUUID(),
-        team_id: teamId,
-        uploaded_by: userId,
-        filename: file.name,
-        storage_path: fileName,
-        public_url: publicUrl,
-        file_type: file.type,
-        file_size: file.size,
-        created_at: new Date().toISOString()
-      } as any)
+    const fileData = {
+      id: crypto.randomUUID(),
+      team_id: teamId,
+      uploaded_by: userId,
+      filename: file.name,
+      storage_path: fileName,
+      public_url: publicUrl,
+      file_type: file.type,
+      file_size: file.size,
+      created_at: new Date().toISOString()
+    }
+    
+    const { data: fileRecord, error: dbError } = await (supabaseAdmin
+      .from('files') as any)
+      .insert(fileData)
       .select()
       .single()
 
@@ -128,7 +129,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch files' }, { status: 500 })
     }
 
-    return NextResponse.json(files.map(file => ({
+    return NextResponse.json(files.map((file: any) => ({
       // @ts-ignore - Schema types need to be regenerated
       id: file.id,
       // @ts-ignore - Schema types need to be regenerated

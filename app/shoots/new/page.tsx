@@ -297,6 +297,7 @@ export default function CreateShootPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
                 <Image className="h-5 w-5" />
                 Reference Images
               </CardTitle>
