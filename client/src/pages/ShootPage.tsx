@@ -33,6 +33,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -44,6 +54,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import ReferenceLightbox from "@/components/ReferenceLightbox";
+import { ToastAction } from "@/components/ui/toast";
 
 export default function ShootPage() {
   const { id } = useParams();
@@ -96,6 +108,10 @@ export default function ShootPage() {
   
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Deletion flow state for reference confirmation + undo
+  const [deletingReferenceId, setDeletingReferenceId] = useState<string | null>(null);
+  const [deletingReferenceData, setDeletingReferenceData] = useState<any | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
 
   const { data: existingShoot } = useQuery<any>({
     queryKey: ["/api/shoots", id],
@@ -104,6 +120,12 @@ export default function ShootPage() {
 
   const { data: shootParticipants = [] } = useQuery<any[]>({
     queryKey: ["/api/shoots", id, "participants"],
+    enabled: !isNew && !!id,
+  });
+
+  // Fetch shoot references explicitly so we can refresh them independently
+  const { data: shootReferences = [] } = useQuery<any[]>({
+    queryKey: ["/api/shoots", id, "references"],
     enabled: !isNew && !!id,
   });
 
@@ -866,8 +888,9 @@ export default function ShootPage() {
       file,
       index
     })),
-    ...(existingShoot?.references || []).map((ref: any) => ({
+    ...(shootReferences || []).map((ref: any) => ({
       ...ref,
+      imageUrl: ref.url || ref.imageUrl || '',
       isPending: false
     }))
   ];
@@ -876,6 +899,11 @@ export default function ShootPage() {
     setCurrentImageIndex(index);
     setLightboxOpen(true);
   };
+
+  // keep the notes field in sync with the currently shown image
+  useEffect(() => {
+    // legacy: no-op; notes are handled inside ReferenceLightbox
+  }, [lightboxOpen, currentImageIndex, allImages.length]);
 
   const closeLightbox = () => {
     setLightboxOpen(false);
@@ -905,22 +933,38 @@ export default function ShootPage() {
       if (isNew) {
         setPendingReferenceFiles([...pendingReferenceFiles, ...fileArray]);
       } else {
-        for (const file of fileArray) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('shootId', existingShoot?.id || '');
-          
-          try {
-            await fetch(`/api/shoots/${existingShoot?.id}/references`, {
-              method: 'POST',
-              body: formData,
-            });
-          } catch (error) {
-            console.error('Failed to upload reference:', error);
+          for (const file of fileArray) {
+            try {
+              const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+              const filePath = `public/shoot-references/${Date.now()}-${safeName}`;
+              const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+              if (uploadError) {
+                console.error('Failed to upload reference to Supabase', uploadError);
+                // fallback to server-side multipart upload
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('shootId', existingShoot?.id || '');
+                try {
+                  await fetch(`/api/shoots/${existingShoot?.id}/references`, {
+                    method: 'POST',
+                    body: formData,
+                  });
+                } catch (e) {
+                  console.error('Fallback reference upload failed', e);
+                }
+                continue;
+              }
+
+              const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+              await apiRequest('POST', `/api/shoots/${existingShoot?.id}/references`, { url: publicUrlData.publicUrl, type: 'image' });
+              // Refresh references list so the gallery updates
+              queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
+            } catch (error) {
+              console.error('Failed to upload reference:', error);
+            }
           }
-        }
-        
-        queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+
+          queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
       }
     };
     input.click();
@@ -1803,25 +1847,36 @@ export default function ShootPage() {
                   alt={image.isPending ? "Pending reference" : "Reference"}
                   className="w-full h-full object-cover"
                 />
+                {/* Notes overlay at bottom of image for persisted references (click to expand) */}
+                {!image.isPending && image.notes && (
+                  <div
+                    className="absolute left-0 right-0 bottom-0 bg-background/80 backdrop-blur-sm text-sm text-foreground px-2 py-1 truncate cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedNotes((prev) => ({ ...prev, [image.id]: !prev[image.id] }));
+                    }}
+                    data-testid={`notes-preview-${image.id}`}
+                    title="Click to expand notes"
+                  >
+                    {expandedNotes[image.id] ? image.notes : (image.notes.length > 80 ? image.notes.slice(0, 80) + '…' : image.notes)}
+                  </div>
+                )}
+
                 <Button
                   type="button"
                   variant="secondary"
                   size="icon"
                   className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
+                    // If pending, remove locally immediately
                     if (image.isPending) {
                       setPendingReferenceFiles(pendingReferenceFiles.filter((_, i) => i !== image.index));
-                      } else {
-                        try {
-                          await fetch(`/api/references/${image.id}`, {
-                            method: 'DELETE',
-                          });
-                          queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
-                        } catch (error) {
-                          console.error('Failed to delete reference:', error);
-                        }
-                      }
+                      return;
+                    }
+                    // Open confirmation dialog with reference id
+                    setDeletingReferenceId(image.id);
+                    setDeletingReferenceData(image);
                   }}
                   data-testid={`button-remove-reference-${image.id}`}
                 >
@@ -1853,20 +1908,35 @@ export default function ShootPage() {
                 setPendingReferenceFiles([...pendingReferenceFiles, ...files]);
               } else {
                 for (const file of files) {
-                  const formData = new FormData();
-                  formData.append('file', file);
-                  formData.append('shootId', existingShoot?.id || '');
-                  
                   try {
-                    await fetch(`/api/shoots/${existingShoot?.id}/references`, {
-                      method: 'POST',
-                      body: formData,
-                    });
+                    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '-').slice(0, 64);
+                    const filePath = `public/shoot-references/${Date.now()}-${safeName}`;
+                    const { error: uploadError } = await supabase.storage.from('shoot-images').upload(filePath, file, { cacheControl: 'public, max-age=31536000', upsert: false });
+                    if (uploadError) {
+                      console.error('Failed to upload reference to Supabase', uploadError);
+                      // fallback to server-side multipart upload
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      formData.append('shootId', existingShoot?.id || '');
+                      try {
+                        await fetch(`/api/shoots/${existingShoot?.id}/references`, {
+                          method: 'POST',
+                          body: formData,
+                        });
+                      } catch (e) {
+                        console.error('Fallback reference upload failed', e);
+                      }
+                      continue;
+                    }
+
+                    const { data: publicUrlData } = supabase.storage.from('shoot-images').getPublicUrl(filePath);
+                    await apiRequest('POST', `/api/shoots/${existingShoot?.id}/references`, { url: publicUrlData.publicUrl, type: 'image' });
+                    queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
                   } catch (error) {
                     console.error('Failed to upload reference:', error);
                   }
                 }
-                
+
                 queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
               }
             }}
@@ -2108,49 +2178,99 @@ export default function ShootPage() {
         }}
       />
 
-      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-4xl p-0" aria-describedby="lightbox-description">
-          <DialogTitle className="sr-only">Reference Image Viewer</DialogTitle>
-          <div className="relative bg-black" id="lightbox-description">
-            {allImages.length > 0 && allImages[currentImageIndex] && (
-              <img 
-                src={allImages[currentImageIndex].imageUrl} 
-                alt="Reference image"
-                className="w-full h-auto max-h-[80vh] object-contain"
-              />
-            )}
-            
-            {allImages.length > 1 && (
-              <>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2"
-                  onClick={prevImage}
-                  data-testid="button-prev-image"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                  onClick={nextImage}
-                  data-testid="button-next-image"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
-              </>
-            )}
-          </div>
-          
-          {allImages.length > 0 && (
-            <div className="text-center py-2 text-sm text-muted-foreground">
-              {currentImageIndex + 1} / {allImages.length}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReferenceLightbox
+        open={lightboxOpen}
+        initialIndex={currentImageIndex}
+        images={allImages}
+        onOpenChange={(open) => setLightboxOpen(open)}
+        onIndexChange={(i) => setCurrentImageIndex(i)}
+        onSaveNotes={async (id, notes) => {
+          try {
+            await apiRequest('PATCH', `/api/references/${id}`, { notes });
+            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+            toast({ title: 'Saved', description: 'Reference notes updated' });
+          } catch (e: any) {
+            toast({ title: 'Error', description: e?.message || 'Failed to save notes', variant: 'destructive' });
+          }
+        }}
+        onDelete={async (id) => {
+          try {
+            await apiRequest('DELETE', `/api/references/${id}`);
+            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+            toast({ title: 'Deleted', description: 'Reference removed' });
+            if (allImages.length <= 1) setLightboxOpen(false);
+          } catch (e: any) {
+            toast({ title: 'Error', description: e?.message || 'Failed to delete reference', variant: 'destructive' });
+          }
+        }}
+        onRequestDelete={(id, data) => {
+          setDeletingReferenceId(id || null);
+          setDeletingReferenceData(data || null);
+        }}
+      />
+      {/* Delete confirmation for reference images */}
+      <AlertDialog open={deletingReferenceId !== null} onOpenChange={() => setDeletingReferenceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Reference</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this reference image? You can undo this action from the toast for a short time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!deletingReferenceId) return;
+                const refId = deletingReferenceId;
+                const refData = deletingReferenceData;
+                // Optimistically remove from UI by invalidating and letting server respond
+                try {
+                  // Temporarily remove by optimistic query update could be done, but we'll rely on invalidation
+                  await apiRequest('DELETE', `/api/references/${refId}`);
+                  queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+
+                  // Show undo toast — clicking undo will re-create the reference by POSTing the stored URL
+                  toast({
+                    title: 'Reference deleted',
+                    description: 'You can undo this action',
+                    action: (
+                      <ToastAction
+                        altText="Undo delete"
+                        onClick={async () => {
+                          try {
+                            if (!refData) return;
+                            // Re-create reference on server
+                            await apiRequest('POST', `/api/shoots/${existingShoot?.id}/references`, { url: refData.url || refData.imageUrl, type: refData.type || 'image' });
+                            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id, 'references'] });
+                            queryClient.invalidateQueries({ queryKey: ['/api/shoots', existingShoot?.id] });
+                            toast({ title: 'Restored', description: 'Reference restored' });
+                          } catch (e:any) {
+                            toast({ title: 'Error', description: e?.message || 'Failed to restore reference', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        Undo
+                      </ToastAction>
+                    ),
+                  });
+                } catch (e:any) {
+                  toast({ title: 'Error', description: e?.message || 'Failed to delete reference', variant: 'destructive' });
+                } finally {
+                  setDeletingReferenceId(null);
+                  setDeletingReferenceData(null);
+                }
+              }}
+              data-testid="button-confirm-delete-reference"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
         <DialogContent className="max-w-md">
           <DialogTitle>Save options</DialogTitle>

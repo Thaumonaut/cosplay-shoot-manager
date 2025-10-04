@@ -316,10 +316,10 @@
   }
 
   /* Does not work on elements with overflow:hidden! */
-  .hover-elevate:not(.no-default-hover-elevate),
-  .active-elevate:not(.no-default-active-elevate),
-  .hover-elevate-2:not(.no-default-hover-elevate),
-  .active-elevate-2:not(.no-default-active-elevate) {
+  .hover-elevate:not(.no-default-hover-elevate):not(.absolute):not(.fixed),
+  .active-elevate:not(.no-default-active-elevate):not(.absolute):not(.fixed),
+  .hover-elevate-2:not(.no-default-hover-elevate):not(.absolute):not(.fixed),
+  .active-elevate-2:not(.no-default-active-elevate):not(.absolute):not(.fixed) {
     position: relative;
     z-index: 0;
   }
