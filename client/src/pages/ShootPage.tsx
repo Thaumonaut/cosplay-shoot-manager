@@ -56,6 +56,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ReferenceLightbox from "@/components/ReferenceLightbox";
 import { ToastAction } from "@/components/ui/toast";
+import { ShootPageSkeleton } from "@/components/ShootPageSkeleton";
 
 export default function ShootPage() {
   const { id } = useParams();
@@ -113,7 +114,7 @@ export default function ShootPage() {
   const [deletingReferenceData, setDeletingReferenceData] = useState<any | null>(null);
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
 
-  const { data: existingShoot } = useQuery<any>({
+  const { data: existingShoot, isLoading: isLoadingShoot } = useQuery<any>({
     queryKey: ["/api/shoots", id],
     enabled: !isNew && !!id,
   });
@@ -144,23 +145,23 @@ export default function ShootPage() {
     enabled: !isNew && !!id,
   });
 
-  const { data: personnel = [] } = useQuery<Personnel[]>({
+  const { data: personnel = [], isLoading: isLoadingPersonnel } = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
   });
 
-  const { data: equipment = [] } = useQuery<Equipment[]>({
+  const { data: equipment = [], isLoading: isLoadingEquipment } = useQuery<Equipment[]>({
     queryKey: ["/api/equipment"],
   });
 
-  const { data: locations = [] } = useQuery<Location[]>({
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery<Location[]>({
     queryKey: ["/api/locations"],
   });
 
-  const { data: props = [] } = useQuery<Prop[]>({
+  const { data: props = [], isLoading: isLoadingProps } = useQuery<Prop[]>({
     queryKey: ["/api/props"],
   });
 
-  const { data: costumes = [] } = useQuery<CostumeProgress[]>({
+  const { data: costumes = [], isLoading: isLoadingCostumes } = useQuery<CostumeProgress[]>({
     queryKey: ["/api/costumes"],
   });
 
@@ -987,8 +988,15 @@ export default function ShootPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxOpen, allImages.length]);
 
+  // Show skeleton loading state
+  const isLoading = !isNew && (isLoadingShoot || isLoadingPersonnel || isLoadingEquipment || isLoadingLocations || isLoadingProps || isLoadingCostumes);
+  
+  if (isLoading) {
+    return <ShootPageSkeleton />;
+  }
+
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="max-w-5xl mx-auto p-6 space-y-8 pb-24">
       {lastResourceLink && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md flex items-center justify-between">
           <div className="text-sm">
@@ -1187,13 +1195,28 @@ export default function ShootPage() {
                 <X className="h-4 w-4" />
               </Button>
 
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-auto border-0 p-0"
-                data-testid="input-time"
-              />
+              <Select value={time} onValueChange={setTime}>
+                <SelectTrigger className="w-auto border-0 p-0" data-testid="select-time">
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 96 }).map((_, i) => {
+                    const totalMinutes = i * 15;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                    const displayTime = hours === 0 ? `12:${String(minutes).padStart(2, '0')} AM` :
+                                      hours < 12 ? `${hours}:${String(minutes).padStart(2, '0')} AM` :
+                                      hours === 12 ? `12:${String(minutes).padStart(2, '0')} PM` :
+                                      `${hours - 12}:${String(minutes).padStart(2, '0')} PM`;
+                    return (
+                      <SelectItem key={timeString} value={timeString}>
+                        {displayTime}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
 
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -1265,13 +1288,28 @@ export default function ShootPage() {
                           />
                         </PopoverContent>
                       </Popover>
-                      <Input
-                        type="time"
-                        value={customReminderTime}
-                        onChange={(e) => setCustomReminderTime(e.target.value)}
-                        className="w-32"
-                        data-testid="input-custom-reminder-time-inline"
-                      />
+                      <Select value={customReminderTime} onValueChange={setCustomReminderTime}>
+                        <SelectTrigger className="w-32" data-testid="select-custom-reminder-time-inline">
+                          <SelectValue placeholder="Time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 96 }).map((_, i) => {
+                            const totalMinutes = i * 15;
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                            const displayTime = hours === 0 ? `12:${String(minutes).padStart(2, '0')} AM` :
+                                              hours < 12 ? `${hours}:${String(minutes).padStart(2, '0')} AM` :
+                                              hours === 12 ? `12:${String(minutes).padStart(2, '0')} PM` :
+                                              `${hours - 12}:${String(minutes).padStart(2, '0')} PM`;
+                            return (
+                              <SelectItem key={timeString} value={timeString}>
+                                {displayTime}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -1978,42 +2016,90 @@ export default function ShootPage() {
         </div>
 
         {instagramLinks.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {instagramLinks.map((link, index) => {
               // Convert Instagram URL to embed URL
               const getEmbedUrl = (url: string) => {
                 try {
-                  // Match Instagram post/reel URLs
-                  const match = url.match(/instagram\.com\/(p|reel)\/([^/?]+)/);
-                  if (match) {
-                    return `https://www.instagram.com/${match[1]}/${match[2]}/embed/`;
+                  // Clean the URL first to remove query parameters and trailing slashes
+                  let cleanUrl = url.split('?')[0].split('#')[0];
+                  cleanUrl = cleanUrl.replace(/\/$/, ''); // Remove trailing slash
+                  
+                  console.log('Processing Instagram URL:', cleanUrl);
+                  
+                  // Match Instagram post URLs (multiple patterns)
+                  const postPatterns = [
+                    /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
+                    /www\.instagram\.com\/p\/([A-Za-z0-9_-]+)/,
+                    /instagr\.am\/p\/([A-Za-z0-9_-]+)/
+                  ];
+                  
+                  for (const pattern of postPatterns) {
+                    const match = cleanUrl.match(pattern);
+                    if (match) {
+                      const embedUrl = `https://www.instagram.com/p/${match[1]}/embed/`;
+                      console.log('Post embed URL:', embedUrl);
+                      return embedUrl;
+                    }
                   }
+                  
+                  // Match Instagram reel URLs (multiple patterns including username format)
+                  const reelPatterns = [
+                    // Direct reel URLs
+                    /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
+                    /www\.instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
+                    /instagram\.com\/reels\/([A-Za-z0-9_-]+)/,
+                    /www\.instagram\.com\/reels\/([A-Za-z0-9_-]+)/,
+                    /instagr\.am\/reel\/([A-Za-z0-9_-]+)/,
+                    // Username-based reel URLs
+                    /instagram\.com\/[A-Za-z0-9_.]+\/reel\/([A-Za-z0-9_-]+)/,
+                    /www\.instagram\.com\/[A-Za-z0-9_.]+\/reel\/([A-Za-z0-9_-]+)/,
+                    /instagram\.com\/[A-Za-z0-9_.]+\/reels\/([A-Za-z0-9_-]+)/,
+                    /www\.instagram\.com\/[A-Za-z0-9_.]+\/reels\/([A-Za-z0-9_-]+)/
+                  ];
+                  
+                  for (const pattern of reelPatterns) {
+                    const match = cleanUrl.match(pattern);
+                    if (match) {
+                      const embedUrl = `https://www.instagram.com/reel/${match[1]}/embed/`;
+                      console.log('Reel embed URL:', embedUrl);
+                      return embedUrl;
+                    }
+                  }
+                  
+                  console.log('No match found for URL:', cleanUrl);
                   return null;
-                } catch {
+                } catch (error) {
+                  console.error('Error processing Instagram URL:', error);
                   return null;
                 }
               };
 
               const embedUrl = getEmbedUrl(link);
+              const isReel = link.includes('/reel/') || link.includes('/reels/');
+              
+              console.log('Link:', link, 'EmbedUrl:', embedUrl, 'IsReel:', isReel);
 
               return (
                 <Card key={index} className="hover-elevate relative overflow-hidden">
                   <CardContent className="p-0">
                     {embedUrl ? (
-                      <div className="relative">
+                      <div className="relative bg-white rounded-lg overflow-hidden">
                         <iframe
                           src={embedUrl}
-                          className="w-full h-[400px] border-0"
+                          className={`w-full border-0 ${isReel ? 'h-[700px]' : 'h-[600px]'}`}
                           frameBorder="0"
-                          scrolling="no"
+                          scrolling="auto"
                           allowTransparency={true}
+                          loading="lazy"
+                          allow="encrypted-media"
                           data-testid={`embed-instagram-${index}`}
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                          className="absolute top-2 right-2 bg-background/90 hover:bg-background shadow-sm no-default-hover-elevate"
                           onClick={() => removeInstagramLink(index)}
                           data-testid={`button-remove-link-${index}`}
                         >
@@ -2021,12 +2107,12 @@ export default function ShootPage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="p-3 flex items-center justify-between gap-2">
+                      <div className="p-4 flex items-center justify-between gap-2">
                         <a 
                           href={link} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-sm truncate flex-1 hover:underline"
+                          className="text-sm truncate flex-1 hover:underline text-primary"
                           data-testid={`link-instagram-${index}`}
                         >
                           {link}
@@ -2050,22 +2136,24 @@ export default function ShootPage() {
         )}
       </div>
 
-      {/* Bottom Actions */}
-      <div className="flex justify-end gap-2 pb-6">
-        <Button
-          variant="outline"
-          onClick={() => navigate("/")}
-          data-testid="button-cancel"
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={createMutation.isPending || updateMutation.isPending}
-          data-testid="button-submit"
-        >
-          {createMutation.isPending || updateMutation.isPending ? "Saving..." : isNew ? "Create Shoot" : "Update Shoot"}
-        </Button>
+      {/* Bottom Actions - Sticky */}
+      <div className="fixed bottom-0 left-0 right-0 z-[5] bg-background/95 backdrop-blur-sm border-t border-border shadow-lg group-data-[state=expanded]/sidebar:md:left-[var(--sidebar-width)]">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/")}
+            data-testid="button-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={createMutation.isPending || updateMutation.isPending}
+            data-testid="button-submit"
+          >
+            {createMutation.isPending || updateMutation.isPending ? "Saving..." : isNew ? "Create Shoot" : "Update Shoot"}
+          </Button>
+        </div>
       </div>
 
       {/* Create Resource Dialogs */}

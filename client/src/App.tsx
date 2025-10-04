@@ -41,6 +41,16 @@ function AppContent() {
         <Route path="/auth" component={Auth} />
         <Route path="/auth/callback" component={AuthCallback} />
         <Route path="/public/shoots/:id" component={PublicShootPage} />
+        <Route path="/shoots/new">
+          <ProtectedRoute>
+            <ShootPage />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/shoots/:id">
+          <ProtectedRoute>
+            <ShootPage />
+          </ProtectedRoute>
+        </Route>
         <Route path="/">
           <ProtectedRoute>
             <Dashboard />
@@ -69,6 +79,31 @@ function AppContent() {
         <Route path="/profile">
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/personnel">
+          <ProtectedRoute>
+            <Personnel />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/equipment">
+          <ProtectedRoute>
+            <Equipment />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/locations">
+          <ProtectedRoute>
+            <Locations />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/props">
+          <ProtectedRoute>
+            <Props />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/costumes">
+          <ProtectedRoute>
+            <Costumes />
           </ProtectedRoute>
         </Route>
         <Route component={NotFound} />
