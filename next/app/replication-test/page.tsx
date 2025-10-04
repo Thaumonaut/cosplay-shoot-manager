@@ -213,7 +213,7 @@ export default function ReplicationTestPage() {
               <Camera className="h-4 w-4" />
               <AlertTitle>Sidebar Component</AlertTitle>
               <AlertDescription>
-                ✅ "CosPlans" branding ✅ Team selector ✅ Navigation sections ✅ Resources section ✅ User profile
+                ✅ &ldquo;CosPlans&rdquo; branding ✅ Team selector ✅ Navigation sections ✅ Resources section ✅ User profile
               </AlertDescription>
             </Alert>
 

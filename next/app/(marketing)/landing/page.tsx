@@ -164,7 +164,7 @@ export default function LandingPage() {
                 <CardContent className="pt-6">
                   <div className="space-y-4">
                     <p className="text-muted-foreground italic">
-                      "{testimonial.content}"
+                      &ldquo;{testimonial.content}&rdquo;
                     </p>
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
