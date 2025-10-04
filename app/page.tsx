@@ -1,17 +1,12 @@
-'use client'
-
 import { redirect } from 'next/navigation'
-import { useEffect } from 'react'
 
 export default function HomePage() {
-  useEffect(() => {
-    // Redirect to landing page for public access
-    redirect('/landing')
-  }, [])
+  // Server-side redirect to landing page
+  redirect('/landing')
+}
 
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-    </div>
-  )
+// Alternative approach in case redirect doesn't work in some environments
+export const metadata = {
+  title: 'Cosplay Shoot Manager',
+  description: 'Professional cosplay photography planning and management platform'
 }
