@@ -7,3 +7,6 @@ vite.config.ts.*
 .env
 credentials.json
 .vercel
+# Ignore build output
+build/
+api_build/
