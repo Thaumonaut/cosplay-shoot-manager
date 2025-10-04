@@ -1,4 +1,5 @@
 import { Response } from "express";
+export { ObjectPermission } from "./objectAcl";
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "./supabase";
 import {

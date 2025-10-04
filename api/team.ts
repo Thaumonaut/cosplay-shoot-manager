@@ -1,5 +1,8 @@
 
 import { getUserIdFromRequest } from '../lib/auth';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getUserTeamId } from '../server/shoot-docs';
+import { storage } from '../server/storage';
 // ...existing code...
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

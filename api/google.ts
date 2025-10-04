@@ -1,5 +1,6 @@
 
 import { getUserIdFromRequest } from '../lib/auth';
+import type { NextApiRequest, NextApiResponse } from 'next';
 // ...existing code...
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

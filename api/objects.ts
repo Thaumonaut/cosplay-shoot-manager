@@ -1,5 +1,7 @@
 
 import { getUserIdFromRequest } from '../lib/auth';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { ObjectStorageService, ObjectPermission, ObjectNotFoundError } from '../server/objectStorage';
 // ...existing code...
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -23,7 +25,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           res.status(401).end();
           return;
         }
-        objectStorageService.downloadObject(objectFile, res);
+        // Get ACL policy and redirect using signed/public URL
+        const aclPolicy = await import('../server/objectAcl').then(m => m.getObjectAclPolicy(objectFile));
+        const isPublic = aclPolicy?.visibility === 'public';
+        let redirectUrl: string | undefined;
+        if (isPublic) {
+          const { data } = (await import('../server/supabase')).supabaseAdmin.storage.from('shoot-images').getPublicUrl(objectFile);
+          redirectUrl = data.publicUrl;
+        } else {
+          const { data, error } = (await import('../server/supabase')).supabaseAdmin.storage.from('shoot-images').createSignedUrl(objectFile, 3600);
+          if (error || !data) {
+            throw new Error(error?.message || 'Failed to create signed URL');
+          }
+          redirectUrl = data.signedUrl;
+        }
+        if (redirectUrl) {
+          res.redirect(redirectUrl);
+        } else {
+          res.status(500).json({ error: 'Failed to generate redirect URL' });
+        }
       } catch (error) {
         if (error instanceof ObjectNotFoundError) {
           res.status(404).end();
