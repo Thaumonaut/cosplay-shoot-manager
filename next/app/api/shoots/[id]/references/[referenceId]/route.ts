@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string, referenceId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string, referenceId: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -13,13 +13,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string, 
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
+    const { id, referenceId } = await params
     // Verify shoot belongs to team
-    const shoot = await storage.getTeamShoot(params.id, teamId)
+    const shoot = await storage.getTeamShoot(id, teamId)
     if (!shoot) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }
 
-    const reference = await storage.getShootReferenceById(params.referenceId)
+    const reference = await storage.getShootReferenceById(referenceId)
     if (!reference) {
       return NextResponse.json({ error: 'Reference not found' }, { status: 404 })
     }
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string, 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string, referenceId: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string, referenceId: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -41,14 +42,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
+    const { id, referenceId } = await params
     // Verify shoot belongs to team
-    const shoot = await storage.getTeamShoot(params.id, teamId)
+    const shoot = await storage.getTeamShoot(id, teamId)
     if (!shoot) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }
 
     const updates = await req.json()
-    const updatedReference = await storage.updateShootReference(params.referenceId, updates)
+    const updatedReference = await storage.updateShootReference(referenceId, updates)
     if (!updatedReference) {
       return NextResponse.json({ error: 'Reference not found' }, { status: 404 })
     }
@@ -59,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string, referenceId: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string, referenceId: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -70,13 +72,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
+    const { id, referenceId } = await params
     // Verify shoot belongs to team
-    const shoot = await storage.getTeamShoot(params.id, teamId)
+    const shoot = await storage.getTeamShoot(id, teamId)
     if (!shoot) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }
 
-    const deleted = await storage.deleteShootReference(params.referenceId)
+    const deleted = await storage.deleteShootReference(referenceId)
     if (!deleted) {
       return NextResponse.json({ error: 'Reference not found' }, { status: 404 })
     }
