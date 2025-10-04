@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (result?.docUrl) {
-        await storage.updateShoot(shootId, teamId, { docsId: result.docId, docsUrl: result.docUrl });
+        await storage.updateShoot(shootId, teamId, { docsId: result.docId, docsUrl: result.docUrl } as any);
       }
 
       res.json({ docId: result.docId, docUrl: result.docUrl });
@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: 'Failed to create/update calendar event' });
       }
 
-      await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+      await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl } as any);
 
       res.json({ eventId, eventUrl });
     } catch (error) {
@@ -377,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for debugging
   app.get("/api/health", async (req, res) => {
     try {
-      const healthCheck = {
+      const healthCheck: any = {
         timestamp: new Date().toISOString(),
         nodeEnv: process.env.NODE_ENV,
         supabaseUrl: process.env.SUPABASE_URL ? 'configured' : 'missing',
@@ -390,15 +390,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { data, error } = await supabase.auth.getSession();
         healthCheck.supabaseConnection = error ? `error: ${error.message}` : 'ok';
-      } catch (e) {
+      } catch (e: any) {
         healthCheck.supabaseConnection = `error: ${e.message}`;
       }
 
       // Test database connection
       try {
-        await storage.getTeams(); // Simple query to test DB
+        await storage.getTeam('test'); // Simple query to test DB
         healthCheck.databaseConnection = 'ok';
-      } catch (e) {
+      } catch (e: any) {
         healthCheck.databaseConnection = `error: ${e.message}`;
       }
 
@@ -1163,7 +1163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update shoot record to reference doc if successful
         if (result?.docUrl) {
-          await storage.updateShoot(shootId, teamId, { docsUrl: result.docUrl, docsId: result.docId });
+          await storage.updateShoot(shootId, teamId, { docsUrl: result.docUrl, docsId: result.docId } as any);
         }
 
         // Respond with a small page that notifies the opener (main window) about the created doc
@@ -1241,7 +1241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const eventUrl = eventResult?.data?.htmlLink;
 
         if (eventId && eventUrl) {
-          await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+          await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl } as any);
 
           return res.send(`
             <html>
@@ -1719,9 +1719,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ error: "Only team owners and admins can update shoots" });
         }
         
-  const updateSchema = insertShootSchema.omit({ userId: true, teamId: true }).partial();
-  // Normalize incoming keys to camelCase before validation
-  const data = updateSchema.parse(convertKeysToCamel(req.body));
+        const updateSchema = insertShootSchema.omit({ userId: true, teamId: true } as any).partial();
+        // Normalize incoming keys to camelCase before validation
+        const data = updateSchema.parse(convertKeysToCamel(req.body));
         const shoot = await storage.updateTeamShoot(req.params.id, teamId, data);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
@@ -2019,10 +2019,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Debug: log final data that will be stored
         try {
           console.log('[REFERENCES] creating reference with data', {
-            shootId: data.shootId,
-            type: data.type,
-            url: data.url,
-            notesPresent: !!data.notes,
+            shootId: (data as any).shootId,
+            type: (data as any).type,
+            url: (data as any).url,
+            notesPresent: !!(data as any).notes,
           });
         } catch (logErr) {
           console.error('[REFERENCES] failed to log create args', logErr);
@@ -2264,7 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const updatedShoot = await storage.updateTeamShoot(req.params.id, teamId, {
           docsUrl: docUrl,
-        });
+        } as any);
 
         res.json({ docId, docUrl, shoot: updatedShoot });
       } catch (error) {
@@ -2328,7 +2328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedShoot = await storage.updateTeamShoot(req.params.id, teamId, {
           calendarEventId: eventId,
           calendarEventUrl: eventUrl,
-        });
+        } as any);
 
         res.json({ eventId, eventUrl, shoot: updatedShoot });
       } catch (error) {
@@ -2515,7 +2515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateShoot(req.params.id, teamId, {
         docsId: docId,
         docsUrl: docUrl,
-      });
+      } as any);
 
       res.json({ docId, docUrl, message: shoot.docsId ? "Document updated successfully" : "Document created successfully" });
     } catch (error) {

@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { extractId } from "@/lib/resourceUtils";
 
 export default function PublicShootPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id?: string }>();
 
   const { data: shoot, isLoading, error } = useQuery<any>({
     queryKey: [`/api/public/shoots/${id}`],

@@ -59,7 +59,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { ShootPageSkeleton } from "@/components/ShootPageSkeleton";
 
 export default function ShootPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id?: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const isNew = !id || id === "new";

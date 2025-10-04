@@ -183,59 +183,59 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertTeamInviteSchema = createInsertSchema(teamInvites).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertPersonnelSchema = createInsertSchema(personnel).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertEquipmentSchema = createInsertSchema(equipment).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertLocationSchema = createInsertSchema(locations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertPropSchema = createInsertSchema(props).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertCostumeProgressSchema = createInsertSchema(costumeProgress).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertShootSchema = createInsertSchema(shoots).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).extend({
+} as any).extend({
   date: z.union([z.date(), z.string(), z.null()]).optional().transform(val => {
     if (!val) return null;
     if (typeof val === 'string') return new Date(val);
@@ -246,33 +246,33 @@ export const insertShootSchema = createInsertSchema(shoots).omit({
 export const insertShootReferenceSchema = createInsertSchema(shootReferences).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertOAuthTokenSchema = createInsertSchema(oauthTokens).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+} as any);
 
 export const insertShootParticipantSchema = createInsertSchema(shootParticipants).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertShootEquipmentSchema = createInsertSchema(shootEquipment).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertShootPropSchema = createInsertSchema(shootProps).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export const insertShootCostumeSchema = createInsertSchema(shootCostumes).omit({
   id: true,
   createdAt: true,
-});
+} as any);
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type Team = typeof teams.$inferSelect;
