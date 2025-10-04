@@ -48,22 +48,34 @@ export default function ReplicationTestPage() {
   }
 
   const checkCSSVariable = (variableName: string) => {
-    if (typeof window === 'undefined') return false
-    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName)
-    return value.trim() !== ''
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false
+    try {
+      const value = getComputedStyle(document.documentElement).getPropertyValue(variableName)
+      return value.trim() !== ''
+    } catch {
+      return false
+    }
   }
 
   const checkFontFamily = () => {
-    if (typeof window === 'undefined') return false
-    const bodyStyle = getComputedStyle(document.body)
-    return bodyStyle.fontFamily.includes('Space Grotesk')
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false
+    try {
+      const bodyStyle = getComputedStyle(document.body)
+      return bodyStyle.fontFamily.includes('Space Grotesk')
+    } catch {
+      return false
+    }
   }
 
   const checkPrimaryColor = () => {
-    if (typeof window === 'undefined') return false
-    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary')
-    // Check if it matches the blue theme (approximate HSL values)
-    return primaryColor.includes('221.2') || primaryColor.includes('83.2') || primaryColor.includes('53.3')
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false
+    try {
+      const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary')
+      // Check if it matches the blue theme (approximate HSL values)
+      return primaryColor.includes('221.2') || primaryColor.includes('83.2') || primaryColor.includes('53.3')
+    } catch {
+      return false
+    }
   }
 
   const runAllTests = () => {
@@ -76,22 +88,50 @@ export default function ReplicationTestPage() {
       
       // Phase 2: Component Architecture
       { name: 'Button Hover Elevation', test: () => {
-        const buttons = document.querySelectorAll('button')
-        return Array.from(buttons).some(btn => btn.className.includes('hover-elevate'))
+        if (typeof document === 'undefined') return false
+        try {
+          const buttons = document.querySelectorAll('button')
+          return Array.from(buttons).some(btn => btn.className.includes('hover-elevate'))
+        } catch {
+          return false
+        }
       }},
-      { name: 'Card Components', test: () => document.querySelectorAll('.shadcn-card').length > 0 },
+      { name: 'Card Components', test: () => {
+        try {
+          return document.querySelectorAll('.shadcn-card').length > 0
+        } catch {
+          return false
+        }
+      } },
       
       // Phase 3: Visual Polish
-      { name: 'Icon Library Available', test: () => document.querySelectorAll('svg').length > 10 },
-      { name: 'Badge Components', test: () => document.querySelectorAll('[class*="badge"]').length > 0 },
+      { name: 'Icon Library Available', test: () => {
+        try {
+          return document.querySelectorAll('svg').length > 10
+        } catch {
+          return false
+        }
+      } },
+      { name: 'Badge Components', test: () => {
+        try {
+          return document.querySelectorAll('[class*="badge"]').length > 0
+        } catch {
+          return false
+        }
+      } },
       
       // Phase 4: Route Structure
       { name: 'Navigation Links', test: () => {
-        const links = document.querySelectorAll('a[href]')
-        const requiredRoutes = ['/dashboard', '/shoots', '/personnel', '/equipment']
-        return requiredRoutes.some(route => 
-          Array.from(links).some(link => (link as HTMLAnchorElement).href.includes(route))
-        )
+        if (typeof document === 'undefined') return false
+        try {
+          const links = document.querySelectorAll('a[href]')
+          const requiredRoutes = ['/dashboard', '/shoots', '/personnel', '/equipment']
+          return requiredRoutes.some(route => 
+            Array.from(links).some(link => (link as HTMLAnchorElement).href.includes(route))
+          )
+        } catch {
+          return false
+        }
       }},
     ]
 
@@ -308,7 +348,11 @@ export default function ReplicationTestPage() {
                   key={route}
                   variant="outline" 
                   size="sm"
-                  onClick={() => window.open(route, '_blank')}
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.open(route, '_blank')
+                    }
+                  }}
                 >
                   {name}
                 </Button>

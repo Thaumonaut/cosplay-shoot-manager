@@ -1,9 +1,13 @@
-'use client'
-
 import { Camera, Calendar, Users, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'CosPlans - Plan Perfect Cosplay Shoots',
+  description: 'The ultimate platform for cosplay photographers and creators to organize, collaborate, and execute stunning photo shoots with professional-grade planning tools.',
+}
 
 export default function LandingPage() {
   const features = [
