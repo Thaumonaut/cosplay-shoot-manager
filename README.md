@@ -1,302 +1,116 @@
-# Cosplay Photo Shoot Tracker
+# Cosplay Shoot Manager — Next.js Migration
 
-A comprehensive web application for managing and organizing cosplay photo shoots with team collaboration, resource management, and role-based permissions.
+This Next.js app is the new home for the cosplay shoot manager project. We're migrating from Express/Vite to a unified Next.js architecture.
 
-## Features
+## Quick Start
 
-- **Team-based collaboration** with role-based permissions (Owner, Admin, Member)
-- **Shoot management** with Kanban board and calendar views
-- **Resource tracking** for personnel, costumes, equipment, props, and locations
-- **Google Calendar & Google Docs integration** for scheduling and collaboration
-- **Enhanced UI** with detailed resource cards and role assignment
-- **Image reference management** via Instagram links and cloud storage
+```bash
+# Install dependencies
+pnpm install
 
-## Running on Replit (Recommended)
+# Copy environment variables
+cp .env.example .env.local
+# Fill in your Supabase and other API keys
 
-This project is designed for Replit's environment:
+# Start development server
+pnpm dev
+```
 
-1. Open the project in Replit
-2. Set your environment secrets in the Replit Secrets panel
-3. Click "Run" - the application starts automatically
-4. Access your app via the provided Replit URL
+Visit http://localhost:3000
 
-## Running Locally
-
-### Prerequisites
-
-- **Node.js** (version 20 or higher) - [Download here](https://nodejs.org/)
-- **PostgreSQL** database - [Download here](https://www.postgresql.org/download/)
-
-### Quick Start (Mac/Linux)
-
-1. **Download and install:**
-   ```bash
-   npm install
-   ```
-
-2. **Set required environment variables** (in your terminal):
-   ```bash
-   export DATABASE_URL="postgresql://user:password@localhost:5432/cosplay_tracker"
-   export SUPABASE_URL="your_supabase_url"
-   export SUPABASE_ANON_KEY="your_key"
-   export SUPABASE_SERVICE_ROLE_KEY="your_key"
-   ```
-   
-   Optional (for location search features):
-   ```bash
-   export GOOGLE_MAPS_API_KEY="your_key"
-   ```
-
-3. **Create database and run migrations:**
-   ```bash
-   createdb cosplay_tracker
-   npm run db:push
-   ```
-
-4. **Run the app:**
-   ```bash
-   npm run dev
-   ```
-
-The app will start on `http://localhost:5000`. The npm script automatically sets `NODE_ENV=development` which enables the Vite dev server for the frontend.
-
-### Windows Setup
-
-The npm scripts use Unix syntax (`NODE_ENV=value`) which doesn't work on Windows. You have two options:
-
-#### Option A: Run without modifying repository (Quick test)
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Set environment variables in PowerShell:**
-   ```powershell
-   $env:DATABASE_URL="postgresql://user:password@localhost:5432/cosplay_tracker"
-   $env:SUPABASE_URL="your_supabase_url"
-   $env:SUPABASE_ANON_KEY="your_key"
-   $env:SUPABASE_SERVICE_ROLE_KEY="your_key"
-   ```
-   
-   Optional (for location search):
-   ```powershell
-   $env:GOOGLE_MAPS_API_KEY="your_key"
-   ```
-
-3. **Create database and run:**
-   ```bash
-   createdb cosplay_tracker
-   npm run db:push
-   npx --yes cross-env NODE_ENV=development tsx server/index.ts
-   ```
-
-**No repository changes** - `npx --yes` downloads and runs cross-env temporarily without installing it.
-
-#### Option B: Modify package.json (For regular use)
-
-1. **Install cross-env:**
-   ```bash
-   npm install --save-dev cross-env
-   ```
-
-2. **Update scripts in `package.json`:**
-   ```json
-   {
-     "scripts": {
-       "dev": "cross-env NODE_ENV=development tsx server/index.ts",
-       "start": "cross-env NODE_ENV=production node dist/index.js"
-     }
-   }
-   ```
-
-3. **Then run:**
-   ```bash
-   npm run dev
-   ```
-
-**Note:** This modifies package.json and package-lock.json. Commit these changes if you want to keep them.
-
-## Environment Variables Reference
-
-### Required (must be set in your shell)
-- `DATABASE_URL` - PostgreSQL connection string
-- `SUPABASE_URL` - Supabase project URL  
-- `SUPABASE_ANON_KEY` - Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
-
-### Optional
-- `GOOGLE_MAPS_API_KEY` - For location search features
-- `RESEND_API_KEY` - For email invitations
-- `PORT` - Server port (defaults to 5000)
-
-**Note:** `NODE_ENV` is set automatically by the npm script - you don't need to set it manually.
-
-## Supabase Setup
-
-1. Create a free account at [Supabase](https://supabase.com/)
-2. Create a new project
-3. Go to Project Settings > API
-4. Copy your project URL and API keys (use them in environment variables above)
-5. In Authentication > Providers, enable Email authentication
-
-## Optional: Use .env File (Avoids setting variables each time)
-
-The project doesn't include .env support by default. To add it:
-
-1. **Install dotenv:**
-   ```bash
-   npm install dotenv
-   ```
-
-2. **Create `.env` file in project root:**
-   ```env
-   DATABASE_URL=postgresql://user:password@localhost:5432/cosplay_tracker
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_ANON_KEY=your_key
-   SUPABASE_SERVICE_ROLE_KEY=your_key
-   GOOGLE_MAPS_API_KEY=your_key
-   ```
-
-3. **Add to the very TOP of `server/index.ts` (before any other imports):**
-   ```javascript
-   import 'dotenv/config';
-   ```
-
-4. **Add `.env` to `.gitignore`:**
-   ```
-   .env
-   ```
-
-Now you can run `npm run dev` without setting variables each time.
-
-## Troubleshooting
-
-### Error: 'NODE_ENV' is not recognized (Windows)
-
-**Problem:** The npm scripts don't work on Windows.
-
-**Solutions:**
-- **Quick test:** Use `npx --yes cross-env NODE_ENV=development tsx server/index.ts` (no code changes)
-- **Regular use:** Install cross-env and modify package.json (see Windows Setup above)
-
-### Error: DATABASE_URL environment variable is required
-
-**Problem:** Required environment variables aren't set.
-
-**Solutions:**
-- Verify you set variables in your current terminal: `echo $DATABASE_URL` (Mac/Linux) or `echo $env:DATABASE_URL` (PowerShell)
-- Make sure you're running `npm run dev` in the same terminal where you set the variables
-- Variables only persist in the current terminal session - you need to set them again in new terminals
-- Or use the optional .env file setup above
-
-### Frontend Doesn't Start - Only Backend Runs
-
-**Problem:** Vite dev server doesn't start, only Express.
-
-**Cause:** Vite only starts when `NODE_ENV === "development"`.
-
-**Check:**
-- Are you running `npm run dev`? (This sets NODE_ENV automatically)
-- Look for Vite startup messages in the console
-- If using .env file, make sure dotenv import is at the top of server/index.ts
-
-### Database Connection Errors
-
-**Checklist:**
-1. Is PostgreSQL running? Check with:
-   - Windows: `pg_ctl status`
-   - Mac: `brew services list`
-   - Linux: `sudo systemctl status postgresql`
-2. Is `DATABASE_URL` format correct? Should be: `postgresql://username:password@localhost:5432/database_name`
-3. Does the database exist? List with: `psql -l`
-4. Test connection: `psql "postgresql://user:password@localhost:5432/cosplay_tracker"`
-
-### Port 5000 Already in Use
-
-**Solutions:**
-1. Set different port: `export PORT=3000` then `npm run dev`
-2. Find what's using the port:
-   - Windows: `netstat -ano | findstr :5000`
-   - Mac/Linux: `lsof -i :5000`
-3. Stop the conflicting process
+## Scripts
+- `pnpm dev` — Start development server
+- `pnpm build` — Production build
+- `pnpm start` — Start production server
+- `pnpm lint` — Run ESLint
+- `pnpm lint:fix` — Fix ESLint errors
+- `pnpm test` — Run tests (Vitest)
+- `pnpm test:watch` — Run tests in watch mode
+- `pnpm typecheck` — TypeScript type checking
 
 ## Project Structure
 
 ```
-.
-├── client/              # React frontend
-│   ├── src/
-│   │   ├── components/  # UI components
-│   │   ├── pages/       # Page components
-│   │   └── lib/         # Utilities
-├── server/              # Express backend
-│   ├── routes.ts        # API endpoints
-│   ├── storage.ts       # Database layer
-│   └── middleware/      # Auth middleware
-├── shared/              # Shared types
-│   └── schema.ts        # Drizzle schema
-└── package.json
+app/                    # Next.js App Router
+├── api/               # API routes (serverless functions)
+│   ├── auth/          # Authentication endpoints
+│   ├── user/          # User management
+│   ├── team/          # Team management
+│   ├── shoots/        # Shoot management
+│   └── objects/       # File/image management
+├── dashboard/         # Dashboard pages
+├── globals.css        # Global styles
+├── layout.tsx         # Root layout
+├── page.tsx          # Home page
+└── not-found.tsx     # 404 page
+
+src/
+├── components/        # Reusable React components
+├── hooks/            # Custom React hooks
+├── lib/              # Utility functions and clients
+│   ├── auth.ts       # JWT authentication
+│   ├── supabase.ts   # Supabase browser client
+│   ├── supabase-admin.ts # Supabase admin client
+│   └── schemas.ts    # Zod validation schemas
+└── types/            # TypeScript type definitions
+    ├── api.ts        # API types
+    └── database.ts   # Database schema types
 ```
 
-## Scripts
+## Migration Checklist
 
-- `npm run dev` - Development server (sets NODE_ENV=development automatically)
-- `npm run build` - Production build
-- `npm start` - Run production build
-- `npm run check` - TypeScript type checking  
-- `npm run db:push` - Apply database schema changes
+### API Routes ✓ Started
+- [x] Basic structure for `/api/auth`, `/api/user`, `/api/team`
+- [x] JWT authentication helpers
+- [x] Supabase client setup
+- [ ] Port all Express routes to Next.js API routes
+- [ ] Migrate file upload/object storage logic
+- [ ] Add comprehensive error handling
+- [ ] Add request validation with Zod schemas
 
-## Tech Stack
+### Frontend Migration
+- [ ] Move React components from `client/src/components/`
+- [x] Convert routing from Wouter to Next.js file-based routing
+- [ ] Migrate Tailwind configuration and custom styles
+- [ ] Update authentication context for Next.js
+- [ ] Migrate dashboard and main application pages
 
-- **Frontend:** React, TypeScript, TailwindCSS, shadcn/ui, TanStack Query, Wouter
-- **Backend:** Express.js, TypeScript
-- **Database:** PostgreSQL with Drizzle ORM
-- **Authentication:** Supabase Auth
-- **Build Tools:** Vite, esbuild, tsx
+### Database & Auth
+- [x] Supabase client configuration
+- [x] JWT token handling
+- [ ] Migrate database schema and migrations
+- [ ] Test authentication flow end-to-end
+- [ ] Add middleware for protected routes
 
-## Platform Compatibility
+### Configuration & Deployment
+- [x] Next.js configuration with TypeScript
+- [x] Tailwind CSS v4 setup
+- [x] ESLint and testing configuration
+- [x] Environment variable scaffolding
+- [ ] Update Vercel deployment configuration
+- [ ] Add CI/CD pipeline adjustments
 
-| Platform | Compatibility | Notes |
-|----------|--------------|-------|
-| Replit | ✅ Full support | Designed for this environment |
-| Mac/Linux | ✅ Works out of box | Just set environment variables |
-| Windows | ⚠️ Requires workaround | Use `npx --yes cross-env` or modify package.json |
+### Testing
+- [x] Vitest configuration
+- [ ] Migrate existing tests to work with Next.js
+- [ ] Add API route testing
+- [ ] Add component testing with Testing Library
 
-## License
+## Environment Setup
 
-MIT
+1. Copy `.env.example` to `.env.local`
+2. Fill in Supabase credentials:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+3. Set JWT secret: `JWT_SECRET`
+4. Add Google API credentials if needed
 
-## Docker
+## Development Notes
 
-You can build and run the whole application in a Docker container. The provided multi-stage `Dockerfile` builds the client and bundles the server into `dist/`, then runs the production server.
-
-Build the image locally:
-
-```powershell
-docker build -t cosplay-shoot-manager:latest .
-```
-
-Run the image (exposes port 5000):
-
-```powershell
-docker run --rm -p 5000:5000 \
-   -e DATABASE_URL="postgresql://user:password@host:5432/db" \
-   -e SUPABASE_URL="your_supabase_url" \
-   -e SUPABASE_ANON_KEY="your_key" \
-   -e SUPABASE_SERVICE_ROLE_KEY="your_key" \
-   cosplay-shoot-manager:latest
-```
-
-Or use docker-compose (build + run):
-
-```powershell
-docker-compose up --build
-```
-
-The server will be available at `http://localhost:5000` (unless you change the `PORT` env var).
-
-Notes:
-- Supply any required environment variables for database and third-party services when running the container.
-- For production deployments, consider using a managed Postgres service and secure secret management.
-
+- Using Next.js 15 with App Router
+- TypeScript strict mode enabled
+- Tailwind CSS v4 with PostCSS
+- Vitest for testing
+- Supabase for database and authentication
+- Zod for schema validation
