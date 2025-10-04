@@ -209,7 +209,7 @@ export default function Dashboard() {
     (shoot) => shoot.date && isSameDay(new Date(shoot.date), selectedDate)
   );
 
-  const statusFilter = params?.status as string | undefined;
+  const statusFilter = (params as { status?: string } | null)?.status;
   const filteredShoots = statusFilter
     ? shoots.filter((shoot) => shoot.status === statusFilter)
     : shoots;

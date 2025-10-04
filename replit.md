@@ -117,3 +117,13 @@ PostgreSQL, hosted by Supabase, serves as the primary database, accessed via Sup
 - **Improved Error Handling**: Fixed GET /api/shoots/:id endpoint error handling
   - Changed from returning 401 for all errors to proper 500 server errors
   - Added console.error logging to help diagnose issues
+
+### Codebase Cleanup & Drizzle Removal (October 4, 2025)
+- **Removed Old Drizzle ORM Code**: Completed migration to Supabase-only architecture
+  - Deleted DatabaseStorage class from storage.ts (~700 lines removed)
+  - Removed unused Drizzle imports from routes.ts (db, eq, locations, personnel)
+  - Converted last remaining Drizzle queries to Supabase (public shoot endpoint)
+  - Deleted unused files: server/db.ts, drizzle.config.ts
+  - Added missing deletion methods to SupabaseStorage (deleteShootEquipment, deleteShootProps, deleteShootCostumes, deleteShootParticipants)
+  - Fixed TypeScript compilation errors in Dashboard.tsx
+  - Note: shared/schema.ts still uses Drizzle table definitions for drizzle-zod validation schemas (intentional)

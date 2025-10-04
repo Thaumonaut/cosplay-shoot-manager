@@ -1,7 +1,6 @@
 import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
 import {
   insertShootSchema,
   insertShootReferenceSchema,
@@ -12,11 +11,8 @@ import {
   insertLocationSchema,
   insertPropSchema,
   insertCostumeProgressSchema,
-  locations,
-  personnel,
 } from "@shared/schema";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { createShootDocument } from "./services/docs-export";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "./services/calendar";
@@ -1337,8 +1333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only owners and admins can change member roles" });
       }
 
-      // Get target member's current details by their record ID
-      const targetMember = await storage.getTeamMemberById(memberId);
+      // Get all team members and find the one with the given ID
+      const members = await storage.getTeamMembers(teamId);
+      const targetMember = members.find(m => m.id === memberId);
       if (!targetMember) {
         return res.status(404).json({ error: "Team member not found" });
       }
@@ -3122,10 +3119,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get location data if locationId exists
       let location = null;
       if (shoot.location_id) {
-        const [locationData] = await db
+        const { data: locationData } = await supabaseAdmin
+          .from('locations')
           .select()
-          .from(locations)
-          .where(eq(locations.id, shoot.location_id));
+          .eq('id', shoot.location_id)
+          .single();
         location = locationData || null;
       }
 
@@ -3133,10 +3131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedParticipants = await Promise.all(
         (shootData.participants || []).map(async (participant: any) => {
           if (participant.personnel_id) {
-            const [personnelData] = await db
+            const { data: personnelData } = await supabaseAdmin
+              .from('personnel')
               .select()
-              .from(personnel)
-              .where(eq(personnel.id, participant.personnel_id));
+              .eq('id', participant.personnel_id)
+              .single();
             return {
               ...participant,
               personnel: personnelData || null,

@@ -30,25 +30,6 @@ import {
   type TeamMember,
   type InsertTeamMember,
 } from "@shared/schema";
-import { db } from "./db";
-import { 
-  shoots, 
-  shootReferences, 
-  shootParticipants,
-  shootEquipment,
-  shootProps,
-  shootCostumes,
-  personnel,
-  equipment,
-  locations,
-  props,
-  costumeProgress,
-  teams,
-  userProfiles,
-  teamInvites,
-  teamMembers,
-} from "@shared/schema";
-import { eq, and, desc, sql as rawSql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
 
 export interface IStorage {
@@ -150,599 +131,6 @@ export interface IStorage {
   deleteTeamMember(id: string): Promise<boolean>;
 }
 
-export class DatabaseStorage implements IStorage {
-  async getShoot(id: string, userId: string): Promise<Shoot | undefined> {
-    const [shoot] = await db
-      .select()
-      .from(shoots)
-      .where(and(eq(shoots.id, id), eq(shoots.userId, userId)));
-    return shoot;
-  }
-
-  async getUserShoots(userId: string): Promise<Shoot[]> {
-    return db
-      .select()
-      .from(shoots)
-      .where(eq(shoots.userId, userId))
-      .orderBy(desc(shoots.createdAt));
-  }
-
-  async getTeamShoots(teamId: string): Promise<Shoot[]> {
-    return db
-      .select()
-      .from(shoots)
-      .where(eq(shoots.teamId, teamId))
-      .orderBy(desc(shoots.createdAt));
-  }
-
-  async getTeamShoot(id: string, teamId: string): Promise<Shoot | undefined> {
-    const [shoot] = await db
-      .select()
-      .from(shoots)
-      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)));
-    return shoot;
-  }
-
-  async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
-    const result = await db
-      .select({
-        shoot: shoots,
-        participantCount: rawSql<number>`COALESCE(COUNT(DISTINCT ${shootParticipants.id}), 0)`,
-        firstReferenceUrl: rawSql<string | null>`(
-          SELECT url
-          FROM shoot_references
-          WHERE shoot_id = ${shoots.id}
-          ORDER BY created_at ASC
-          LIMIT 1
-        )`,
-      })
-      .from(shoots)
-      .leftJoin(shootParticipants, eq(shoots.id, shootParticipants.shootId))
-      .where(eq(shoots.userId, userId))
-      .groupBy(shoots.id)
-      .orderBy(desc(shoots.createdAt));
-
-    return result.map(row => ({
-      ...row.shoot,
-      participantCount: Number(row.participantCount),
-      firstReferenceUrl: row.firstReferenceUrl,
-    }));
-  }
-
-  async createShoot(shoot: InsertShoot): Promise<Shoot> {
-    const [newShoot] = await db.insert(shoots).values(shoot).returning();
-    return newShoot;
-  }
-
-  async updateShoot(id: string, userId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
-    const { userId: _, ...allowedUpdates } = shoot as any;
-    const [updated] = await db
-      .update(shoots)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(shoots.id, id), eq(shoots.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async updateTeamShoot(id: string, teamId: string, shoot: Partial<InsertShoot>): Promise<Shoot | undefined> {
-    const { userId: _, teamId: __, ...allowedUpdates } = shoot as any;
-    const [updated] = await db
-      .update(shoots)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteShoot(id: string, userId: string): Promise<boolean> {
-    const result = await db
-      .delete(shoots)
-      .where(and(eq(shoots.id, id), eq(shoots.userId, userId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  async deleteTeamShoot(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(shoots)
-      .where(and(eq(shoots.id, id), eq(shoots.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  async getShootReferences(shootId: string): Promise<ShootReference[]> {
-    return db
-      .select()
-      .from(shootReferences)
-      .where(eq(shootReferences.shootId, shootId));
-  }
-
-  async getShootReferenceById(id: string): Promise<ShootReference | undefined> {
-    const [reference] = await db
-      .select()
-      .from(shootReferences)
-      .where(eq(shootReferences.id, id));
-    return reference;
-  }
-
-  async createShootReference(reference: InsertShootReference): Promise<ShootReference> {
-    const [newRef] = await db.insert(shootReferences).values(reference).returning();
-    return newRef;
-  }
-
-  async deleteShootReference(id: string): Promise<boolean> {
-    const result = await db.delete(shootReferences).where(eq(shootReferences.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async updateShootReference(id: string, updates: Partial<InsertShootReference>): Promise<ShootReference | undefined> {
-    const [updated] = await db
-      .update(shootReferences)
-      .set({ ...updates, updatedAt: new Date() } as any)
-      .where(eq(shootReferences.id, id))
-      .returning();
-    return updated;
-  }
-
-  async getShootParticipants(shootId: string): Promise<ShootParticipant[]> {
-    return db
-      .select()
-      .from(shootParticipants)
-      .where(eq(shootParticipants.shootId, shootId));
-  }
-
-  async getShootParticipantById(id: string): Promise<ShootParticipant | undefined> {
-    const [participant] = await db
-      .select()
-      .from(shootParticipants)
-      .where(eq(shootParticipants.id, id));
-    return participant;
-  }
-
-  async createShootParticipant(participant: InsertShootParticipant): Promise<ShootParticipant> {
-    const [newParticipant] = await db.insert(shootParticipants).values(participant).returning();
-    return newParticipant;
-  }
-
-  async deleteShootParticipant(id: string): Promise<boolean> {
-    const result = await db.delete(shootParticipants).where(eq(shootParticipants.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async deleteShootParticipants(shootId: string): Promise<void> {
-    await db.delete(shootParticipants).where(eq(shootParticipants.shootId, shootId));
-  }
-
-  // Shoot Resource Association methods
-  async getShootEquipment(shootId: string): Promise<Equipment[]> {
-    const results = await db
-      .select({ equipment: equipment })
-      .from(shootEquipment)
-      .innerJoin(equipment, eq(shootEquipment.equipmentId, equipment.id))
-      .where(eq(shootEquipment.shootId, shootId));
-    return results.map(r => r.equipment);
-  }
-
-  async getShootProps(shootId: string): Promise<Prop[]> {
-    const results = await db
-      .select({ prop: props })
-      .from(shootProps)
-      .innerJoin(props, eq(shootProps.propId, props.id))
-      .where(eq(shootProps.shootId, shootId));
-    return results.map(r => r.prop);
-  }
-
-  async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
-    const results = await db
-      .select({ costume: costumeProgress })
-      .from(shootCostumes)
-      .innerJoin(costumeProgress, eq(shootCostumes.costumeId, costumeProgress.id))
-      .where(eq(shootCostumes.shootId, shootId));
-    return results.map(r => r.costume);
-  }
-
-  async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
-    const [newAssociation] = await db.insert(shootEquipment).values(association).returning();
-    return newAssociation;
-  }
-
-  async createShootProp(association: InsertShootProp): Promise<ShootProp> {
-    const [newAssociation] = await db.insert(shootProps).values(association).returning();
-    return newAssociation;
-  }
-
-  async createShootCostume(association: InsertShootCostume): Promise<ShootCostume> {
-    const [newAssociation] = await db.insert(shootCostumes).values(association).returning();
-    return newAssociation;
-  }
-
-  async deleteShootEquipment(shootId: string): Promise<void> {
-    await db.delete(shootEquipment).where(eq(shootEquipment.shootId, shootId));
-  }
-
-  async deleteShootProps(shootId: string): Promise<void> {
-    await db.delete(shootProps).where(eq(shootProps.shootId, shootId));
-  }
-
-  async deleteShootCostumes(shootId: string): Promise<void> {
-    await db.delete(shootCostumes).where(eq(shootCostumes.shootId, shootId));
-  }
-
-  // Personnel methods
-  async getPersonnel(id: string, teamId: string): Promise<Personnel | undefined> {
-    const [person] = await db
-      .select()
-      .from(personnel)
-      .where(and(eq(personnel.id, id), eq(personnel.teamId, teamId)));
-    return person;
-  }
-
-  async getTeamPersonnel(teamId: string): Promise<Personnel[]> {
-    return db
-      .select()
-      .from(personnel)
-      .where(eq(personnel.teamId, teamId))
-      .orderBy(desc(personnel.createdAt));
-  }
-
-  async createPersonnel(person: InsertPersonnel): Promise<Personnel> {
-    const [newPerson] = await db.insert(personnel).values(person).returning();
-    return newPerson;
-  }
-
-  async updatePersonnel(id: string, teamId: string, person: Partial<InsertPersonnel>): Promise<Personnel | undefined> {
-    const { teamId: _, ...allowedUpdates } = person as any;
-    const [updated] = await db
-      .update(personnel)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(personnel.id, id), eq(personnel.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deletePersonnel(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(personnel)
-      .where(and(eq(personnel.id, id), eq(personnel.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  async getOAuthToken(userId: string, provider: string): Promise<any | undefined> {
-    const { oauthTokens } = await import('@shared/schema');
-    const [row] = await db.select().from(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
-    return row;
-  }
-
-  async upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void> {
-    const { oauthTokens } = await import('@shared/schema');
-    // Use simple upsert: try update, else insert
-    const existing = await db.select().from(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
-    if (existing.length > 0) {
-      await db.update(oauthTokens).set({
-        accessTokenEncrypted: tokenData.accessTokenEncrypted,
-        refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
-        scope: tokenData.scope,
-        expiresAt: tokenData.expiresAt,
-        updatedAt: new Date(),
-      }).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
-    } else {
-      await db.insert(oauthTokens).values({
-        userId,
-        provider,
-        accessTokenEncrypted: tokenData.accessTokenEncrypted,
-        refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
-        scope: tokenData.scope,
-        expiresAt: tokenData.expiresAt,
-      });
-    }
-  }
-
-  async deleteOAuthToken(userId: string, provider: string): Promise<void> {
-    const { oauthTokens } = await import('@shared/schema');
-    await db.delete(oauthTokens).where(and(eq(oauthTokens.userId, userId), eq(oauthTokens.provider, provider)));
-  }
-
-  // Equipment methods
-  async getEquipment(id: string, teamId: string): Promise<Equipment | undefined> {
-    const [item] = await db
-      .select()
-      .from(equipment)
-      .where(and(eq(equipment.id, id), eq(equipment.teamId, teamId)));
-    return item;
-  }
-
-  async getTeamEquipment(teamId: string): Promise<Equipment[]> {
-    return db
-      .select()
-      .from(equipment)
-      .where(eq(equipment.teamId, teamId))
-      .orderBy(desc(equipment.createdAt));
-  }
-
-  async createEquipment(item: InsertEquipment): Promise<Equipment> {
-    const [newItem] = await db.insert(equipment).values(item).returning();
-    return newItem;
-  }
-
-  async updateEquipment(id: string, teamId: string, item: Partial<InsertEquipment>): Promise<Equipment | undefined> {
-    const { teamId: _, ...allowedUpdates } = item as any;
-    const [updated] = await db
-      .update(equipment)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(equipment.id, id), eq(equipment.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteEquipment(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(equipment)
-      .where(and(eq(equipment.id, id), eq(equipment.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  // Location methods
-  async getLocation(id: string, teamId: string): Promise<Location | undefined> {
-    const [location] = await db
-      .select()
-      .from(locations)
-      .where(and(eq(locations.id, id), eq(locations.teamId, teamId)));
-    return location;
-  }
-
-  async getTeamLocations(teamId: string): Promise<Location[]> {
-    return db
-      .select()
-      .from(locations)
-      .where(eq(locations.teamId, teamId))
-      .orderBy(desc(locations.createdAt));
-  }
-
-  async createLocation(location: InsertLocation): Promise<Location> {
-    const [newLocation] = await db.insert(locations).values(location).returning();
-    return newLocation;
-  }
-
-  async updateLocation(id: string, teamId: string, location: Partial<InsertLocation>): Promise<Location | undefined> {
-    const { teamId: _, ...allowedUpdates } = location as any;
-    const [updated] = await db
-      .update(locations)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(locations.id, id), eq(locations.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteLocation(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(locations)
-      .where(and(eq(locations.id, id), eq(locations.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  // Props methods
-  async getProp(id: string, teamId: string): Promise<Prop | undefined> {
-    const [prop] = await db
-      .select()
-      .from(props)
-      .where(and(eq(props.id, id), eq(props.teamId, teamId)));
-    return prop;
-  }
-
-  async getTeamProps(teamId: string): Promise<Prop[]> {
-    return db
-      .select()
-      .from(props)
-      .where(eq(props.teamId, teamId))
-      .orderBy(desc(props.createdAt));
-  }
-
-  async createProp(prop: InsertProp): Promise<Prop> {
-    const [newProp] = await db.insert(props).values(prop).returning();
-    return newProp;
-  }
-
-  async updateProp(id: string, teamId: string, prop: Partial<InsertProp>): Promise<Prop | undefined> {
-    const { teamId: _, ...allowedUpdates } = prop as any;
-    const [updated] = await db
-      .update(props)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(props.id, id), eq(props.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteProp(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(props)
-      .where(and(eq(props.id, id), eq(props.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  // Costume Progress methods
-  async getCostumeProgress(id: string, teamId: string): Promise<CostumeProgress | undefined> {
-    const [costume] = await db
-      .select()
-      .from(costumeProgress)
-      .where(and(eq(costumeProgress.id, id), eq(costumeProgress.teamId, teamId)));
-    return costume;
-  }
-
-  async getTeamCostumes(teamId: string): Promise<CostumeProgress[]> {
-    return db
-      .select()
-      .from(costumeProgress)
-      .where(eq(costumeProgress.teamId, teamId))
-      .orderBy(desc(costumeProgress.createdAt));
-  }
-
-  async createCostumeProgress(costume: InsertCostumeProgress): Promise<CostumeProgress> {
-    const [newCostume] = await db.insert(costumeProgress).values(costume).returning();
-    return newCostume;
-  }
-
-  async updateCostumeProgress(id: string, teamId: string, costume: Partial<InsertCostumeProgress>): Promise<CostumeProgress | undefined> {
-    const { teamId: _, ...allowedUpdates } = costume as any;
-    const [updated] = await db
-      .update(costumeProgress)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(and(eq(costumeProgress.id, id), eq(costumeProgress.teamId, teamId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteCostumeProgress(id: string, teamId: string): Promise<boolean> {
-    const result = await db
-      .delete(costumeProgress)
-      .where(and(eq(costumeProgress.id, id), eq(costumeProgress.teamId, teamId)))
-      .returning();
-    return result.length > 0;
-  }
-
-  // Team methods
-  async getTeam(id: string): Promise<Team | undefined> {
-    const [team] = await db
-      .select()
-      .from(teams)
-      .where(eq(teams.id, id));
-    return team;
-  }
-
-  async createTeam(team: InsertTeam): Promise<Team> {
-    const [newTeam] = await db.insert(teams).values(team).returning();
-    return newTeam;
-  }
-
-  async updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined> {
-    const { id: _, ...allowedUpdates } = team as any;
-    const [updated] = await db
-      .update(teams)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(eq(teams.id, id))
-      .returning();
-    return updated;
-  }
-
-  async deleteTeam(id: string): Promise<boolean> {
-    const result = await db
-      .delete(teams)
-      .where(eq(teams.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  // User Profile methods
-  async getUserProfile(userId: string): Promise<UserProfile | undefined> {
-    const [profile] = await db
-      .select()
-      .from(userProfiles)
-      .where(eq(userProfiles.userId, userId));
-    return profile;
-  }
-
-  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
-    const [newProfile] = await db.insert(userProfiles).values(profile).returning();
-    return newProfile;
-  }
-
-  async updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
-    const { id: _, userId: __, ...allowedUpdates } = profile as any;
-    const [updated] = await db
-      .update(userProfiles)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(eq(userProfiles.userId, userId))
-      .returning();
-    return updated;
-  }
-
-  async getUserTeams(userId: string): Promise<any[]> {
-    // Not implemented for DatabaseStorage - this is a stub
-    return [];
-  }
-
-  async setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined> {
-    // Not implemented for DatabaseStorage - this is a stub
-    return undefined;
-  }
-
-  async ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }> {
-    // Not implemented for DatabaseStorage - this is a stub
-    throw new Error("ensureUserTeam not implemented for DatabaseStorage");
-  }
-
-  // Team Invite methods
-  async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
-    const [invite] = await db
-      .select()
-      .from(teamInvites)
-      .where(eq(teamInvites.inviteCode, inviteCode));
-    return invite;
-  }
-
-  async getUserTeamMember(userId: string): Promise<TeamMember | undefined> {
-    const [member] = await db
-      .select()
-      .from(teamMembers)
-      .where(eq(teamMembers.userId, userId))
-      .limit(1);
-    return member;
-  }
-
-  async getTeamMember(teamId: string, userId: string): Promise<TeamMember | undefined> {
-    const [member] = await db
-      .select()
-      .from(teamMembers)
-      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
-    return member;
-  }
-
-  async getTeamMembers(teamId: string): Promise<TeamMember[]> {
-    return db
-      .select()
-      .from(teamMembers)
-      .where(eq(teamMembers.teamId, teamId));
-  }
-
-  async createTeamMember(member: InsertTeamMember): Promise<TeamMember> {
-    const [newMember] = await db.insert(teamMembers).values(member).returning();
-    return newMember;
-  }
-
-  async updateTeamMember(id: string, updates: Partial<InsertTeamMember>): Promise<TeamMember | undefined> {
-    const [updated] = await db
-      .update(teamMembers)
-      .set(updates)
-      .where(eq(teamMembers.id, id))
-      .returning();
-    return updated;
-  }
-
-  async deleteTeamMember(id: string): Promise<boolean> {
-    const result = await db
-      .delete(teamMembers)
-      .where(eq(teamMembers.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  async getTeamInviteByTeamId(teamId: string): Promise<TeamInvite | undefined> {
-    const [invite] = await db
-      .select()
-      .from(teamInvites)
-      .where(eq(teamInvites.teamId, teamId));
-    return invite;
-  }
-
-  async createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite> {
-    const [newInvite] = await db.insert(teamInvites).values(invite).returning();
-    return newInvite;
-  }
-}
-
 // Helper function to convert camelCase to snake_case for Supabase
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined) return obj;
@@ -789,7 +177,7 @@ export class SupabaseStorage implements IStorage {
   async getUserShoots(userId: string): Promise<Shoot[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data, error } = await supabaseAdmin
+    const { data, error} = await supabaseAdmin
       .from('shoots')
       .select()
       .eq('user_id', userId)
@@ -824,15 +212,6 @@ export class SupabaseStorage implements IStorage {
     
     if (error) return undefined;
     return toCamelCase(data) as Shoot;
-  }
-
-  async getUserShootsWithCounts(userId: string): Promise<Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-    
-    const { data, error } = await supabaseAdmin.rpc('get_user_shoots_with_counts', { user_uuid: userId });
-    
-    if (error) return [];
-    return (data || []).map(toCamelCase) as Array<Shoot & { participantCount: number; firstReferenceUrl: string | null }>;
   }
 
   async createShoot(shoot: InsertShoot): Promise<Shoot> {
@@ -1016,124 +395,40 @@ export class SupabaseStorage implements IStorage {
     return !error;
   }
 
-  // OAuth token methods (Supabase-backed)
-  async getOAuthToken(userId: string, provider: string): Promise<any | undefined> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-
-    const { data, error } = await supabaseAdmin
-      .from('oauth_tokens')
-      .select()
-      .eq('user_id', userId)
-      .eq('provider', provider)
-      .single();
-
-    if (error) return undefined;
-    return toCamelCase(data);
-  }
-
-  async upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-
-    // Check if a row exists and update, otherwise insert
-    const { data: existing } = await supabaseAdmin
-      .from('oauth_tokens')
-      .select()
-      .eq('user_id', userId)
-      .eq('provider', provider);
-
-    const payload = toSnakeCase({
-      userId,
-      provider,
-      accessTokenEncrypted: tokenData.accessTokenEncrypted,
-      refreshTokenEncrypted: tokenData.refreshTokenEncrypted,
-      scope: tokenData.scope,
-      expiresAt: tokenData.expiresAt,
-      updatedAt: new Date().toISOString(),
-    });
-
-    if (existing && existing.length > 0) {
-      const { error } = await supabaseAdmin
-        .from('oauth_tokens')
-        .update(payload)
-        .eq('user_id', userId)
-        .eq('provider', provider);
-      if (error) throw new Error(`Failed to update oauth token: ${error.message}`);
-    } else {
-      const { error } = await supabaseAdmin
-        .from('oauth_tokens')
-        .insert(payload);
-      if (error) throw new Error(`Failed to insert oauth token: ${error.message}`);
-    }
-  }
-
-  async deleteOAuthToken(userId: string, provider: string): Promise<void> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-    const { error } = await supabaseAdmin
-      .from('oauth_tokens')
-      .delete()
-      .eq('user_id', userId)
-      .eq('provider', provider);
-    if (error) throw new Error(`Failed to delete oauth token: ${error.message}`);
-  }
-
   async getShootEquipment(shootId: string): Promise<Equipment[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data: associations, error: assocError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('shoot_equipment')
-      .select()
+      .select('*, equipment:equipment_id(*)')
       .eq('shoot_id', shootId);
     
-    if (assocError || !associations?.length) return [];
-    
-    const equipmentIds = associations.map(a => a.equipment_id);
-    const { data, error } = await supabaseAdmin
-      .from('equipment')
-      .select()
-      .in('id', equipmentIds);
-    
     if (error) return [];
-    return (data || []).map(toCamelCase) as Equipment[];
+    return (data || []).map(row => toCamelCase((row as any).equipment)).filter(Boolean) as Equipment[];
   }
 
   async getShootProps(shootId: string): Promise<Prop[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data: associations, error: assocError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('shoot_props')
-      .select()
+      .select('*, prop:prop_id(*)')
       .eq('shoot_id', shootId);
     
-    if (assocError || !associations?.length) return [];
-    
-    const propIds = associations.map(a => a.prop_id);
-    const { data, error } = await supabaseAdmin
-      .from('props')
-      .select()
-      .in('id', propIds);
-    
     if (error) return [];
-    return (data || []).map(toCamelCase) as Prop[];
+    return (data || []).map(row => toCamelCase((row as any).prop)).filter(Boolean) as Prop[];
   }
 
   async getShootCostumes(shootId: string): Promise<CostumeProgress[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { data: associations, error: assocError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('shoot_costumes')
-      .select()
+      .select('*, costume:costume_id(*)')
       .eq('shoot_id', shootId);
     
-    if (assocError || !associations?.length) return [];
-    
-    const costumeIds = associations.map(a => a.costume_id);
-    const { data, error } = await supabaseAdmin
-      .from('costume_progress')
-      .select()
-      .in('id', costumeIds);
-    
     if (error) return [];
-    return (data || []).map(toCamelCase) as CostumeProgress[];
+    return (data || []).map(row => toCamelCase((row as any).costume)).filter(Boolean) as CostumeProgress[];
   }
 
   async createShootEquipment(association: InsertShootEquipment): Promise<ShootEquipment> {
@@ -1145,7 +440,7 @@ export class SupabaseStorage implements IStorage {
       .select()
       .single();
     
-    if (error) throw new Error(`Failed to create shoot equipment: ${error.message}`);
+    if (error) throw new Error(`Failed to create shoot equipment association: ${error.message}`);
     return toCamelCase(data) as ShootEquipment;
   }
 
@@ -1158,7 +453,7 @@ export class SupabaseStorage implements IStorage {
       .select()
       .single();
     
-    if (error) throw new Error(`Failed to create shoot prop: ${error.message}`);
+    if (error) throw new Error(`Failed to create shoot prop association: ${error.message}`);
     return toCamelCase(data) as ShootProp;
   }
 
@@ -1171,7 +466,7 @@ export class SupabaseStorage implements IStorage {
       .select()
       .single();
     
-    if (error) throw new Error(`Failed to create shoot costume: ${error.message}`);
+    if (error) throw new Error(`Failed to create shoot costume association: ${error.message}`);
     return toCamelCase(data) as ShootCostume;
   }
 
@@ -1218,10 +513,9 @@ export class SupabaseStorage implements IStorage {
   async updatePersonnel(id: string, teamId: string, person: Partial<InsertPersonnel>): Promise<Personnel | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { teamId: _, ...allowedUpdates } = person as any;
     const { data, error } = await supabaseAdmin
       .from('personnel')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...person, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
@@ -1286,10 +580,9 @@ export class SupabaseStorage implements IStorage {
   async updateEquipment(id: string, teamId: string, item: Partial<InsertEquipment>): Promise<Equipment | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { teamId: _, ...allowedUpdates } = item as any;
     const { data, error } = await supabaseAdmin
       .from('equipment')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...item, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
@@ -1354,10 +647,9 @@ export class SupabaseStorage implements IStorage {
   async updateLocation(id: string, teamId: string, location: Partial<InsertLocation>): Promise<Location | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { teamId: _, ...allowedUpdates } = location as any;
     const { data, error } = await supabaseAdmin
       .from('locations')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...location, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
@@ -1422,10 +714,9 @@ export class SupabaseStorage implements IStorage {
   async updateProp(id: string, teamId: string, prop: Partial<InsertProp>): Promise<Prop | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { teamId: _, ...allowedUpdates } = prop as any;
     const { data, error } = await supabaseAdmin
       .from('props')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...prop, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
@@ -1490,10 +781,9 @@ export class SupabaseStorage implements IStorage {
   async updateCostumeProgress(id: string, teamId: string, costume: Partial<InsertCostumeProgress>): Promise<CostumeProgress | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { teamId: _, ...allowedUpdates } = costume as any;
     const { data, error } = await supabaseAdmin
       .from('costume_progress')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...costume, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .eq('team_id', teamId)
       .select()
@@ -1544,10 +834,9 @@ export class SupabaseStorage implements IStorage {
   async updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { id: _, ...allowedUpdates } = team as any;
     const { data, error } = await supabaseAdmin
       .from('teams')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...team, updated_at: new Date().toISOString() }))
       .eq('id', id)
       .select()
       .single();
@@ -1596,10 +885,9 @@ export class SupabaseStorage implements IStorage {
   async updateUserProfile(userId: string, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    const { id: _, userId: __, ...allowedUpdates } = profile as any;
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
-      .update(toSnakeCase({ ...allowedUpdates, updated_at: new Date().toISOString() }))
+      .update(toSnakeCase({ ...profile, updated_at: new Date().toISOString() }))
       .eq('user_id', userId)
       .select()
       .single();
@@ -1612,43 +900,116 @@ export class SupabaseStorage implements IStorage {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { data, error } = await supabaseAdmin
-      .rpc('get_user_teams', { p_user_id: userId });
+      .from('team_members')
+      .select('*, team:team_id(*)')
+      .eq('user_id', userId);
     
-    if (error) {
-      console.error('Error getting user teams:', error);
-      return [];
-    }
-    return data || [];
+    if (error) return [];
+    return (data || []).map(row => toCamelCase((row as any).team)).filter(Boolean);
   }
 
   async setActiveTeam(userId: string, teamId: string): Promise<UserProfile | undefined> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { data, error } = await supabaseAdmin
-      .rpc('set_active_team', { p_user_id: userId, p_team_id: teamId });
+      .from('user_profiles')
+      .update({ active_team_id: teamId, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
     
-    if (error) {
-      console.error('Error setting active team:', error);
-      return undefined;
-    }
+    if (error) return undefined;
     return toCamelCase(data) as UserProfile;
   }
 
   async ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select()
+      .eq('user_id', userId)
+      .single();
+
+    if (profile && (profile as any).active_team_id) {
+      const teamMember = await this.getTeamMember((profile as any).active_team_id, userId);
+      if (teamMember) {
+        return { teamId: (profile as any).active_team_id, created: false };
+      }
+    }
+
+    const { data: userTeams } = await supabaseAdmin
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (userTeams && userTeams.length > 0) {
+      const teamId = userTeams[0].team_id;
+      await this.setActiveTeam(userId, teamId);
+      return { teamId, created: false };
+    }
+
+    const teamName = userEmail.split('@')[0] + "'s Team";
+    const team = await this.createTeam({ name: teamName });
+    
+    await this.createTeamMember({
+      userId,
+      teamId: team.id,
+      role: 'owner',
+    });
+
+    if (!profile) {
+      await this.createUserProfile({
+        userId,
+        activeTeamId: team.id,
+      });
+    } else {
+      await this.setActiveTeam(userId, team.id);
+    }
+
+    return { teamId: team.id, created: true };
+  }
+
+  async getOAuthToken(userId: string, provider: string): Promise<any | undefined> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
     const { data, error } = await supabaseAdmin
-      .rpc('ensure_user_team', { p_user_id: userId, p_user_email: userEmail });
+      .from('oauth_tokens')
+      .select()
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .single();
     
-    if (error) {
-      console.error('Error ensuring user team:', error);
-      throw new Error('Failed to ensure user has a team');
-    }
+    if (error) return undefined;
+    return toCamelCase(data);
+  }
+
+  async upsertOAuthToken(userId: string, provider: string, tokenData: any): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    return {
-      teamId: data.teamId,
-      created: data.created
-    };
+    const { error } = await supabaseAdmin
+      .from('oauth_tokens')
+      .upsert(toSnakeCase({
+        userId,
+        provider,
+        ...tokenData,
+        updatedAt: new Date().toISOString(),
+      }), {
+        onConflict: 'user_id,provider'
+      });
+    
+    if (error) throw new Error(`Failed to upsert OAuth token: ${error.message}`);
+  }
+
+  async deleteOAuthToken(userId: string, provider: string): Promise<void> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    await supabaseAdmin
+      .from('oauth_tokens')
+      .delete()
+      .eq('user_id', userId)
+      .eq('provider', provider);
   }
 
   async getTeamInviteByCode(inviteCode: string): Promise<TeamInvite | undefined> {
@@ -1718,19 +1079,6 @@ export class SupabaseStorage implements IStorage {
     return toCamelCase(data) as TeamMember;
   }
 
-  async getTeamMemberById(memberId: string): Promise<TeamMember | undefined> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-    
-    const { data, error } = await supabaseAdmin
-      .from('team_members')
-      .select()
-      .eq('id', memberId)
-      .single();
-    
-    if (error) return undefined;
-    return toCamelCase(data) as TeamMember;
-  }
-
   async getTeamMembers(teamId: string): Promise<TeamMember[]> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
@@ -1781,40 +1129,48 @@ export class SupabaseStorage implements IStorage {
     return !error;
   }
 
-  async deleteShootParticipants(shootId: string): Promise<void> {
+  async deleteShootEquipment(shootId: string): Promise<boolean> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    await supabaseAdmin
-      .from('shoot_participants')
-      .delete()
-      .eq('shoot_id', shootId);
-  }
-
-  async deleteShootEquipment(shootId: string): Promise<void> {
-    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
-    
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('shoot_equipment')
       .delete()
       .eq('shoot_id', shootId);
+    
+    return !error;
   }
 
-  async deleteShootProps(shootId: string): Promise<void> {
+  async deleteShootProps(shootId: string): Promise<boolean> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('shoot_props')
       .delete()
       .eq('shoot_id', shootId);
+    
+    return !error;
   }
 
-  async deleteShootCostumes(shootId: string): Promise<void> {
+  async deleteShootCostumes(shootId: string): Promise<boolean> {
     if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
     
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('shoot_costumes')
       .delete()
       .eq('shoot_id', shootId);
+    
+    return !error;
+  }
+
+  async deleteShootParticipants(shootId: string): Promise<boolean> {
+    if (!supabaseAdmin) throw new Error("Supabase admin client not initialized");
+    
+    const { error } = await supabaseAdmin
+      .from('shoot_participants')
+      .delete()
+      .eq('shoot_id', shootId);
+    
+    return !error;
   }
 }
 
