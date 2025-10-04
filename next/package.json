@@ -8,11 +8,16 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "lint:check": "next lint --max-warnings 0",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "typecheck": "tsc --noEmit",
-    "migrate:check": "echo 'Migration status check - implement as needed'"
+    "migrate:check": "echo 'Migration status check - implement as needed'",
+    "pre-deploy": "pnpm run lint && pnpm run build",
+    "pre-deploy:strict": "pnpm run typecheck && pnpm run lint:check && pnpm run build",
+    "deploy": "pnpm run pre-deploy && vercel --prod",
+    "deploy:preview": "pnpm run pre-deploy && vercel"
   },
   "dependencies": {
     "@next/font": "^14.2.15",

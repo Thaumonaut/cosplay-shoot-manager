@@ -112,12 +112,8 @@ export default function CostumesPage() {
       )}
 
       <CreateCostumesDialog
-        isOpen={showCreateDialog}
-        onClose={() => setShowCreateDialog(false)}
-        onSuccess={() => {
-          setShowCreateDialog(false)
-          // Refetch costumes
-        }}
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
       />
     </div>
   )
