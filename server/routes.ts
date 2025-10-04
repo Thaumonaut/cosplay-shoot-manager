@@ -98,19 +98,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const isProduction = process.env.NODE_ENV === "production";
     const expiresIn = Math.floor((expiresAt * 1000 - Date.now()) / 1000);
 
-    res.cookie("sb-access-token", accessToken, {
+    // Cookie options for production OAuth
+    const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
+      secure: isProduction, // Only secure in production
+      sameSite: isProduction ? "lax" as const : "lax" as const,
       path: "/",
+      domain: isProduction ? undefined : undefined, // Let browser set domain
       maxAge: expiresIn * 1000,
-    });
+    };
+
+    console.log('Setting cookies with options:', { isProduction, expiresIn, cookieOptions });
+
+    res.cookie("sb-access-token", accessToken, cookieOptions);
 
     res.cookie("sb-refresh-token", refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
+      ...cookieOptions,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
   };
@@ -119,9 +122,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/set-session", async (req, res) => {
     try {
       const { access_token, refresh_token, expires_at } = req.body;
+      
+      console.log('Production OAuth Debug:', {
+        hasAccessToken: !!access_token,
+        hasRefreshToken: !!refresh_token,
+        hasExpiresAt: !!expires_at,
+        userAgent: req.get('User-Agent'),
+        origin: req.get('Origin'),
+        referer: req.get('Referer'),
+        host: req.get('Host'),
+        nodeEnv: process.env.NODE_ENV
+      });
 
       if (!access_token || !refresh_token || !expires_at) {
-        console.error('/api/auth/set-session missing fields', { hasAccess: !!access_token, hasRefresh: !!refresh_token, hasExpires: !!expires_at, body: { ...req.body, access_token: access_token ? '<redacted>' : undefined } });
+        console.error('/api/auth/set-session missing fields', { 
+          hasAccess: !!access_token, 
+          hasRefresh: !!refresh_token, 
+          hasExpires: !!expires_at, 
+          body: { ...req.body, access_token: access_token ? '<redacted>' : undefined } 
+        });
         return res.status(400).json({ error: "Missing session data" });
       }
 
@@ -144,16 +163,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setCookies(res, access_token, refresh_token, expires_at);
       } catch (cookieErr) {
         console.error('Failed to set session cookies:', cookieErr);
+        return res.status(500).json({ error: 'Failed to set authentication cookies' });
       }
 
       res.json({ user });
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error:
-            error instanceof Error ? error.message : "Internal server error",
-        });
+      console.error('Error in /api/auth/set-session:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        hasAccessToken: !!req.body.access_token,
+        hasRefreshToken: !!req.body.refresh_token,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({
+        error: 'Internal server error in set-session',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      });
     }
   });
 
@@ -349,17 +374,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Health check endpoint for debugging
+  app.get("/api/health", async (req, res) => {
+    try {
+      const healthCheck = {
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        supabaseUrl: process.env.SUPABASE_URL ? 'configured' : 'missing',
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing',
+        supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'configured' : 'missing',
+        databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
+      };
+
+      // Test Supabase connection
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        healthCheck.supabaseConnection = error ? `error: ${error.message}` : 'ok';
+      } catch (e) {
+        healthCheck.supabaseConnection = `error: ${e.message}`;
+      }
+
+      // Test database connection
+      try {
+        await storage.getTeams(); // Simple query to test DB
+        healthCheck.databaseConnection = 'ok';
+      } catch (e) {
+        healthCheck.databaseConnection = `error: ${e.message}`;
+      }
+
+      res.json(healthCheck);
+    } catch (error) {
+      res.status(500).json({ 
+        error: 'Health check failed', 
+        details: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
   // Get current user from cookie
   app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
     try {
+      console.log('Auth me endpoint called:', {
+        hasUser: !!req.user,
+        userId: req.user?.id,
+        userEmail: req.user?.email,
+        nodeEnv: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      });
+
       if (req.user?.id && req.user?.email) {
         // Ensure user has a team (creates one if they don't)
-        await storage.ensureUserTeam(req.user.id, req.user.email);
+        try {
+          await storage.ensureUserTeam(req.user.id, req.user.email);
+          console.log('User team ensured successfully');
+        } catch (teamError) {
+          console.error('Error ensuring user team:', teamError);
+          // Don't fail auth if team creation fails, return user anyway
+        }
       }
+      
       res.json({ user: req.user });
     } catch (error) {
-      console.error('Error in /api/auth/me:', error);
-      res.json({ user: req.user });
+      console.error('Error in /api/auth/me:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.user?.id,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ 
+        error: 'Internal server error in auth/me',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      });
     }
   });
 
@@ -1804,7 +1889,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
         }
-        const references = await storage.getShootReferences(req.params.id);
+        let references = await storage.getShootReferences(req.params.id);
+
+        // If Supabase admin client is available, turn storage object public URLs
+        // into signed URLs when needed (handles private buckets)
+        try {
+          const admin = supabaseAdmin;
+          if (admin) {
+            references = await Promise.all(references.map(async (r: any) => {
+              if (!r || !r.url || typeof r.url !== 'string') return r;
+              try {
+                const url = new URL(r.url);
+                const parts = url.pathname.split('/');
+                const objectIndex = parts.findIndex(p => p === 'object');
+                if (objectIndex >= 0 && parts.length > objectIndex + 2) {
+                  // bucket is typically at objectIndex + 2 (after optional 'public')
+                  const bucket = parts[objectIndex + 2];
+                  const objectPath = parts.slice(objectIndex + 3).join('/');
+                  if (bucket && objectPath) {
+                    // create signed url for short-lived access (60s)
+                    const { data, error } = await admin.storage.from(bucket).createSignedUrl(objectPath, 60);
+                    if (!error && data && data.signedUrl) {
+                      return { ...r, url: data.signedUrl };
+                    }
+                  }
+                }
+              } catch (e) {
+                // ignore and return original
+              }
+              return r;
+            }));
+          }
+        } catch (mapErr) {
+          console.error('Error generating signed urls for references:', mapErr);
+        }
+
         res.json(references);
       } catch (error) {
         res
@@ -1822,6 +1941,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authenticateUser,
     async (req: AuthRequest, res) => {
       try {
+        // Debug: log arrival and basic request info
+        try {
+          console.log('[REFERENCES] POST received', {
+            url: req.originalUrl,
+            method: req.method,
+            contentType: req.headers['content-type'],
+            headers: {
+              // don't log cookies in full - indicate presence
+              cookie: req.headers.cookie ? '<present>' : '<none>',
+              referer: req.headers.referer || null,
+              origin: req.headers.origin || null,
+            },
+            userId: req.user?.id || null,
+            bodyKeys: req.body ? Object.keys(req.body) : [],
+          });
+        } catch (logErr) {
+          console.error('[REFERENCES] failed to log request metadata', logErr);
+        }
         const userId = getUserId(req);
         const teamId = await getUserTeamId(userId);
         
@@ -1837,40 +1974,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // If imageUrl is from object storage, set ACL policy
-        let imageUrl = req.body.imageUrl;
-        if (imageUrl && (imageUrl.includes('/storage/v1/object/') || imageUrl.includes('supabase.co'))) {
-          const objectStorageService = new ObjectStorageService();
-          imageUrl = await objectStorageService.trySetObjectEntityAclPolicy(
-            imageUrl,
-            {
-              owner: userId,
-              visibility: "public",
-            },
-          );
+        let imageUrl = req.body?.imageUrl || req.body?.url || undefined;
+        try {
+          if (imageUrl && (imageUrl.includes('/storage/v1/object/') || imageUrl.includes('supabase.co'))) {
+            const objectStorageService = new ObjectStorageService();
+            const adjusted = await objectStorageService.trySetObjectEntityAclPolicy(
+              imageUrl,
+              {
+                owner: userId,
+                visibility: "public",
+              },
+            );
+            console.log('[REFERENCES] object ACL adjusted', { original: imageUrl, adjusted });
+            imageUrl = adjusted;
+          }
+        } catch (aclErr) {
+          console.error('[REFERENCES] error while adjusting object ACL policy', { imageUrl, err: aclErr });
         }
         
         // The DB/schema expects a `url` field for the reference. Clients may send
         // `imageUrl` so normalize to `url` here and prefer the ACL-adjusted
         // `imageUrl` value when present.
-        const data = insertShootReferenceSchema.parse({
+        const parsedInput = {
           ...req.body,
           // `type` is required by the DB/schema; default to 'image' when client
           // doesn't supply one (common for direct image uploads).
-          type: req.body.type || 'image',
-          url: imageUrl || req.body.url || req.body.imageUrl,
-          notes: req.body.notes,
+          type: req.body?.type || 'image',
+          url: imageUrl || req.body?.url || req.body?.imageUrl,
+          notes: req.body?.notes,
           shootId: req.params.id,
-        });
+        };
+
+        // Debug: show the parsed input we'll validate
+        try {
+          // limit large bodies when logging
+          const safeBody = JSON.stringify(parsedInput).slice(0, 4000);
+          console.log('[REFERENCES] parsed input before validation', safeBody);
+        } catch (logErr) {
+          console.error('[REFERENCES] could not stringify parsed input', logErr);
+        }
+
+        const data = insertShootReferenceSchema.parse(parsedInput);
+
+        // Debug: log final data that will be stored
+        try {
+          console.log('[REFERENCES] creating reference with data', {
+            shootId: data.shootId,
+            type: data.type,
+            url: data.url,
+            notesPresent: !!data.notes,
+          });
+        } catch (logErr) {
+          console.error('[REFERENCES] failed to log create args', logErr);
+        }
+
         const reference = await storage.createShootReference(data);
+        console.log('[REFERENCES] created reference', { id: (reference as any)?.id || null, url: (reference as any)?.url });
+
+        // Diagnostic: perform a HEAD request to the public URL to check availability and content-type
+        try {
+          if (reference && (reference as any).url && typeof fetch === 'function') {
+            const headResp = await fetch((reference as any).url, { method: 'HEAD' });
+            try {
+              const ct = headResp.headers.get('content-type');
+              console.log('[REFERENCES] HEAD check', { status: headResp.status, contentType: ct });
+            } catch (hdrErr) {
+              console.error('[REFERENCES] HEAD check header parse error', hdrErr);
+            }
+          }
+        } catch (headErr) {
+          console.error('[REFERENCES] HEAD request failed', headErr);
+        }
+
         res.status(201).json(reference);
       } catch (error) {
         if (error instanceof z.ZodError) {
+          console.error('Validation error creating shoot reference:', {
+            body: req.body,
+            zodErrors: error.errors,
+          });
           return res.status(400).json({ error: error.errors });
         }
+        console.error('Unhandled error in POST /api/shoots/:id/references', { err: error, body: req.body });
         res
-          .status(401)
+          .status(500)
           .json({
-            error: error instanceof Error ? error.message : "Unauthorized",
+            error: error instanceof Error ? error.message : "Internal server error",
           });
       }
     },
