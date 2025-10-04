@@ -98,19 +98,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const isProduction = process.env.NODE_ENV === "production";
     const expiresIn = Math.floor((expiresAt * 1000 - Date.now()) / 1000);
 
-    res.cookie("sb-access-token", accessToken, {
+    // Cookie options for production OAuth
+    const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
+      secure: isProduction, // Only secure in production
+      sameSite: isProduction ? "lax" as const : "lax" as const,
       path: "/",
+      domain: isProduction ? undefined : undefined, // Let browser set domain
       maxAge: expiresIn * 1000,
-    });
+    };
+
+    console.log('Setting cookies with options:', { isProduction, expiresIn, cookieOptions });
+
+    res.cookie("sb-access-token", accessToken, cookieOptions);
 
     res.cookie("sb-refresh-token", refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
+      ...cookieOptions,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
   };
@@ -119,9 +122,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/set-session", async (req, res) => {
     try {
       const { access_token, refresh_token, expires_at } = req.body;
+      
+      console.log('Production OAuth Debug:', {
+        hasAccessToken: !!access_token,
+        hasRefreshToken: !!refresh_token,
+        hasExpiresAt: !!expires_at,
+        userAgent: req.get('User-Agent'),
+        origin: req.get('Origin'),
+        referer: req.get('Referer'),
+        host: req.get('Host'),
+        nodeEnv: process.env.NODE_ENV
+      });
 
       if (!access_token || !refresh_token || !expires_at) {
-        console.error('/api/auth/set-session missing fields', { hasAccess: !!access_token, hasRefresh: !!refresh_token, hasExpires: !!expires_at, body: { ...req.body, access_token: access_token ? '<redacted>' : undefined } });
+        console.error('/api/auth/set-session missing fields', { 
+          hasAccess: !!access_token, 
+          hasRefresh: !!refresh_token, 
+          hasExpires: !!expires_at, 
+          body: { ...req.body, access_token: access_token ? '<redacted>' : undefined } 
+        });
         return res.status(400).json({ error: "Missing session data" });
       }
 
@@ -144,16 +163,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setCookies(res, access_token, refresh_token, expires_at);
       } catch (cookieErr) {
         console.error('Failed to set session cookies:', cookieErr);
+        return res.status(500).json({ error: 'Failed to set authentication cookies' });
       }
 
       res.json({ user });
     } catch (error) {
-      res
-        .status(500)
-        .json({
-          error:
-            error instanceof Error ? error.message : "Internal server error",
-        });
+      console.error('Error in /api/auth/set-session:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        hasAccessToken: !!req.body.access_token,
+        hasRefreshToken: !!req.body.refresh_token,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({
+        error: 'Internal server error in set-session',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      });
     }
   });
 
@@ -349,17 +374,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Health check endpoint for debugging
+  app.get("/api/health", async (req, res) => {
+    try {
+      const healthCheck = {
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        supabaseUrl: process.env.SUPABASE_URL ? 'configured' : 'missing',
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing',
+        supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'configured' : 'missing',
+        databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
+      };
+
+      // Test Supabase connection
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        healthCheck.supabaseConnection = error ? `error: ${error.message}` : 'ok';
+      } catch (e) {
+        healthCheck.supabaseConnection = `error: ${e.message}`;
+      }
+
+      // Test database connection
+      try {
+        await storage.getTeams(); // Simple query to test DB
+        healthCheck.databaseConnection = 'ok';
+      } catch (e) {
+        healthCheck.databaseConnection = `error: ${e.message}`;
+      }
+
+      res.json(healthCheck);
+    } catch (error) {
+      res.status(500).json({ 
+        error: 'Health check failed', 
+        details: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
   // Get current user from cookie
   app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
     try {
+      console.log('Auth me endpoint called:', {
+        hasUser: !!req.user,
+        userId: req.user?.id,
+        userEmail: req.user?.email,
+        nodeEnv: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      });
+
       if (req.user?.id && req.user?.email) {
         // Ensure user has a team (creates one if they don't)
-        await storage.ensureUserTeam(req.user.id, req.user.email);
+        try {
+          await storage.ensureUserTeam(req.user.id, req.user.email);
+          console.log('User team ensured successfully');
+        } catch (teamError) {
+          console.error('Error ensuring user team:', teamError);
+          // Don't fail auth if team creation fails, return user anyway
+        }
       }
+      
       res.json({ user: req.user });
     } catch (error) {
-      console.error('Error in /api/auth/me:', error);
-      res.json({ user: req.user });
+      console.error('Error in /api/auth/me:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.user?.id,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ 
+        error: 'Internal server error in auth/me',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+      });
     }
   });
 

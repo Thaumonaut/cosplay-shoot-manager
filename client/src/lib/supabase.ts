@@ -26,5 +26,36 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: true,
+    // Add clock tolerance for production environments
+    storageKey: 'sb-auth',
+    storage: {
+      getItem: (key: string) => {
+        try {
+          const item = localStorage.getItem(key);
+          return item;
+        } catch {
+          return null;
+        }
+      },
+      setItem: (key: string, value: string) => {
+        try {
+          localStorage.setItem(key, value);
+        } catch {
+          // Ignore storage errors
+        }
+      },
+      removeItem: (key: string) => {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Ignore storage errors
+        }
+      },
+    },
+  },
+  global: {
+    headers: {
+      'x-client-info': 'cosplay-shoot-manager@1.0.0',
+    },
   },
 });

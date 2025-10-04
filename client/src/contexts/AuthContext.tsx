@@ -24,12 +24,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async (res) => {
         if (res.ok) {
           const data = await res.json();
+          console.log('Auth context initialized successfully:', { userId: data.user?.id });
           setUser(data.user);
         } else {
+          console.log('Auth me failed:', {
+            status: res.status,
+            statusText: res.statusText,
+            url: res.url
+          });
+          
+          // Try to get error details
+          try {
+            const errorData = await res.json();
+            console.error('Auth me error details:', errorData);
+          } catch (e) {
+            console.error('Could not parse auth error response');
+          }
+          
           setUser(null);
         }
       })
-      .catch(() => setUser(null))
+      .catch((error) => {
+        console.error('Network error in auth context:', error);
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -111,10 +129,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = async (provider: 'google' | 'facebook') => {
     try {
+      // Ensure we use the correct production URL for OAuth redirects
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      console.log('OAuth redirect URL:', redirectTo); // Debug log for production
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         },
       });
 
