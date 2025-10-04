@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,6 +23,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all team memberships for the user with team details
+    const teamId = await getUserTeamId(userId)
+    if (!teamId) {
+      return NextResponse.json({ error: 'No active team found' }, { status: 400 })
+    }
+
+    const supabaseAdmin = getSupabaseAdmin()
     const { data: teamMemberships, error } = await supabaseAdmin
       .from('team_members')
       .select(`

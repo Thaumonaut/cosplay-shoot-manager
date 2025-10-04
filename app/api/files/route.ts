@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 // File upload endpoint using Supabase Storage
 export async function POST(req: NextRequest) {
@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     const fileExt = file.name.split('.').pop()
     const fileName = `${teamId}/${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
+    const supabaseAdmin = getSupabaseAdmin()
+    
     // Upload to Supabase Storage
     const { data, error } = await supabaseAdmin.storage
       .from('uploads')
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
     // Store file metadata in database
     const { data: fileRecord, error: dbError } = await supabaseAdmin
       .from('files')
+      // Cast to any until Supabase DB types are generated
       .insert({
         id: crypto.randomUUID(),
         team_id: teamId,
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
         file_type: file.type,
         file_size: file.size,
         created_at: new Date().toISOString()
-      })
+      } as any)
       .select()
       .single()
 
@@ -84,7 +87,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
+      // @ts-ignore - Schema types need to be regenerated
       id: fileRecord.id,
+      // @ts-ignore - Schema types need to be regenerated
       filename: fileRecord.filename,
       url: publicUrl,
       type: file.type,
@@ -110,6 +115,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
+    const supabaseAdmin = getSupabaseAdmin()
+    
     const { data: files, error } = await supabaseAdmin
       .from('files')
       .select('*')
@@ -122,12 +129,19 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(files.map(file => ({
+      // @ts-ignore - Schema types need to be regenerated
       id: file.id,
+      // @ts-ignore - Schema types need to be regenerated
       filename: file.filename,
+      // @ts-ignore - Schema types need to be regenerated
       url: file.public_url,
+      // @ts-ignore - Schema types need to be regenerated
       type: file.file_type,
+      // @ts-ignore - Schema types need to be regenerated
       size: file.file_size,
+      // @ts-ignore - Schema types need to be regenerated
       uploadedAt: file.created_at,
+      // @ts-ignore - Schema types need to be regenerated
       uploadedBy: file.uploaded_by
     })))
 
@@ -157,6 +171,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'File ID required' }, { status: 400 })
     }
 
+    const supabaseAdmin = getSupabaseAdmin()
+
     // Get file record
     const { data: file, error: fetchError } = await supabaseAdmin
       .from('files')
@@ -172,6 +188,7 @@ export async function DELETE(req: NextRequest) {
     // Delete from storage
     const { error: storageError } = await supabaseAdmin.storage
       .from('uploads')
+      // @ts-ignore - Schema types need to be regenerated
       .remove([file.storage_path])
 
     if (storageError) {

@@ -1,7 +1,9 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function verifyDatabaseSchema() {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
+    
     // Check if files table exists
     const { data: tables, error: tablesError } = await supabaseAdmin
       .from('information_schema.tables')
@@ -32,11 +34,4 @@ export async function verifyDatabaseSchema() {
       error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
-}
-
-// Test the verification
-if (require.main === module) {
-  verifyDatabaseSchema().then(result => {
-    console.log('Database schema verification result:', result)
-  })
 }

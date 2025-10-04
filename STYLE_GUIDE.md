@@ -405,12 +405,40 @@ CREATE POLICY "Users can view shoots in their teams" ON shoots
 
 ## Testing Conventions
 
+### **Testing Framework**
+- **Unit/Integration Tests**: Jest with React Testing Library
+- **Component Documentation**: Storybook for component showcase and testing
+- **NO Vitest**: This project uses Jest, not Vitest
+- **Configuration**: Use `jest.config.js` and `jest.setup.js` - no `vitest.config.ts` should exist
+
+### **When to Use Each Testing Tool**
+- **Jest**: Unit tests, integration tests, API testing, business logic
+- **Storybook**: Component development, visual testing, design system documentation
+- **React Testing Library**: Component behavior testing, user interaction testing
+
+### **Testing Commands**
+```bash
+# Run Jest tests
+pnpm test
+
+# Run Jest tests in watch mode
+pnpm test:watch
+
+# Run Jest tests with coverage (CI)
+pnpm test:ci
+
+# TODO: Set up Storybook
+# pnpm storybook
+# pnpm build-storybook
+```
+
 ### **Test File Naming**
 - Unit tests: `ComponentName.test.tsx`
 - Integration tests: `feature-name.integration.test.ts`
 - E2E tests: `user-journey.e2e.test.ts`
+- Storybook stories: `ComponentName.stories.tsx`
 
-### **Test Structure**
+### **Jest Test Structure**
 ```typescript
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ShootCard } from '../ShootCard'
@@ -440,6 +468,47 @@ describe('ShootCard', () => {
     expect(mockOnEdit).toHaveBeenCalledWith(mockShoot)
   })
 })
+```
+
+### **Storybook Stories**
+```typescript
+import type { Meta, StoryObj } from '@storybook/react'
+import { ShootCard } from './ShootCard'
+
+const meta: Meta<typeof ShootCard> = {
+  title: 'Components/ShootCard',
+  component: ShootCard,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+}
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Default: Story = {
+  args: {
+    shoot: {
+      id: '1',
+      title: 'Cyberpunk Photoshoot',
+      status: 'planning',
+      team_id: 'team1',
+      user_id: 'user1',
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z',
+    },
+  },
+}
+
+export const Completed: Story = {
+  args: {
+    shoot: {
+      ...Default.args.shoot,
+      status: 'completed',
+    },
+  },
+}
 ```
 
 ---

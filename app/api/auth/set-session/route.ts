@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { signToken } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the session with Supabase
+    const supabaseAdmin = getSupabaseAdmin()
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(access_token)
     
     if (error || !user) {

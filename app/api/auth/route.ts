@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { supabase } from '@/lib/supabase'
 import { signToken } from '@/lib/auth'
 
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const supabaseAdmin = getSupabaseAdmin()
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
       email,
       password

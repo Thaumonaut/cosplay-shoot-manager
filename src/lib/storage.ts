@@ -95,7 +95,7 @@ export class Storage {
   }
 
   async updateUserProfile(userId: string, profile: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('user_profiles')
       .update(toSnakeCase({ ...profile, updated_at: new Date().toISOString() }))
       .eq('user_id', userId)
@@ -119,7 +119,7 @@ export class Storage {
   }
 
   async createTeam(team: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('teams')
       .insert(toSnakeCase(team))
       .select()
@@ -130,7 +130,7 @@ export class Storage {
   }
 
   async updateTeam(id: string, team: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('teams')
       .update(toSnakeCase({ ...team, updated_at: new Date().toISOString() }))
       .eq('id', id)
@@ -186,7 +186,7 @@ export class Storage {
   }
 
   async createTeamMember(member: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('team_members')
       .insert(toSnakeCase(member))
       .select()
@@ -197,7 +197,7 @@ export class Storage {
   }
 
   async setActiveTeam(userId: string, teamId: string): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .rpc('set_active_team', { p_user_id: userId, p_team_id: teamId })
 
     if (error) {
@@ -260,7 +260,7 @@ export class Storage {
       return mockShoot
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoots')
       .insert(toSnakeCase(shoot))
       .select()
@@ -271,7 +271,7 @@ export class Storage {
   }
 
   async updateTeamShoot(id: string, teamId: string, shoot: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoots')
       .update(toSnakeCase({ ...shoot, updated_at: new Date().toISOString() }))
       .eq('id', id)
@@ -316,7 +316,7 @@ export class Storage {
   }
 
   async createShootReference(reference: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoot_references')
       .insert(toSnakeCase(reference))
       .select()
@@ -327,7 +327,7 @@ export class Storage {
   }
 
   async updateShootReference(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoot_references')
       .update(toSnakeCase(updates))
       .eq('id', id)
@@ -370,7 +370,7 @@ export class Storage {
   }
 
   async createShootParticipant(participant: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoot_participants')
       .insert(toSnakeCase(participant))
       .select()
@@ -381,7 +381,7 @@ export class Storage {
   }
 
   async updateShootParticipant(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('shoot_participants')
       .update(toSnakeCase(updates))
       .eq('id', id)
@@ -425,7 +425,7 @@ export class Storage {
   }
 
   async createEquipment(equipment: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('equipment')
       .insert(toSnakeCase(equipment))
       .select()
@@ -436,7 +436,7 @@ export class Storage {
   }
 
   async updateEquipment(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('equipment')
       .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
       .eq('id', id)
@@ -480,7 +480,7 @@ export class Storage {
   }
 
   async createPersonnel(personnel: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('personnel')
       .insert(toSnakeCase(personnel))
       .select()
@@ -491,7 +491,7 @@ export class Storage {
   }
 
   async updatePersonnel(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('personnel')
       .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
       .eq('id', id)
@@ -535,7 +535,7 @@ export class Storage {
   }
 
   async createCostume(costume: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('costumes')
       .insert(toSnakeCase(costume))
       .select()
@@ -546,7 +546,7 @@ export class Storage {
   }
 
   async updateCostume(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('costumes')
       .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
       .eq('id', id)
@@ -590,7 +590,7 @@ export class Storage {
   }
 
   async createPlace(place: any): Promise<any> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('places')
       .insert(toSnakeCase(place))
       .select()
@@ -601,7 +601,7 @@ export class Storage {
   }
 
   async updatePlace(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await (supabaseAdmin as any)
       .from('places')
       .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
       .eq('id', id)

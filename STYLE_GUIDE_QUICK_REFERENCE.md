@@ -5,7 +5,7 @@
 - **UI Library**: Radix UI + Tailwind CSS
 - **Backend**: Supabase (Database + Auth + Storage)
 - **State Management**: React Query + React Hooks
-- **Testing**: Jest + React Testing Library + Playwright
+- **Testing**: Jest + React Testing Library + Storybook (NO Vitest)
 
 ## 📝 Naming Conventions
 
