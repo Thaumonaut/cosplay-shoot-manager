@@ -1,15 +1,156 @@
-@import 'tailwindcss';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* LIGHT MODE */
 :root {
-  --bg: #0b0b0b;
-  --fg: #f5f5f5;
+  --button-outline: rgba(0,0,0, .10);
+  --badge-outline: rgba(0,0,0, .05);
+
+  /* Automatic computation of border around primary / danger buttons */
+  --opaque-button-border-intensity: -8; /* In terms of percentages */
+
+  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --elevate-1: rgba(0,0,0, .03);
+  --elevate-2: rgba(0,0,0, .08);
+
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --border: 0 0% 96.47%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 0%;
+  --card-border: 222 10% 94%;
+  
+  /* Light mode sidebar colors */
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 210 25% 7.8431%;
+  --sidebar-border: 0 0% 96.47%;
+  --sidebar-primary: 96 85.19% 73.53%;
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 0 0% 96.47%;
+  --sidebar-accent-foreground: 96 85.19% 73.53%;
+  --sidebar-ring: 96 85.19% 73.53%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 0%;
+  --popover-border: 222 10% 88%;
+  --primary: 96 85.19% 73.53%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 96.08%;
+  --secondary-foreground: 0 0% 0%;
+  --muted: 0 0% 96.08%;
+  --muted-foreground: 0 0% 52.94%;
+  --accent: 0 0% 96.47%;
+  --accent-foreground: 96 85.19% 73.53%;
+  --destructive: 2.04 74.62% 61.37%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 0% 96.47%;
+  --ring: 96 85.19% 73.53%;
+  --chart-1: 203.8863 88.2845% 53.1373%;
+  --chart-2: 159.7826 100% 36.0784%;
+  --chart-3: 42.0290 92.8251% 56.2745%;
+  --chart-4: 147.1429 78.5047% 41.9608%;
+  --chart-5: 341.4894 75.2000% 50.9804%;
+
+  --font-sans: var(--font-sans, system-ui, sans-serif);
+  --font-serif: var(--font-sans, system-ui, sans-serif);
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, 'Courier New', monospace;
+  --radius: 0rem;
+  --spacing: 0.25rem;
+
+  /* Automatically computed borders */
+  --primary-border: hsl(96 85.19% 65.53%); /* Darker version of primary */
+  --secondary-border: hsl(0 0% 88%); /* Darker version of secondary */
+  --destructive-border: hsl(2.04 74.62% 53.37%); /* Darker version of destructive */
 }
 
-html, body, #__next {
-  height: 100%;
+.dark {
+  --button-outline: rgba(255,255,255, .10);
+  --badge-outline: rgba(255,255,255, .05);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+
+  --background: 240deg 25% 4.71%;
+  --foreground: 200 6.6667% 91.1765%;
+  --border: 210 5.2632% 14.9020%;
+  --card: 228 9.8039% 10%;
+  --card-foreground: 0 0% 85.0980%;
+  --card-border: 222 15% 18%;
+  
+  /* Dark mode sidebar colors */
+  --sidebar-background: 240deg 25% 6%;
+  --sidebar-foreground: 200 6.6667% 91.1765%;
+  --sidebar-border: 210 5.2632% 14.9020%;
+  --sidebar-primary: 96.95deg 65.6% 49.02%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 228 9.8039% 12%;
+  --sidebar-accent-foreground: 96.95deg 65.6% 49.02%;
+  --sidebar-ring: 96.95deg 65.6% 49.02%;
+  
+  --popover: 228 9.8039% 10%;
+  --popover-foreground: 0 0% 85.0980%;
+  --popover-border: 210 5.2632% 14.9020%;
+  --primary: 96.95deg 65.6% 49.02%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 200deg 12.5% 18.82%;
+  --secondary-foreground: 200 6.6667% 91.1765%;
+  --muted: 200deg 12.5% 18.82%;
+  --muted-foreground: 210 3.3898% 46.2745%;
+  --accent: 228 9.8039% 12%;
+  --accent-foreground: 96.95deg 65.6% 49.02%;
+  --destructive: 2.04 74.62% 61.37%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 210 5.2632% 14.9020%;
+  --ring: 96.95deg 65.6% 49.02%;
+  --radius: 1.3rem;
+  
+  /* Dark mode computed borders */
+  --primary-border: hsl(96.95 65.6% 57.02%); /* Lighter version of primary for dark mode */
+  --secondary-border: hsl(0 0% 15%); /* Lighter version of secondary for dark mode */
+  --destructive-border: hsl(2.04 74.62% 69.37%); /* Lighter version of destructive for dark mode */
 }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    font-family: var(--font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  
+  /* Ensure consistent theming for all elements */
+  html {
+    background-color: hsl(var(--background));
+  }
+}
+
+@layer utilities {
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: 999;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
 }

@@ -1,105 +1,131 @@
-'use client'
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar, MapPin, Users, MoreVertical, FileText, Image as ImageIcon } from "lucide-react";
+import { SiGooglecalendar, SiGoogledocs } from "react-icons/si";
+import { formatDistanceToNow } from "date-fns";
 
-import { Shoot } from '@/types/database'
+type ShootStatus = "idea" | "planning" | "ready to shoot" | "completed";
 
 interface ShootCardProps {
-  shoot: Shoot
-  onEdit?: (shoot: Shoot) => void
-  onDelete?: (shoot: Shoot) => void
-  onClick?: (shoot: Shoot) => void
+  id: string;
+  title: string;
+  image?: string;
+  date?: Date;
+  location?: string;
+  participants?: number;
+  status: ShootStatus;
+  hasCalendar?: boolean;
+  hasDocs?: boolean;
+  referenceCount?: number;
+  onClick?: () => void;
 }
 
-export default function ShootCard({ shoot, onEdit, onDelete, onClick }: ShootCardProps) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+const statusConfig: Record<ShootStatus, { label: string; variant: "secondary" | "default" | "outline" }> = {
+  idea: { label: "Idea", variant: "secondary" },
+  planning: { label: "Planning", variant: "default" },
+  "ready to shoot": { label: "Ready to Shoot", variant: "default" },
+  completed: { label: "Completed", variant: "outline" },
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'planning':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800'
-      case 'in_progress':
-        return 'bg-purple-100 text-purple-800'
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
+export function ShootCard({
+  id,
+  title,
+  image,
+  date,
+  location,
+  participants,
+  status,
+  hasCalendar,
+  hasDocs,
+  referenceCount = 0,
+  onClick,
+}: ShootCardProps) {
+  const statusInfo = statusConfig[status];
 
   return (
-    <div 
-      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
-      onClick={() => onClick?.(shoot)}
+    <Card 
+      className="overflow-hidden hover-elevate cursor-pointer group" 
+      onClick={onClick}
+      data-testid={`card-shoot-${id}`}
     >
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 truncate">
-          {shoot.title}
-        </h3>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(shoot.status)}`}>
-          {shoot.status?.replace('_', ' ') || 'planning'}
-        </span>
-      </div>
-      
-      {shoot.description && (
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-          {shoot.description}
-        </p>
-      )}
-      
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-sm text-gray-500">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          {formatDate(shoot.date)}
+      <div className="relative aspect-[3/2] bg-muted overflow-hidden">
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="h-12 w-12 text-muted-foreground" />
+          </div>
+        )}
+        <div className="absolute top-3 right-3">
+          <Badge variant={statusInfo.variant} data-testid={`badge-status-${status}`}>
+            {statusInfo.label}
+          </Badge>
         </div>
-        
-        {shoot.location && (
-          <div className="flex items-center text-sm text-gray-500">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            {shoot.location}
+        {(hasCalendar || hasDocs) && (
+          <div className="absolute bottom-3 right-3 flex gap-2">
+            {hasCalendar && (
+              <div className="h-6 w-6 rounded-md bg-background/90 backdrop-blur-sm flex items-center justify-center">
+                <SiGooglecalendar className="h-3 w-3 text-foreground" />
+              </div>
+            )}
+            {hasDocs && (
+              <div className="h-6 w-6 rounded-md bg-background/90 backdrop-blur-sm flex items-center justify-center">
+                <SiGoogledocs className="h-3 w-3 text-foreground" />
+              </div>
+            )}
           </div>
         )}
       </div>
-      
-      <div className="flex justify-end space-x-2">
-        {onEdit && (
-          <button
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-lg line-clamp-1">{title}</h3>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 shrink-0"
             onClick={(e) => {
-              e.stopPropagation()
-              onEdit(shoot)
+              e.stopPropagation();
             }}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            data-testid={`button-more-${id}`}
           >
-            Edit
-          </button>
-        )}
-        {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(shoot)
-            }}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
-          >
-            Delete
-          </button>
-        )}
-      </div>
-    </div>
-  )
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="space-y-2 text-sm text-muted-foreground">
+          {date && (
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
+            </div>
+          )}
+          {location && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span className="line-clamp-1">{location}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            {participants && (
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>{participants} {participants === 1 ? 'person' : 'people'}</span>
+              </div>
+            )}
+            {referenceCount > 0 && (
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span>{referenceCount} refs</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

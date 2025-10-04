@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    const shoot = await storage.getTeamShoot(params.id, teamId)
+    const { id } = await params
+    const shoot = await storage.getTeamShoot(id, teamId)
     if (!shoot) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -36,7 +37,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const updates = await req.json()
-    const updatedShoot = await storage.updateTeamShoot(params.id, teamId, updates)
+    const { id } = await params
+    const updatedShoot = await storage.updateTeamShoot(id, teamId, updates)
     if (!updatedShoot) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }
@@ -47,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = getUserIdFromRequest(req)
     if (!userId) {
@@ -58,7 +60,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    const deleted = await storage.deleteTeamShoot(params.id, teamId)
+    const { id } = await params
+    const deleted = await storage.deleteTeamShoot(id, teamId)
     if (!deleted) {
       return NextResponse.json({ error: 'Shoot not found' }, { status: 404 })
     }

@@ -38,7 +38,7 @@ export function useApi<T>(
       setState(prev => ({ ...prev, loading: false, error: errorMessage }))
       throw error
     }
-  }, dependencies)
+  }, [apiCall])
 
   useEffect(() => {
     if (options.immediate) {

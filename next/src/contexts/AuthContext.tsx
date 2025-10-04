@@ -1,171 +1,167 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { apiClient, ApiClientError } from '@/lib/api-client'
-import { User } from '@/types/database'
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
-interface AuthState {
-  user: User | null
-  token: string | null
-  loading: boolean
-  error: string | null
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: 'google' | 'facebook') => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  clearError: () => void
-}
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-interface AuthProviderProps {
-  children: ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    token: null,
-    loading: true,
-    error: null,
-  })
-
-  // Initialize auth state from localStorage
   useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const storedToken = localStorage.getItem('auth_token')
-        const storedUser = localStorage.getItem('auth_user')
-
-        if (storedToken && storedUser) {
-          const user = JSON.parse(storedUser)
-          apiClient.setToken(storedToken)
-          setState({
-            user,
-            token: storedToken,
-            loading: false,
-            error: null,
-          })
+    // Check if user is authenticated via cookie
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
         } else {
-          setState(prev => ({ ...prev, loading: false }))
+          setUser(null);
         }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('auth_user')
-        setState(prev => ({ ...prev, loading: false }))
+      })
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { error };
       }
-    }
 
-    initializeAuth()
-  }, [])
+      if (!data.session) {
+        return { error: new Error("No session returned") };
+      }
 
-  const login = async (email: string, password: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
+      // Send session to backend to set cookies
+      const response = await fetch("/api/auth/set-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at,
+        }),
+        credentials: "include",
+      });
 
-    try {
-      const response = await apiClient.login(email, password)
-      
-      // Store auth data
-      localStorage.setItem('auth_token', response.token)
-      localStorage.setItem('auth_user', JSON.stringify(response.user))
-      
-      // Update API client token
-      apiClient.setToken(response.token)
-      
-      setState({
-        user: response.user,
-        token: response.token,
-        loading: false,
-        error: null,
-      })
+      if (!response.ok) {
+        throw new Error("Failed to set session");
+      }
+
+      const sessionData = await response.json();
+      setUser(sessionData.user);
+      return { error: null };
     } catch (error) {
-      const errorMessage = error instanceof ApiClientError 
-        ? error.message 
-        : 'Login failed. Please try again.'
-      
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: errorMessage,
-      }))
-      throw error
+      return { error: error instanceof Error ? error : new Error("Sign in failed") };
     }
-  }
+  };
 
-  const logout = async () => {
-    setState(prev => ({ ...prev, loading: true }))
-
+  const signUp = async (email: string, password: string) => {
     try {
-      await apiClient.logout()
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      // Note: User will need to confirm email before they can sign in
+      return { error: null };
     } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Clear local storage and state regardless of API call result
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      apiClient.setToken(null)
-      
-      setState({
-        user: null,
-        token: null,
-        loading: false,
-        error: null,
-      })
+      return { error: error instanceof Error ? error : new Error("Sign up failed") };
     }
-  }
+  };
 
-  const clearError = () => {
-    setState(prev => ({ ...prev, error: null }))
-  }
+  const signInWithProvider = async (provider: 'google' | 'facebook') => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-  const contextValue: AuthContextType = {
-    ...state,
-    login,
-    logout,
-    clearError,
-  }
+      if (error) {
+        return { error };
+      }
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  )
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof Error ? error : new Error("Social sign in failed") };
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear server-side session
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      setUser(null);
+    } catch (error) {
+      console.error("Sign out error:", error);
+      // Force clear user state even if there's an error
+      setUser(null);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const response = await fetch("/api/auth/me", { credentials: "include" });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Refresh user error:", error);
+      setUser(null);
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    signIn,
+    signUp,
+    signInWithProvider,
+    signOut,
+    refreshUser,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
-}
-
-// Higher-order component for protected routes
-export function withAuth<P extends object>(Component: React.ComponentType<P>) {
-  return function AuthenticatedComponent(props: P) {
-    const { user, loading } = useAuth()
-
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      )
-    }
-
-    if (!user) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-            <p className="text-muted-foreground">Please log in to access this page.</p>
-          </div>
-        </div>
-      )
-    }
-
-    return <Component {...props} />
-  }
+  return context;
 }

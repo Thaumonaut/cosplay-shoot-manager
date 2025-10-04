@@ -70,7 +70,7 @@ src/
 
 ### Frontend Migration
 - [ ] Move React components from `client/src/components/`
-- [ ] Convert routing from Wouter to Next.js file-based routing
+- [x] Convert routing from Wouter to Next.js file-based routing
 - [ ] Migrate Tailwind configuration and custom styles
 - [ ] Update authentication context for Next.js
 - [ ] Migrate dashboard and main application pages

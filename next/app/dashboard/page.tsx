@@ -1,157 +1,276 @@
 'use client'
 
 import { useState } from 'react'
-import DashboardLayout from '@/components/DashboardLayout'
-import ShootCard from '@/components/ShootCard'
-import CreateShootDialog from '@/components/CreateShootDialog'
-import { useShoots } from '@/hooks/useApi'
 import { useAuth } from '@/contexts/AuthContext'
-import { Shoot } from '@/types/database'
+import { useQuery } from '@tanstack/react-query'
+import { ShootCard } from '@/components/ShootCard'
+import { AccordionShoots } from '@/components/AccordionShoots'
+import { ShootCalendar } from '@/components/ShootCalendar'
+import { KanbanBoard } from '@/components/KanbanBoard'
+import { DashboardSkeleton } from '@/components/DashboardSkeleton'
+import { UpcomingShootsSection } from '@/components/UpcomingShootsSection'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus, RefreshCcw, Camera, Sparkles } from 'lucide-react'
+import { Lightbulb, Clock, Calendar, CheckCircle2 } from 'lucide-react'
+import { isSameDay, format } from 'date-fns'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { data: shootsData, loading, error, retry } = useShoots()
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  
-  const shoots = Array.isArray(shootsData) ? shootsData as Shoot[] : []
+  const router = useRouter()
+  const { data: shoots = [], isLoading: loading, error } = useQuery({
+    queryKey: ['/api/shoots'],
+    queryFn: async () => {
+      const response = await fetch('/api/shoots')
+      if (!response.ok) throw new Error('Failed to fetch shoots')
+      return response.json()
+    }
+  })
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
   // If not authenticated, redirect to login (this would normally be handled by middleware)
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-6 text-3xl font-extrabold text-foreground">
               Please sign in to continue
             </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Loading: {loading ? 'true' : 'false'} | User: {user ? 'found' : 'null'}
+            </p>
+            <Button 
+              onClick={() => router.push('/auth')}
+              className="mt-4"
+            >
+              Go to Sign In
+            </Button>
           </div>
         </div>
       </div>
     )
   }
 
-  const handleShootCreated = () => {
-    setShowCreateDialog(false)
-    retry()
+  const getStatusFromShoot = (shoot: any): "idea" | "planning" | "ready to shoot" | "completed" => {
+    return shoot.status as "idea" | "planning" | "ready to shoot" | "completed"
+  }
+
+  const upcomingShoots = shoots
+    .filter(
+      (shoot: any) =>
+        (shoot.status === "ready to shoot" || shoot.status === "planning") &&
+        shoot.date,
+    )
+    .sort((a: any, b: any) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+    .slice(0, 3)
+    .map((shoot: any) => {
+      const daysUntil = Math.ceil(
+        (new Date(shoot.date!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      )
+      return {
+        id: shoot.id,
+        title: shoot.title,
+        date: new Date(shoot.date!),
+        location: shoot.locationNotes || "TBD",
+        hasCalendar: !!shoot.calendarEventUrl,
+        hasDocs: !!shoot.docsUrl,
+        countdown:
+          daysUntil === 1
+            ? "1 day"
+            : daysUntil < 7
+              ? `${daysUntil} days`
+              : `${Math.ceil(daysUntil / 7)} week${Math.ceil(daysUntil / 7) === 1 ? "" : "s"}`,
+      }
+    })
+
+  const calendarShoots = shoots
+    .filter((shoot: any) => shoot.date)
+    .map((shoot: any) => ({
+      id: shoot.id,
+      title: shoot.title,
+      date: new Date(shoot.date!),
+      status: getStatusFromShoot(shoot),
+      color: shoot.color || undefined,
+    }))
+
+  // Filter shoots for the selected day
+  const selectedDayShoots = shoots.filter(
+    (shoot: any) => shoot.date && isSameDay(new Date(shoot.date), selectedDate)
+  )
+
+  const kanbanColumns = [
+    {
+      id: "idea",
+      title: "Ideas",
+      icon: Lightbulb,
+      shoots: shoots
+        .filter((shoot: any) => shoot.status === "idea")
+        .map((shoot: any) => ({
+          id: shoot.id,
+          title: shoot.title,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "planning",
+      title: "Planning",
+      icon: Clock,
+      shoots: shoots
+        .filter((shoot: any) => shoot.status === "planning")
+        .map((shoot: any) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.locationNotes || undefined,
+          participants: 0,
+          hasDocs: !!shoot.docsUrl,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "ready to shoot",
+      title: "Ready to Shoot",
+      icon: Calendar,
+      shoots: shoots
+        .filter((shoot: any) => shoot.status === "ready to shoot")
+        .map((shoot: any) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.locationNotes || undefined,
+          participants: 0,
+          hasCalendar: !!shoot.calendarEventUrl,
+          hasDocs: !!shoot.docsUrl,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "completed",
+      title: "Completed",
+      icon: CheckCircle2,
+      shoots: shoots
+        .filter((shoot: any) => shoot.status === "completed")
+        .map((shoot: any) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.locationNotes || undefined,
+          participants: 0,
+          referenceCount: 0,
+        })),
+    },
+  ]
+
+  if (loading) {
+    return <DashboardSkeleton />
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full" data-testid="card-error">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <Camera className="h-12 w-12 text-primary" />
+              <Sparkles className="h-10 w-10 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">
+                Oops! Our Database is Taking a Cosplay Break
+              </h3>
+              <p
+                className="text-sm text-muted-foreground"
+                data-testid="text-error-message"
+              >
+                It seems our database wandered off to a photoshoot and forgot to
+                leave a note. Don&apos;t worry, we&apos;ll track it down!
+              </p>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="gap-2"
+              data-testid="button-retry"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Try Finding It Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <DashboardLayout>
-      <div className="px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold text-gray-900">Shoots</h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Manage your cosplay photoshoots and track their progress.
-            </p>
-          </div>
-          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-            <button
-              type="button"
-              onClick={() => setShowCreateDialog(true)}
-              className="block rounded-md bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-            >
-              New Shoot
-            </button>
-          </div>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Upcoming Shoots</h1>
+          <p className="text-muted-foreground">Plan and track your cosplay photo sessions</p>
         </div>
-
-        {/* Error State */}
-        {error && (
-          <div className="mt-6 rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                  Error loading shoots
-                </h3>
-                <div className="mt-2 text-sm text-red-700">
-                  {error || 'An unexpected error occurred'}
-                </div>
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={() => retry()}
-                    className="rounded-md bg-red-50 px-2 py-1.5 text-sm font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
-                  >
-                    Try again
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="mt-6 flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600">Loading shoots...</span>
-          </div>
-        )}
-
-        {/* Shoots Grid */}
-        {!loading && !error && (
-          <div className="mt-6">
-            {shoots.length === 0 ? (
-              <div className="text-center py-12">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <h3 className="mt-2 text-sm font-semibold text-gray-900">No shoots</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Get started by creating your first photoshoot.
-                </p>
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateDialog(true)}
-                    className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                  >
-                    New Shoot
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {shoots.map((shoot: Shoot) => (
-                  <ShootCard
-                    key={shoot.id}
-                    shoot={shoot}
-                    onClick={() => console.log('View shoot:', shoot.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Create Shoot Dialog */}
-        {showCreateDialog && (
-          <CreateShootDialog
-            isOpen={showCreateDialog}
-            onClose={() => setShowCreateDialog(false)}
-            onSuccess={handleShootCreated}
-          />
-        )}
+        <Button
+          size="lg"
+          onClick={() => router.push("/shoots/new")}
+          data-testid="button-add-shoot"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Add New Shoot
+        </Button>
       </div>
-    </DashboardLayout>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <ShootCalendar
+            shoots={calendarShoots}
+            onShootClick={(id) => router.push(`/shoots/${id}`)}
+            onDateSelect={setSelectedDate}
+            selectedDate={selectedDate}
+          />
+        </div>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Events on {format(selectedDate, "MMMM d, yyyy")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedDayShoots.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedDayShoots.map((shoot: any) => (
+                    <div
+                      key={shoot.id}
+                      onClick={() => router.push(`/shoots/${shoot.id}`)}
+                      className="p-3 rounded-lg border cursor-pointer hover-elevate flex items-center gap-3"
+                      data-testid={`selected-day-shoot-${shoot.id}`}
+                    >
+                      {shoot.color && (
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: shoot.color }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium truncate">{shoot.title}</h3>
+                        {shoot.locationNotes && (
+                          <p className="text-sm text-muted-foreground truncate">{shoot.locationNotes}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No events scheduled for this day</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold">All Shoots</h2>
+        <AccordionShoots
+          shoots={shoots}
+          onShootClick={(id) => router.push(`/shoots/${id}`)}
+        />
+      </div>
+    </div>
   )
 }

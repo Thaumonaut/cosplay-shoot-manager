@@ -12,6 +12,8 @@ export default function HomePage() {
   useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard')
+    } else if (!loading && !user) {
+      router.push('/auth')
     }
   }, [user, loading, router])
 
@@ -23,13 +25,11 @@ export default function HomePage() {
     )
   }
 
-  if (user) {
-    return null // Will redirect to dashboard
-  }
-
   return (
-    <div className="min-h-screen">
-      <LoginForm />
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-muted-foreground">Redirecting...</p>
+      </div>
     </div>
   )
 }

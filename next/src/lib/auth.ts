@@ -24,14 +24,26 @@ export function verifyToken(token: string): JWTPayload | null {
 }
 
 export function getUserIdFromRequest(req: NextRequest): string | null {
+  // First try to get token from Authorization header
   const authHeader = req.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    const payload = verifyToken(token)
+    if (payload?.userId) {
+      return payload.userId
+    }
   }
 
-  const token = authHeader.slice(7)
-  const payload = verifyToken(token)
-  return payload?.userId || null
+  // Then try to get token from cookies
+  const authToken = req.cookies.get('auth-token')?.value
+  if (authToken) {
+    const payload = verifyToken(authToken)
+    if (payload?.userId) {
+      return payload.userId
+    }
+  }
+
+  return null
 }
 
 export function createAuthResponse(data: any, token?: string) {
