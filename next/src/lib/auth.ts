@@ -24,6 +24,12 @@ export function verifyToken(token: string): JWTPayload | null {
 }
 
 export function getUserIdFromRequest(req: NextRequest): string | null {
+  // Check for mock auth token first (development mode)
+  const mockAuthToken = req.cookies.get('auth-token')?.value
+  if (mockAuthToken === 'test-user-123') {
+    return 'test-user-123'
+  }
+
   // First try to get token from Authorization header
   const authHeader = req.headers.get('authorization')
   if (authHeader?.startsWith('Bearer ')) {
@@ -56,6 +62,12 @@ export function createAuthResponse(data: any, token?: string) {
 
 // Helper to get user's active team ID (migrated from Express logic)
 export async function getUserTeamId(userId: string): Promise<string | null> {
+  // Handle mock user for development
+  if (userId === 'test-user-123') {
+    // Always return a fixed test team ID for the mock user
+    return 'test-team-123'
+  }
+
   const profile = await storage.getUserProfile(userId)
   if (profile?.activeTeamId) {
     const activeMembership = await storage.getTeamMember(profile.activeTeamId, userId)

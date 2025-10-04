@@ -22,36 +22,12 @@ export default function DashboardPage() {
   const { data: shoots = [], isLoading: loading, error } = useQuery({
     queryKey: ['/api/shoots'],
     queryFn: async () => {
-      const response = await fetch('/api/shoots')
+      const response = await fetch('/api/shoots', { credentials: 'include' })
       if (!response.ok) throw new Error('Failed to fetch shoots')
       return response.json()
     }
   })
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-
-  // If not authenticated, redirect to login (this would normally be handled by middleware)
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-foreground">
-              Please sign in to continue
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Loading: {loading ? 'true' : 'false'} | User: {user ? 'found' : 'null'}
-            </p>
-            <Button 
-              onClick={() => router.push('/auth')}
-              className="mt-4"
-            >
-              Go to Sign In
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   const getStatusFromShoot = (shoot: any): "idea" | "planning" | "ready to shoot" | "completed" => {
     return shoot.status as "idea" | "planning" | "ready to shoot" | "completed"

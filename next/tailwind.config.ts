@@ -10,9 +10,9 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)'
+        lg: '.5625rem', /* 9px - EXACT match */
+        md: '.375rem', /* 6px - EXACT match */  
+        sm: '.1875rem', /* 3px - EXACT match */
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -60,9 +60,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        serif: ['var(--font-serif)', 'Georgia', 'serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace']
+        sans: ["var(--font-sans)"], // Space Grotesk
+        serif: ["var(--font-serif)"], // Geist
+        mono: ["var(--font-mono)"], // Geist Mono
       }
     }
   },

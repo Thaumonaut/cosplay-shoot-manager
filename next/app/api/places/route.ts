@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-// TODO: Add place management to storage layer
-// This route handles location/venue management for shoots
-
 export async function GET(req: NextRequest) {
   try {
     const userId = getUserIdFromRequest(req)
@@ -16,8 +13,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    // TODO: Implement storage.getTeamPlaces(teamId)
-    return NextResponse.json({ places: [], message: 'Places endpoint migrated - implement place listing' })
+    const places = await storage.getTeamPlaces(teamId)
+    return NextResponse.json(places)
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })
@@ -36,14 +33,12 @@ export async function POST(req: NextRequest) {
     }
 
     const placeData = await req.json()
-    
-    // TODO: Validate place data with Zod schema
-    // TODO: Implement storage.createPlace({ ...placeData, teamId })
-    
-    return NextResponse.json({ 
-      message: 'Place created successfully',
-      place: { ...placeData, id: 'temp-id', teamId }
-    }, { status: 201 })
+    const place = await storage.createPlace({
+      ...placeData,
+      teamId,
+      createdBy: userId
+    })
+    return NextResponse.json(place, { status: 201 })
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })

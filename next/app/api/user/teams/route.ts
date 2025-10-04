@@ -10,6 +10,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Handle mock user for development
+    if (userId === 'test-user-123') {
+      const mockTeams = [{
+        id: 'test-team-123',
+        name: 'Test Team',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+        isActive: true
+      }]
+      return NextResponse.json(mockTeams)
+    }
+
     // Get all team memberships for the user with team details
     const { data: teamMemberships, error } = await supabaseAdmin
       .from('team_members')

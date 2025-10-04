@@ -27,13 +27,6 @@ export default function AuthPage() {
   const { toast } = useToast()
   const router = useRouter()
 
-  // Redirect to dashboard if already authenticated
-  useEffect(() => {
-    if (user) {
-      router.push('/dashboard')
-    }
-  }, [user, router])
-
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {

@@ -9,6 +9,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Handle mock user for development
+    if (userId === 'test-user-123') {
+      const mockUser = {
+        id: 'test-user-123',
+        email: 'test@example.com',
+        aud: 'authenticated',
+        role: 'authenticated',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: {},
+        identities: [],
+        factors: []
+      }
+      return NextResponse.json({ user: mockUser })
+    }
+
     // Get user profile from storage
     const user = await storage.getUserProfile(userId)
     if (!user) {

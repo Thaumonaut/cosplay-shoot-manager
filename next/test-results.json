@@ -1,0 +1,64 @@
+{
+  "authentication": {
+    "oldApp": {
+      "loginLayout": "",
+      "validation": "",
+      "redirectBehavior": "",
+      "sessionPersistence": ""
+    },
+    "newApp": {
+      "loginLayout": "",
+      "validation": "",
+      "redirectBehavior": "",
+      "sessionPersistence": ""
+    },
+    "status": "pending",
+    "notes": ""
+  },
+  "navigation": {
+    "oldApp": {
+      "sidebarLayout": "",
+      "activeStates": "",
+      "mobileResponse": ""
+    },
+    "newApp": {
+      "sidebarLayout": "",
+      "activeStates": "",
+      "mobileResponse": ""
+    },
+    "status": "pending",
+    "notes": ""
+  },
+  "shootManagement": {
+    "oldApp": {
+      "listView": "",
+      "createForm": "",
+      "editForm": "",
+      "detailView": ""
+    },
+    "newApp": {
+      "listView": "",
+      "createForm": "",
+      "editForm": "",
+      "detailView": ""
+    },
+    "status": "pending",
+    "notes": ""
+  },
+  "resourceManagement": {
+    "oldApp": {
+      "equipment": "",
+      "personnel": "",
+      "costumes": "",
+      "locations": ""
+    },
+    "newApp": {
+      "equipment": "",
+      "personnel": "",
+      "costumes": "",
+      "locations": ""
+    },
+    "status": "pending",
+    "notes": ""
+  }
+}

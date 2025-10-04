@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-// TODO: Add costume management to storage layer
-// This route handles costume and character management for shoots
-
 export async function GET(req: NextRequest) {
   try {
     const userId = getUserIdFromRequest(req)
@@ -16,11 +13,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    // TODO: Implement storage.getTeamCostumes(teamId)
-    return NextResponse.json({ 
-      costumes: [],
-      message: 'Costumes endpoint migrated - implement costume listing'
-    })
+    const costumes = await storage.getTeamCostumes(teamId)
+    return NextResponse.json(costumes)
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })
@@ -39,14 +33,12 @@ export async function POST(req: NextRequest) {
     }
 
     const costumeData = await req.json()
-    
-    // TODO: Validate costume data with Zod schema
-    // TODO: Implement storage.createCostume({ ...costumeData, teamId })
-    
-    return NextResponse.json({ 
-      message: 'Costume created successfully',
-      costume: { ...costumeData, id: 'temp-id', teamId }
-    }, { status: 201 })
+    const costume = await storage.createCostume({
+      ...costumeData,
+      teamId,
+      createdBy: userId
+    })
+    return NextResponse.json(costume, { status: 201 })
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })

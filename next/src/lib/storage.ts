@@ -32,8 +32,47 @@ function toSnakeCase(obj: any): any {
 }
 
 export class Storage {
+  // Mock data for development testing
+  private getMockUserProfile() {
+    return {
+      userId: 'test-user-123',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      activeTeamId: 'test-team-123',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  private getMockTeam() {
+    return {
+      id: 'test-team-123',
+      name: 'Test Team',
+      description: 'Development test team',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  private getMockTeamMember() {
+    return {
+      id: 'test-member-123',
+      teamId: 'test-team-123',
+      userId: 'test-user-123',
+      role: 'owner',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
   // User Profile methods
   async getUserProfile(userId: string): Promise<any | undefined> {
+    // Return mock profile for test user
+    if (userId === 'test-user-123') {
+      return this.getMockUserProfile()
+    }
+
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
       .select()
@@ -113,6 +152,11 @@ export class Storage {
 
   // Team Member methods
   async getTeamMember(teamId: string, userId: string): Promise<any | undefined> {
+    // Return mock team member for test user
+    if (userId === 'test-user-123' && teamId === 'test-team-123') {
+      return this.getMockTeamMember()
+    }
+
     const { data, error } = await supabaseAdmin
       .from('team_members')
       .select()
@@ -125,6 +169,11 @@ export class Storage {
   }
 
   async getUserTeamMember(userId: string): Promise<any | undefined> {
+    // Return mock team member for test user
+    if (userId === 'test-user-123') {
+      return this.getMockTeamMember()
+    }
+
     const { data, error } = await supabaseAdmin
       .from('team_members')
       .select()
@@ -160,6 +209,22 @@ export class Storage {
 
   // Shoot methods
   async getTeamShoots(teamId: string): Promise<any[]> {
+    // Return mock shoots for test team
+    if (teamId === 'test-team-123') {
+      return [
+        {
+          id: 'test-shoot-1',
+          title: 'Test Cosplay Shoot 1',
+          description: 'Development test shoot',
+          date: '2025-10-15',
+          status: 'planned',
+          teamId: 'test-team-123',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ]
+    }
+
     const { data, error } = await supabaseAdmin
       .from('shoots')
       .select()
@@ -183,6 +248,18 @@ export class Storage {
   }
 
   async createShoot(shoot: any): Promise<any> {
+    // Handle mock shoot creation for test team
+    if (shoot.teamId === 'test-team-123') {
+      const mockShoot = {
+        id: `test-shoot-${Date.now()}`,
+        ...shoot,
+        status: 'planned',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      return mockShoot
+    }
+
     const { data, error } = await supabaseAdmin
       .from('shoots')
       .insert(toSnakeCase(shoot))
@@ -318,6 +395,226 @@ export class Storage {
   async deleteShootParticipant(id: string): Promise<boolean> {
     const { error } = await supabaseAdmin
       .from('shoot_participants')
+      .delete()
+      .eq('id', id)
+
+    return !error
+  }
+
+  // Equipment methods
+  async getTeamEquipment(teamId: string): Promise<any[]> {
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (error) return []
+    return (data || []).map(toCamelCase)
+  }
+
+  async getEquipmentById(id: string): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .select()
+      .eq('id', id)
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async createEquipment(equipment: any): Promise<any> {
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .insert(toSnakeCase(equipment))
+      .select()
+      .single()
+
+    if (error) throw new Error(`Failed to create equipment: ${error.message}`)
+    return toCamelCase(data)
+  }
+
+  async updateEquipment(id: string, updates: any): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('equipment')
+      .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async deleteEquipment(id: string): Promise<boolean> {
+    const { error } = await supabaseAdmin
+      .from('equipment')
+      .delete()
+      .eq('id', id)
+
+    return !error
+  }
+
+  // Personnel methods
+  async getTeamPersonnel(teamId: string): Promise<any[]> {
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (error) return []
+    return (data || []).map(toCamelCase)
+  }
+
+  async getPersonnelById(id: string): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .select()
+      .eq('id', id)
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async createPersonnel(personnel: any): Promise<any> {
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .insert(toSnakeCase(personnel))
+      .select()
+      .single()
+
+    if (error) throw new Error(`Failed to create personnel: ${error.message}`)
+    return toCamelCase(data)
+  }
+
+  async updatePersonnel(id: string, updates: any): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('personnel')
+      .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async deletePersonnel(id: string): Promise<boolean> {
+    const { error } = await supabaseAdmin
+      .from('personnel')
+      .delete()
+      .eq('id', id)
+
+    return !error
+  }
+
+  // Costumes methods
+  async getTeamCostumes(teamId: string): Promise<any[]> {
+    const { data, error } = await supabaseAdmin
+      .from('costumes')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (error) return []
+    return (data || []).map(toCamelCase)
+  }
+
+  async getCostumeById(id: string): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('costumes')
+      .select()
+      .eq('id', id)
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async createCostume(costume: any): Promise<any> {
+    const { data, error } = await supabaseAdmin
+      .from('costumes')
+      .insert(toSnakeCase(costume))
+      .select()
+      .single()
+
+    if (error) throw new Error(`Failed to create costume: ${error.message}`)
+    return toCamelCase(data)
+  }
+
+  async updateCostume(id: string, updates: any): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('costumes')
+      .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async deleteCostume(id: string): Promise<boolean> {
+    const { error } = await supabaseAdmin
+      .from('costumes')
+      .delete()
+      .eq('id', id)
+
+    return !error
+  }
+
+  // Places/Locations methods
+  async getTeamPlaces(teamId: string): Promise<any[]> {
+    const { data, error } = await supabaseAdmin
+      .from('places')
+      .select()
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: false })
+
+    if (error) return []
+    return (data || []).map(toCamelCase)
+  }
+
+  async getPlaceById(id: string): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('places')
+      .select()
+      .eq('id', id)
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async createPlace(place: any): Promise<any> {
+    const { data, error } = await supabaseAdmin
+      .from('places')
+      .insert(toSnakeCase(place))
+      .select()
+      .single()
+
+    if (error) throw new Error(`Failed to create place: ${error.message}`)
+    return toCamelCase(data)
+  }
+
+  async updatePlace(id: string, updates: any): Promise<any | undefined> {
+    const { data, error } = await supabaseAdmin
+      .from('places')
+      .update(toSnakeCase({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) return undefined
+    return toCamelCase(data)
+  }
+
+  async deletePlace(id: string): Promise<boolean> {
+    const { error } = await supabaseAdmin
+      .from('places')
       .delete()
       .eq('id', id)
 

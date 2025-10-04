@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-// TODO: Add personnel management to storage layer
-// This route handles personnel, staff, and crew management for shoots
-
 export async function GET(req: NextRequest) {
   try {
     const userId = getUserIdFromRequest(req)
@@ -16,11 +13,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    // TODO: Implement storage.getTeamPersonnel(teamId)
-    return NextResponse.json({ 
-      personnel: [],
-      message: 'Personnel endpoint migrated - implement personnel listing'
-    })
+    const personnel = await storage.getTeamPersonnel(teamId)
+    return NextResponse.json(personnel)
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })
@@ -39,14 +33,12 @@ export async function POST(req: NextRequest) {
     }
 
     const personnelData = await req.json()
-    
-    // TODO: Validate personnel data with Zod schema
-    // TODO: Implement storage.createPersonnel({ ...personnelData, teamId })
-    
-    return NextResponse.json({ 
-      message: 'Personnel created successfully',
-      personnel: { ...personnelData, id: 'temp-id', teamId }
-    }, { status: 201 })
+    const personnel = await storage.createPersonnel({
+      ...personnelData,
+      teamId,
+      createdBy: userId
+    })
+    return NextResponse.json(personnel, { status: 201 })
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })

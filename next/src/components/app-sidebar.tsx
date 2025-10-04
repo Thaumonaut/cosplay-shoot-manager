@@ -1,4 +1,4 @@
-import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt, Map } from "lucide-react";
+import { Calendar, Camera, LayoutGrid, Users, Wrench, MapPin, Package, Shirt, Map, TestTube } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -108,7 +108,11 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Team</SidebarGroupLabel>
           <SidebarGroupContent>
-            <TeamSwitcher />
+            {/* <TeamSwitcher /> */}
+            <div className="p-2">
+              <h2 className="text-sm font-semibold text-sidebar-foreground">Test Team</h2>
+              <p className="text-xs text-sidebar-muted-foreground">Development Mode</p>
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -118,7 +122,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} className="hover-elevate">
                     <Link href={item.url} data-testid={item.testId}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -136,7 +140,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {resourceItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} className="hover-elevate">
                     <Link href={item.url} data-testid={item.testId}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -147,6 +151,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Development Section - Only show in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Development</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === '/dev-test'} className="hover-elevate">
+                    <Link href="/dev-test">
+                      <TestTube className="h-4 w-4" />
+                      <span>Test Suite</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-6 pt-4">
         {/* <div className="flex items-center justify-between mb-4">

@@ -68,6 +68,7 @@ export class ApiClient {
     const fetchOptions: RequestInit = {
       method,
       headers,
+      credentials: 'include', // Include cookies for authentication
     }
 
     // Add body for non-GET requests

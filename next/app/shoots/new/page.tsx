@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ChevronLeft, Plus, Calendar, MapPin, Users, Camera, Palette, Lightbulb } from 'lucide-react'
+import { ChevronLeft, Plus, Calendar, MapPin, Users, Camera, Palette, Lightbulb, Image } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import FileUploader from '@/components/FileUploader'
 
 interface CreateShootData {
   title: string
@@ -20,6 +21,7 @@ interface CreateShootData {
   status: string
   isPublic: boolean
   color?: string
+  referenceImageIds?: string[]
 }
 
 export default function CreateShootPage() {
@@ -30,7 +32,8 @@ export default function CreateShootPage() {
     description: '',
     status: 'planning',
     isPublic: false,
-    color: '#3b82f6'
+    color: '#3b82f6',
+    referenceImageIds: []
   })
 
   const createShootMutation = useMutation({
@@ -102,7 +105,7 @@ export default function CreateShootPage() {
           variant="ghost"
           size="sm"
           onClick={handleCancel}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 hover-elevate"
         >
           <ChevronLeft className="h-4 w-4" />
           Back
@@ -111,7 +114,7 @@ export default function CreateShootPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 hover-elevate"
           >
             <Calendar className="h-4 w-4" />
             Calendar
@@ -119,7 +122,7 @@ export default function CreateShootPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 hover-elevate"
           >
             <Users className="h-4 w-4" />
             Docs
@@ -127,7 +130,7 @@ export default function CreateShootPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 hover-elevate"
           >
             <Camera className="h-4 w-4" />
             Reminders
@@ -135,7 +138,7 @@ export default function CreateShootPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2 text-red-600"
+            className="flex items-center gap-2 text-red-600 hover-elevate"
           >
             <Lightbulb className="h-4 w-4" />
             Reset
@@ -145,7 +148,7 @@ export default function CreateShootPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 hover-elevate"
           >
             <Lightbulb className="h-4 w-4" />
             Idea
@@ -172,7 +175,7 @@ export default function CreateShootPage() {
             variant={formData.isPublic ? "default" : "outline"}
             size="sm"
             onClick={() => setFormData({ ...formData, isPublic: !formData.isPublic })}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 hover-elevate"
           >
             Public Sharing
           </Button>
@@ -218,7 +221,7 @@ export default function CreateShootPage() {
                   <MapPin className="h-5 w-5" />
                   Location
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
@@ -234,7 +237,7 @@ export default function CreateShootPage() {
                   <Users className="h-5 w-5" />
                   Characters & Costumes
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
@@ -250,7 +253,7 @@ export default function CreateShootPage() {
                   <Palette className="h-5 w-5" />
                   Props
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
@@ -266,7 +269,7 @@ export default function CreateShootPage() {
                   <Users className="h-5 w-5" />
                   Crew
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
@@ -282,7 +285,7 @@ export default function CreateShootPage() {
                   <Camera className="h-5 w-5" />
                   Equipment
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
                 </Button>
@@ -293,13 +296,29 @@ export default function CreateShootPage() {
           {/* Reference Images */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Reference Images</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Image className="h-5 w-5" />
+                Reference Images
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                <Plus className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Add Reference Images</p>
-              </div>
+              <FileUploader
+                accept="image/*"
+                multiple={true}
+                onUpload={(files) => {
+                  const newImageIds = files.map(f => f.id)
+                  setFormData(prev => ({
+                    ...prev,
+                    referenceImageIds: [...(prev.referenceImageIds || []), ...newImageIds]
+                  }))
+                }}
+                onDelete={(fileId) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    referenceImageIds: (prev.referenceImageIds || []).filter(id => id !== fileId)
+                  }))
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -314,7 +333,7 @@ export default function CreateShootPage() {
                   placeholder="https://instagram.com/p/... or https://instagram.com/reel/..."
                   className="flex-1"
                 />
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className="hover-elevate">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -331,13 +350,13 @@ export default function CreateShootPage() {
             <span className="text-sm text-muted-foreground">perryjacob@outlook.com</span>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={handleCancel}>
+            <Button type="button" variant="outline" onClick={handleCancel} className="hover-elevate">
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={createShootMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 hover-elevate"
             >
               {createShootMutation.isPending ? 'Creating...' : 'Create Shoot'}
             </Button>

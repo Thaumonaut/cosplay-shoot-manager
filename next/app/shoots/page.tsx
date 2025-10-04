@@ -10,7 +10,7 @@ import { ShootCard } from '@/components/ShootCard'
 import { AccordionShoots } from '@/components/AccordionShoots'
 import { ShootCalendar } from '@/components/ShootCalendar'
 import { KanbanBoard } from '@/components/KanbanBoard'
-import { Plus, Grid, List, Calendar, Kanban, MapPin } from 'lucide-react'
+import { Plus, Grid, List, Calendar, Kanban, MapPin, Lightbulb, Clock, CheckCircle2 } from 'lucide-react'
 
 interface Shoot {
   id: string
@@ -37,6 +37,67 @@ export default function ShootsPage() {
     }
   })
 
+  // Prepare data for Kanban board
+  const kanbanColumns = [
+    {
+      id: "idea",
+      title: "Ideas",
+      icon: Lightbulb,
+      shoots: shoots
+        .filter((shoot) => shoot.status === "idea")
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "planning",
+      title: "Planning",
+      icon: Clock,
+      shoots: shoots
+        .filter((shoot) => shoot.status === "planning")
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.location?.name,
+          participants: 0,
+          hasDocs: false,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "ready to shoot",
+      title: "Ready to Shoot",
+      icon: Calendar,
+      shoots: shoots
+        .filter((shoot) => shoot.status === "ready to shoot")
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.location?.name,
+          participants: 0,
+          hasCalendar: false,
+          hasDocs: false,
+          referenceCount: 0,
+        })),
+    },
+    {
+      id: "completed",
+      title: "Completed",
+      icon: CheckCircle2,
+      shoots: shoots
+        .filter((shoot) => shoot.status === "completed")
+        .map((shoot) => ({
+          id: shoot.id,
+          title: shoot.title,
+          location: shoot.location?.name,
+          participants: 0,
+          referenceCount: 0,
+        })),
+    },
+  ]
+
   const handleShootClick = (shoot: Shoot) => {
     router.push(`/shoots/${shoot.id}`)
   }
@@ -50,7 +111,7 @@ export default function ShootsPage() {
             Plan and manage your cosplay photo shoots
           </p>
         </div>
-        <Button onClick={() => router.push('/shoots/new')}>
+        <Button onClick={() => router.push('/shoots/new')} className="hover-elevate">
           <Plus className="h-4 w-4 mr-2" />
           New Shoot
         </Button>
@@ -61,6 +122,7 @@ export default function ShootsPage() {
           variant={viewMode === 'grid' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setViewMode('grid')}
+          className="hover-elevate"
         >
           <Grid className="h-4 w-4 mr-2" />
           Grid
@@ -69,6 +131,7 @@ export default function ShootsPage() {
           variant={viewMode === 'list' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setViewMode('list')}
+          className="hover-elevate"
         >
           <List className="h-4 w-4 mr-2" />
           List
@@ -77,6 +140,7 @@ export default function ShootsPage() {
           variant={viewMode === 'calendar' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setViewMode('calendar')}
+          className="hover-elevate"
         >
           <Calendar className="h-4 w-4 mr-2" />
           Calendar
@@ -85,6 +149,7 @@ export default function ShootsPage() {
           variant={viewMode === 'kanban' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setViewMode('kanban')}
+          className="hover-elevate"
         >
           <Kanban className="h-4 w-4 mr-2" />
           Kanban
@@ -223,11 +288,10 @@ export default function ShootsPage() {
           )}
 
           {viewMode === 'kanban' && (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">Kanban view coming soon</p>
-              </CardContent>
-            </Card>
+            <KanbanBoard 
+              columns={kanbanColumns} 
+              onShootClick={(id) => router.push(`/shoots/${id}`)}
+            />
           )}
         </>
       )}

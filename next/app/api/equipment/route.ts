@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserIdFromRequest, getUserTeamId } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 
-// TODO: Add equipment management to storage layer
-// This route handles equipment, props, and gear management for shoots
-
 export async function GET(req: NextRequest) {
   try {
     const userId = getUserIdFromRequest(req)
@@ -16,11 +13,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No active team found' }, { status: 400 })
     }
 
-    // TODO: Implement storage.getTeamEquipment(teamId)
-    return NextResponse.json({ 
-      equipment: [],
-      message: 'Equipment endpoint migrated - implement equipment listing'
-    })
+    const equipment = await storage.getTeamEquipment(teamId)
+    return NextResponse.json(equipment)
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })
@@ -39,14 +33,12 @@ export async function POST(req: NextRequest) {
     }
 
     const equipmentData = await req.json()
-    
-    // TODO: Validate equipment data with Zod schema
-    // TODO: Implement storage.createEquipment({ ...equipmentData, teamId })
-    
-    return NextResponse.json({ 
-      message: 'Equipment created successfully',
-      equipment: { ...equipmentData, id: 'temp-id', teamId }
-    }, { status: 201 })
+    const equipment = await storage.createEquipment({
+      ...equipmentData,
+      teamId,
+      createdBy: userId
+    })
+    return NextResponse.json(equipment, { status: 201 })
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json({ error: errMsg }, { status: 500 })
