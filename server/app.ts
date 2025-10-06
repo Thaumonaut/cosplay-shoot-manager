@@ -5,7 +5,7 @@ import { registerRoutes } from './routes';
 import { setupVite, serveStatic, log } from './vite';
 import http from 'http';
 
-export async function createApp(): Promise<express.Express> {
+export async function createApp(server?: http.Server): Promise<express.Express> {
   const app = express();
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
@@ -59,10 +59,13 @@ export async function createApp(): Promise<express.Express> {
 
   // serve static or setup vite depending on env
   if (app.get('env') === 'development') {
-    // create a temporary server for vite to hook into
-    const server = http.createServer(app);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    setupVite(app, server);
+    // Only setup Vite if we have the actual server instance
+    if (server) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      setupVite(app, server);
+    } else {
+      console.warn('Development mode: Server instance not provided for Vite setup');
+    }
   } else {
     serveStatic(app);
   }

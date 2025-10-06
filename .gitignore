@@ -10,3 +10,4 @@ credentials.json
 # Ignore build output
 build/
 api_build/
+.env*.local

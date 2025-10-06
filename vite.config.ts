@@ -32,9 +32,18 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    port: 5000,
+    host: true,
+    hmr: {
+      port: 5000,
+      host: "localhost",
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    watch: {
+      usePolling: process.env.VITE_USE_POLLING === 'true',
     },
   },
 });

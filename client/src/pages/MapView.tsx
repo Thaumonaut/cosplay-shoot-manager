@@ -74,7 +74,6 @@ export default function MapView() {
           setMapZoom(12);
         },
         (error) => {
-          console.log("Geolocation denied or unavailable, using shoot locations");
           if (shootsWithValidLocations.length > 0) {
             const avgLat =
               shootsWithValidLocations.reduce(

@@ -2025,8 +2025,6 @@ export default function ShootPage() {
                   let cleanUrl = url.split('?')[0].split('#')[0];
                   cleanUrl = cleanUrl.replace(/\/$/, ''); // Remove trailing slash
                   
-                  console.log('Processing Instagram URL:', cleanUrl);
-                  
                   // Match Instagram post URLs (multiple patterns)
                   const postPatterns = [
                     /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
@@ -2038,7 +2036,6 @@ export default function ShootPage() {
                     const match = cleanUrl.match(pattern);
                     if (match) {
                       const embedUrl = `https://www.instagram.com/p/${match[1]}/embed/`;
-                      console.log('Post embed URL:', embedUrl);
                       return embedUrl;
                     }
                   }
@@ -2062,12 +2059,10 @@ export default function ShootPage() {
                     const match = cleanUrl.match(pattern);
                     if (match) {
                       const embedUrl = `https://www.instagram.com/reel/${match[1]}/embed/`;
-                      console.log('Reel embed URL:', embedUrl);
                       return embedUrl;
                     }
                   }
                   
-                  console.log('No match found for URL:', cleanUrl);
                   return null;
                 } catch (error) {
                   console.error('Error processing Instagram URL:', error);
@@ -2077,8 +2072,6 @@ export default function ShootPage() {
 
               const embedUrl = getEmbedUrl(link);
               const isReel = link.includes('/reel/') || link.includes('/reels/');
-              
-              console.log('Link:', link, 'EmbedUrl:', embedUrl, 'IsReel:', isReel);
 
               return (
                 <Card key={index} className="hover-elevate relative overflow-hidden">

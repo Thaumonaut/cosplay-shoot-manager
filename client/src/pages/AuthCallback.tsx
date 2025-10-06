@@ -12,21 +12,10 @@ export default function AuthCallback() {
   useEffect(() => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('OAuth Callback Debug:', {
-        event,
-        hasSession: !!session,
-        sessionUser: session?.user?.email,
-        origin: window.location.origin,
-        href: window.location.href,
-        hash: window.location.hash,
-        search: window.location.search
-      });
-      
       if (event === 'SIGNED_IN' && session) {
         setIsProcessing(true);
         
         try {
-          console.log('Sending session to backend for cookie setting...');
           // Send session to backend to set cookies
           const res = await fetch("/api/auth/set-session", {
             method: "POST",
@@ -40,7 +29,6 @@ export default function AuthCallback() {
           });
 
           if (res.ok) {
-            console.log('Session cookies set successfully');
             // Refresh the auth context to update user state
             await refreshUser();
             
@@ -75,31 +63,13 @@ export default function AuthCallback() {
               // Navigate to dashboard
               setLocation("/");
             } else {
-              console.error('Failed to set session cookies:', {
-                status: res.status,
-                statusText: res.statusText,
-                url: res.url
-              });
-              
-              // Try to get error details
-              try {
-                const errorData = await res.json();
-                console.error('Set-session error details:', errorData);
-              } catch (e) {
-                console.error('Could not parse set-session error response');
-              }
-              
               setLocation("/auth");
             }
           } else {
             setLocation("/auth");
           }
         } catch (error) {
-          console.error("Error processing session:", {
-            error: error instanceof Error ? error.message : error,
-            stack: error instanceof Error ? error.stack : undefined,
-            timestamp: new Date().toISOString()
-          });
+          setLocation("/auth");
           setLocation("/auth");
         }
       } else if (event === 'SIGNED_OUT') {

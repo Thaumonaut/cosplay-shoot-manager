@@ -108,8 +108,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       maxAge: expiresIn * 1000,
     };
 
-    console.log('Setting cookies with options:', { isProduction, expiresIn, cookieOptions });
-
     res.cookie("sb-access-token", accessToken, cookieOptions);
 
     res.cookie("sb-refresh-token", refreshToken, {
@@ -123,17 +121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { access_token, refresh_token, expires_at } = req.body;
       
-      console.log('Production OAuth Debug:', {
-        hasAccessToken: !!access_token,
-        hasRefreshToken: !!refresh_token,
-        hasExpiresAt: !!expires_at,
-        userAgent: req.get('User-Agent'),
-        origin: req.get('Origin'),
-        referer: req.get('Referer'),
-        host: req.get('Host'),
-        nodeEnv: process.env.NODE_ENV
-      });
-
       if (!access_token || !refresh_token || !expires_at) {
         console.error('/api/auth/set-session missing fields', { 
           hasAccess: !!access_token, 
@@ -381,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString(),
         nodeEnv: process.env.NODE_ENV,
         supabaseUrl: process.env.SUPABASE_URL ? 'configured' : 'missing',
-        supabaseAnonKey: process.env.SUPABASE_ANON_KEY ? 'configured' : 'missing',
+        supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY ? 'configured' : 'missing',
         supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'configured' : 'missing',
         databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
       };
@@ -414,19 +401,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user from cookie
   app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
     try {
-      console.log('Auth me endpoint called:', {
-        hasUser: !!req.user,
-        userId: req.user?.id,
-        userEmail: req.user?.email,
-        nodeEnv: process.env.NODE_ENV,
-        timestamp: new Date().toISOString()
-      });
 
       if (req.user?.id && req.user?.email) {
         // Ensure user has a team (creates one if they don't)
         try {
           await storage.ensureUserTeam(req.user.id, req.user.email);
-          console.log('User team ensured successfully');
         } catch (teamError) {
           console.error('Error ensuring user team:', teamError);
           // Don't fail auth if team creation fails, return user anyway
@@ -605,7 +584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Check if it's a duplicate key error (user already a member)
               if (error.code === '23505' || error.message?.includes('duplicate')) {
                 // Silently ignore duplicate team membership
-                console.log("User already a team member");
               } else {
                 throw error; // Re-throw other errors
               }
@@ -1941,24 +1919,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     authenticateUser,
     async (req: AuthRequest, res) => {
       try {
-        // Debug: log arrival and basic request info
-        try {
-          console.log('[REFERENCES] POST received', {
-            url: req.originalUrl,
-            method: req.method,
-            contentType: req.headers['content-type'],
-            headers: {
-              // don't log cookies in full - indicate presence
-              cookie: req.headers.cookie ? '<present>' : '<none>',
-              referer: req.headers.referer || null,
-              origin: req.headers.origin || null,
-            },
-            userId: req.user?.id || null,
-            bodyKeys: req.body ? Object.keys(req.body) : [],
-          });
-        } catch (logErr) {
-          console.error('[REFERENCES] failed to log request metadata', logErr);
-        }
         const userId = getUserId(req);
         const teamId = await getUserTeamId(userId);
         
@@ -1985,7 +1945,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 visibility: "public",
               },
             );
-            console.log('[REFERENCES] object ACL adjusted', { original: imageUrl, adjusted });
             imageUrl = adjusted;
           }
         } catch (aclErr) {
@@ -2005,31 +1964,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shootId: req.params.id,
         };
 
-        // Debug: show the parsed input we'll validate
-        try {
-          // limit large bodies when logging
-          const safeBody = JSON.stringify(parsedInput).slice(0, 4000);
-          console.log('[REFERENCES] parsed input before validation', safeBody);
-        } catch (logErr) {
-          console.error('[REFERENCES] could not stringify parsed input', logErr);
-        }
-
         const data = insertShootReferenceSchema.parse(parsedInput);
 
-        // Debug: log final data that will be stored
-        try {
-          console.log('[REFERENCES] creating reference with data', {
-            shootId: data.shootId,
-            type: data.type,
-            url: data.url,
-            notesPresent: !!data.notes,
-          });
-        } catch (logErr) {
-          console.error('[REFERENCES] failed to log create args', logErr);
-        }
-
         const reference = await storage.createShootReference(data);
-        console.log('[REFERENCES] created reference', { id: (reference as any)?.id || null, url: (reference as any)?.url });
 
         // Diagnostic: perform a HEAD request to the public URL to check availability and content-type
         try {
@@ -2037,7 +1974,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const headResp = await fetch((reference as any).url, { method: 'HEAD' });
             try {
               const ct = headResp.headers.get('content-type');
-              console.log('[REFERENCES] HEAD check', { status: headResp.status, contentType: ct });
             } catch (hdrErr) {
               console.error('[REFERENCES] HEAD check header parse error', hdrErr);
             }
