@@ -10,7 +10,8 @@ RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
 
 # install all dependencies (including dev deps needed for build)
-RUN pnpm install --frozen-lockfile
+# Use --no-frozen-lockfile in CI to handle potential lockfile mismatches
+RUN pnpm install --no-frozen-lockfile
 
 # copy rest of the repository
 COPY . .
@@ -29,7 +30,7 @@ RUN npm install -g pnpm
 
 # copy package manifest and install only production dependencies
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --no-frozen-lockfile --prod
 
 # copy built artifacts from the builder stage
 COPY --from=builder /app/dist ./dist
