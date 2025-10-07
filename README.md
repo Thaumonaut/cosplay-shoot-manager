@@ -11,7 +11,20 @@ A comprehensive web application for managing and organizing cosplay photo shoots
 - **Enhanced UI** with detailed resource cards and role assignment
 - **Image reference management** via Instagram links and cloud storage
 
-## Running on Replit (Recommended)
+## Deployment Options
+
+### 🐳 Docker Deployment (Recommended for Production)
+
+For easy server deployment using Docker:
+
+```bash
+# Pull and run with Docker Compose
+docker-compose up -d
+```
+
+See [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for complete Docker deployment instructions.
+
+### 🔄 Running on Replit
 
 This project is designed for Replit's environment:
 
