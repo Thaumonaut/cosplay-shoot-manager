@@ -31,5 +31,5 @@ COPY --from=builder /app/dist ./dist
 # Expose the port the server listens on (default 5000)
 EXPOSE 5000
 
-# Use npm start which sets NODE_ENV=production and runs the correct command
-CMD ["npm", "start"]
+# Use node directly, NODE_ENV is set by Docker ENV
+CMD ["node", "dist/index.js"]
