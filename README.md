@@ -1,6 +1,6 @@
 # Cosplay Photo Shoot Tracker (AI Vibe Coding Experiment)
 
-_This project was a test to see the current limitations and strengths to building a full application using nothing but AI. I tried to step in as little as possible and let the AI do most of the work to see what choices it would make. There were times I would need to correct the direction of the AI so that it would properly complete a task or to prevent it from undoing previous work. I was able to learn a lot and get a useful tool out of it. It may not be pretty or run well but I feel this project was still a sucess._
+_This project was a test to see the current limitations and strengths to building a full application using nothing but AI. I tried to step in as little as possible and let the AI do most of the work to see what choices it would make. There were times I would need to correct the direction of the AI so that it would properly complete a task or to prevent it from undoing previous work. I was able to learn a lot and get a useful tool out of it. It may not be pretty or run well but I feel this project was still a sucess. It was initially built using replit but I eventually switch to using vscode and copilot to add the final features and fix the inevitable bugs it would create._
 
 A comprehensive web application for managing and organizing cosplay photo shoots with team collaboration, resource management, and role-based permissions.
 
@@ -12,15 +12,6 @@ A comprehensive web application for managing and organizing cosplay photo shoots
 - **Google Calendar & Google Docs integration** for scheduling and collaboration
 - **Enhanced UI** with detailed resource cards and role assignment
 - **Image reference management** via Instagram links and cloud storage
-
-## Running on Replit (Recommended)
-
-This project is designed for Replit's environment:
-
-1. Open the project in Replit
-2. Set your environment secrets in the Replit Secrets panel
-3. Click "Run" - the application starts automatically
-4. Access your app via the provided Replit URL
 
 ## Running Locally
 
