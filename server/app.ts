@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { registerRoutes } from './routes';
-import { setupVite, serveStatic } from './vite';
 import { log } from './logger';
 import http from 'http';
 
@@ -62,12 +61,16 @@ export async function createApp(server?: http.Server): Promise<express.Express> 
   if (app.get('env') === 'development') {
     // Only setup Vite if we have the actual server instance
     if (server) {
+      // Conditionally import vite functions only in development
+      const { setupVite } = await import('./vite');
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       setupVite(app, server);
     } else {
       console.warn('Development mode: Server instance not provided for Vite setup');
     }
   } else {
+    // Conditionally import serveStatic only in production
+    const { serveStatic } = await import('./vite');
     serveStatic(app);
   }
 
