@@ -22,7 +22,9 @@ export async function setupVite(app: Express, server: Server) {
   }
 
   const { createServer: createViteServer, createLogger } = await import("vite");
-  const viteConfig = (await import("../vite.config.js")).default;
+  // Import vite config dynamically to avoid bundling vite plugins
+  const viteConfigModule = await import("../vite.config.js");
+  const viteConfig = viteConfigModule.default;
   const viteLogger = createLogger();
 
   const port = parseInt(process.env.PORT || "5000", 10);
