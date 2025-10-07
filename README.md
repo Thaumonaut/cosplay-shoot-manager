@@ -15,12 +15,34 @@ A comprehensive web application for managing and organizing cosplay photo shoots
 
 ## Deployment Options
 
-### 🐳 Docker Deployment (Recommended for Production)
+### � Railway Deployment (Recommended for Cloud)
+
+Deploy easily to Railway with automatic builds:
+
+1. Connect your repository to Railway
+2. Configure environment variables:
+   - `DATABASE_URL` - Your PostgreSQL connection string
+   - `VITE_SUPABASE_URL` - Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
+   - `SESSION_SECRET` - Random string for session security
+   - `GOOGLE_MAPS_API_KEY` - For location features (optional)
+3. Deploy automatically with each push to main
+
+**Note**: Railway automatically passes `VITE_` prefixed environment variables to the build process.
+
+### �🐳 Docker Deployment (Recommended for Self-Hosting)
 
 For easy server deployment using Docker:
 
 ```bash
-# Pull and run with Docker Compose
+# Build with required environment variables
+docker build \
+  --build-arg VITE_SUPABASE_URL="your_supabase_url" \
+  --build-arg VITE_SUPABASE_ANON_KEY="your_anon_key" \
+  -t cosplay-app .
+
+# Or use Docker Compose with .env file
 docker-compose up -d
 ```
 
