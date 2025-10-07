@@ -24,7 +24,9 @@ For easy server deployment using Docker:
 docker-compose up -d
 ```
 
-See [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for complete Docker deployment instructions.
+**Deployment Guides:**
+- [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) - General Docker deployment instructions
+- [IONOS_DEPLOYMENT.md](./IONOS_DEPLOYMENT.md) - Specific guide for Ionos servers with SSL setup
 
 ### 🔄 Running on Replit
 
