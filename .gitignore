@@ -9,5 +9,7 @@ credentials.json
 .vercel
 # Ignore build output
 build/
+dist/
+.next/
 api_build/
 .env*.local
