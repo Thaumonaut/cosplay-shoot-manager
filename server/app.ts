@@ -2,7 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { registerRoutes } from './routes';
-import { setupVite, serveStatic, log } from './vite';
+import { setupVite, serveStatic } from './vite';
+import { log } from './logger';
 import http from 'http';
 
 export async function createApp(server?: http.Server): Promise<express.Express> {

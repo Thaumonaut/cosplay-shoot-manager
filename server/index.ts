@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createApp } from './app';
 import http from 'http';
-import { log } from './vite';
+import { log } from './logger';
 
 (async () => {
   // start a local server for development / local runs
