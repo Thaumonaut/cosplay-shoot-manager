@@ -3,17 +3,20 @@
 FROM node:20 AS builder
 WORKDIR /app
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # copy package manifests first to leverage Docker layer cache
-COPY package.json package-lock.json* ./
+COPY package.json pnpm-lock.yaml ./
 
 # install all dependencies (including dev deps needed for build)
-RUN npm install --silent
+RUN pnpm install --frozen-lockfile
 
 # copy rest of the repository
 COPY . .
 
 # build client and bundle server (produces ./dist)
-RUN npm run build
+RUN pnpm run build
 
 ## Runtime stage: smaller image with only production deps and build artifacts
 FROM node:20-alpine AS runner
@@ -21,9 +24,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # copy package manifest and install only production dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --silent
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # copy built artifacts from the builder stage
 COPY --from=builder /app/dist ./dist
