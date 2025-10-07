@@ -23,6 +23,7 @@ import Costumes from "@/pages/Costumes";
 import ShootPage from "@/pages/ShootPage";
 import PublicShootPage from "@/pages/PublicShootPage";
 import MapView from "@/pages/MapView";
+import LandingPage from "@/pages/LandingPage";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
@@ -49,11 +50,6 @@ function AppContent() {
         <Route path="/shoots/:id">
           <ProtectedRoute>
             <ShootPage />
-          </ProtectedRoute>
-        </Route>
-        <Route path="/">
-          <ProtectedRoute>
-            <Dashboard />
           </ProtectedRoute>
         </Route>
         <Route path="/shoots">
@@ -106,6 +102,7 @@ function AppContent() {
             <Costumes />
           </ProtectedRoute>
         </Route>
+        <Route path="/" component={LandingPage} />
         <Route component={NotFound} />
       </Switch>
     );

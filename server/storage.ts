@@ -671,6 +671,7 @@ export class DatabaseStorage implements IStorage {
 
   async ensureUserTeam(userId: string, userEmail: string): Promise<{ teamId: string; created: boolean }> {
     // Not implemented for DatabaseStorage - this is a stub
+    // Team creation is handled in the profile creation flow
     throw new Error("ensureUserTeam not implemented for DatabaseStorage");
   }
 

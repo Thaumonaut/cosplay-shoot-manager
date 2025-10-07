@@ -20,19 +20,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is authenticated via cookie
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(async (res) => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { 
+          credentials: "include"
+        });
+        
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
         } else {
           setUser(null);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
+        // Silently handle all errors - user is just not authenticated
         setUser(null);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -139,12 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       credentials: "include",
     });
     setUser(null);
-    window.location.href = "/auth";
+    window.location.href = "/";
   };
 
   const refreshUser = async () => {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const res = await fetch("/api/auth/me", { 
+        credentials: "include"
+      });
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -152,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       }
     } catch (error) {
+      // Silently handle network errors - user is just not authenticated
       setUser(null);
     }
   };

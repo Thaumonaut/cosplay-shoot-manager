@@ -399,31 +399,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current user from cookie
-  app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
+  app.get("/api/auth/me", async (req: AuthRequest, res) => {
     try {
+      const accessToken = req.cookies["sb-access-token"];
+      const refreshToken = req.cookies["sb-refresh-token"];
+      
+      let user;
+      let error;
 
-      if (req.user?.id && req.user?.email) {
-        // Ensure user has a team (creates one if they don't)
-        try {
-          await storage.ensureUserTeam(req.user.id, req.user.email);
-        } catch (teamError) {
-          console.error('Error ensuring user team:', teamError);
-          // Don't fail auth if team creation fails, return user anyway
-        }
+      // Try to validate the access token if it exists
+      if (accessToken) {
+        const result = await supabase.auth.getUser(accessToken);
+        user = result.data.user;
+        error = result.error;
       }
       
-      res.json({ user: req.user });
+      // If access token is missing/invalid/expired and we have a refresh token, try to refresh
+      if (!user && refreshToken) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
+          refresh_token: refreshToken,
+        });
+
+        if (!refreshError && refreshData.session) {
+          // Update cookies with new tokens
+          const isProduction = process.env.NODE_ENV === "production";
+          const expiresIn = Math.floor((refreshData.session.expires_at! * 1000 - Date.now()) / 1000);
+          
+          res.cookie("sb-access-token", refreshData.session.access_token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: "lax",
+            path: "/",
+            maxAge: expiresIn * 1000,
+          });
+
+          res.cookie("sb-refresh-token", refreshData.session.refresh_token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: "lax",
+            path: "/",
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+          });
+
+          user = refreshData.user;
+        }
+      }
+
+      // Return user data if authenticated, empty object if not
+      if (user) {
+        res.json({ 
+          user: {
+            id: user.id,
+            email: user.email,
+          }
+        });
+      } else {
+        res.json({ user: null });
+      }
     } catch (error) {
       console.error('Error in /api/auth/me:', {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
-        userId: req.user?.id,
         timestamp: new Date().toISOString()
       });
-      res.status(500).json({ 
-        error: 'Internal server error in auth/me',
-        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
-      });
+      // Even on error, return empty user instead of 500
+      res.json({ user: null });
     }
   });
 

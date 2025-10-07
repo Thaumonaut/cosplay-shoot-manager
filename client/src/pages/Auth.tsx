@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Camera, Upload } from "lucide-react";
+import { Camera, Upload, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle, SiFacebook } from "react-icons/si";
 
@@ -21,6 +21,9 @@ export default function Auth() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("signin");
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signUp, signInWithProvider, user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -31,6 +34,67 @@ export default function Auth() {
       setLocation("/");
     }
   }, [user, setLocation]);
+
+  // Check for URL parameters to set initial tab and invite code
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const urlInviteCode = urlParams.get('inviteCode');
+    const inviteParam = urlParams.get('invite');
+    
+    // Set active tab based on URL parameter
+    if (tabParam === 'signup' || tabParam === 'signin') {
+      setActiveTab(tabParam);
+    }
+    
+    // Set invite code if provided
+    if (urlInviteCode) {
+      setInviteCode(urlInviteCode);
+      setActiveTab('signup'); // Switch to signup if invite code is provided
+    }
+    
+    // Focus on invite code field if invite=true parameter is present
+    if (inviteParam === 'true') {
+      setActiveTab('signup');
+      // Small delay to ensure the tab content is rendered
+      setTimeout(() => {
+        const inviteInput = document.getElementById('invite-code');
+        if (inviteInput) {
+          inviteInput.focus();
+        }
+      }, 100);
+    }
+  }, []);
+
+  const validatePassword = (pass: string) => {
+    const errors: string[] = [];
+    
+    if (pass.length < 6) {
+      errors.push("Password must be at least 6 characters long");
+    }
+    if (!/[A-Z]/.test(pass)) {
+      errors.push("Password must contain at least one uppercase letter");
+    }
+    if (!/[a-z]/.test(pass)) {
+      errors.push("Password must contain at least one lowercase letter");
+    }
+    if (!/\d/.test(pass)) {
+      errors.push("Password must contain at least one number");
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) {
+      errors.push("Password must contain at least one symbol (!@#$%^&*(),.?\":{}|<>)");
+    }
+    
+    return errors;
+  };
+
+  const handlePasswordChange = (newPassword: string) => {
+    setPassword(newPassword);
+    if (activeTab === "signup") {
+      const errors = validatePassword(newPassword);
+      setPasswordErrors(errors);
+    }
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,6 +137,17 @@ export default function Auth() {
       toast({
         title: "Missing information",
         description: "Please enter your first and last name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check password requirements
+    const passwordValidationErrors = validatePassword(password);
+    if (passwordValidationErrors.length > 0) {
+      toast({
+        title: "Password requirements not met",
+        description: "Please fix the password requirements shown below.",
         variant: "destructive",
       });
       return;
@@ -171,7 +246,7 @@ export default function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin" data-testid="tab-signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup" data-testid="tab-signup">Sign Up</TabsTrigger>
@@ -187,19 +262,38 @@ export default function Auth() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
                     data-testid="input-signin-email"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    data-testid="input-signin-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="signin-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      className="pr-10"
+                      data-testid="input-signin-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-signin-password"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Button
                   type="submit"
@@ -283,6 +377,7 @@ export default function Auth() {
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       required
+                      autoComplete="given-name"
                       data-testid="input-first-name"
                     />
                   </div>
@@ -295,6 +390,7 @@ export default function Auth() {
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       required
+                      autoComplete="family-name"
                       data-testid="input-last-name"
                     />
                   </div>
@@ -309,23 +405,70 @@ export default function Auth() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
                     data-testid="input-signup-email"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    data-testid="input-signup-password"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Password must be at least 6 characters
-                  </p>
+                  <div className="relative">
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      className={`pr-10 ${passwordErrors.length > 0 && password.length > 0 ? "border-destructive" : ""}`}
+                      data-testid="input-signup-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-signup-password"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  {password.length > 0 && (
+                    <div className="space-y-1">
+                      {passwordErrors.length > 0 ? (
+                        <div className="space-y-1">
+                          {passwordErrors.map((error, index) => (
+                            <p key={index} className="text-xs text-destructive flex items-center gap-1">
+                              <span className="text-destructive">✗</span>
+                              {error}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <span className="text-green-600">✓</span>
+                          Password meets all requirements
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {password.length === 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium">Password requirements:</p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5 ml-4">
+                        <li>• At least 6 characters long</li>
+                        <li>• At least one uppercase letter</li>
+                        <li>• At least one lowercase letter</li>
+                        <li>• At least one number</li>
+                        <li>• At least one symbol (!@#$%^&*(),.?&quot;:{}|&lt;&gt;)</li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {/* Team Invite Code */}
@@ -337,6 +480,7 @@ export default function Auth() {
                     placeholder="Enter code to join a team"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value)}
+                    autoComplete="off"
                     data-testid="input-invite-code"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -347,7 +491,7 @@ export default function Auth() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loading}
+                  disabled={loading || (activeTab === "signup" && (passwordErrors.length > 0 || !password))}
                   data-testid="button-signup"
                 >
                   {loading ? "Creating account..." : "Create Account"}

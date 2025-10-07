@@ -16,7 +16,6 @@ export async function authenticateUser(
   try {
     const accessToken = req.cookies["sb-access-token"];
     const refreshToken = req.cookies["sb-refresh-token"];
-    console.debug('authenticateUser tokens presence', { hasAccess: !!accessToken, hasRefresh: !!refreshToken });
     
     let user;
     let error;
@@ -64,7 +63,6 @@ export async function authenticateUser(
     }
 
     if (!user) {
-      console.debug('authenticateUser failed to find user after refresh attempt');
       return res.status(401).json({ error: "Authentication failed" });
     }
 

@@ -45,5 +45,17 @@ export default defineConfig({
     watch: {
       usePolling: process.env.VITE_USE_POLLING === 'true',
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/objects': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });
