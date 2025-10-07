@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 
 # copy package manifest and install only production dependencies
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --silent
+RUN npm run start
 
 # copy built artifacts from the builder stage
 COPY --from=builder /app/dist ./dist
