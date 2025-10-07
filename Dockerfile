@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 
 # copy package manifest and install only production dependencies
 COPY package.json package-lock.json* ./
-RUN npm run start
+RUN npm ci --omit=dev --silent
 
 # copy built artifacts from the builder stage
 COPY --from=builder /app/dist ./dist
@@ -31,5 +31,5 @@ COPY --from=builder /app/dist ./dist
 # Expose the port the server listens on (default 5000)
 EXPOSE 5000
 
-# Use a minimal command to start the server
-CMD ["node", "dist/index.js"]
+# Use npm start which sets NODE_ENV=production and runs the correct command
+CMD ["npm", "start"]
