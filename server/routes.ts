@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (result?.docUrl) {
-        await storage.updateShoot(shootId, teamId, { docsId: result.docId, docsUrl: result.docUrl });
+        await storage.updateTeamShoot(shootId, teamId, { docsId: result.docId, docsUrl: result.docUrl });
       }
 
       res.json({ docId: result.docId, docUrl: result.docUrl });
@@ -352,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: 'Failed to create/update calendar event' });
       }
 
-      await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+      await storage.updateTeamShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
 
       res.json({ eventId, eventUrl });
     } catch (error) {
@@ -1181,7 +1181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update shoot record to reference doc if successful
         if (result?.docUrl) {
-          await storage.updateShoot(shootId, teamId, { docsUrl: result.docUrl, docsId: result.docId });
+          await storage.updateTeamShoot(shootId, teamId, { docsUrl: result.docUrl, docsId: result.docId });
         }
 
         // Respond with a small page that notifies the opener (main window) about the created doc
@@ -1259,7 +1259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const eventUrl = eventResult?.data?.htmlLink;
 
         if (eventId && eventUrl) {
-          await storage.updateShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
+          await storage.updateTeamShoot(shootId, teamId, { calendarEventId: eventId, calendarEventUrl: eventUrl });
 
           return res.send(`
             <html>
@@ -1739,7 +1739,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
   const updateSchema = insertShootSchema.omit({ userId: true, teamId: true }).partial();
   // Normalize incoming keys to camelCase before validation
-  const data = updateSchema.parse(convertKeysToCamel(req.body));
+  const bodyData = convertKeysToCamel(req.body);
+  // Convert date strings to Date objects before validation since .partial() breaks transformations
+  if (bodyData.date && typeof bodyData.date === 'string') {
+    bodyData.date = new Date(bodyData.date);
+  }
+  if (bodyData.reminderTime && typeof bodyData.reminderTime === 'string') {
+    bodyData.reminderTime = new Date(bodyData.reminderTime);
+  }
+  const data = updateSchema.parse(bodyData);
         const shoot = await storage.updateTeamShoot(req.params.id, teamId, data);
         if (!shoot) {
           return res.status(404).json({ error: "Shoot not found" });
@@ -1748,13 +1756,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         if (error instanceof z.ZodError) {
           // Log the request body and Zod error for easier debugging in dev
-          console.error('Validation error creating shoot reference:', {
+          console.error('Validation error updating shoot:', {
             body: req.body,
             zodErrors: error.errors,
           });
           return res.status(400).json({ error: error.errors });
         }
-        console.error('Error in POST /api/shoots/:id/references:', error, { body: req.body });
+        console.error('Error updating shoot:', error, { body: req.body });
         res
           .status(401)
           .json({
@@ -2488,7 +2496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update shoot with doc info
-      await storage.updateShoot(req.params.id, teamId, {
+      await storage.updateTeamShoot(req.params.id, teamId, {
         docsId: docId,
         docsUrl: docUrl,
       });
@@ -2987,7 +2995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         teamId,
         completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : 0,
-        todos: req.body.todos ? JSON.parse(req.body.todos) : [],
+        todos: req.body.todos ? (typeof req.body.todos === 'string' ? (req.body.todos.trim() ? JSON.parse(req.body.todos) : []) : req.body.todos) : [],
         ...(imageUrl && { imageUrl })
       };
       const data = insertCostumeProgressSchema.parse(bodyData);
@@ -3041,7 +3049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bodyData = {
         ...req.body,
         completionPercentage: req.body.completionPercentage ? parseInt(req.body.completionPercentage, 10) : undefined,
-        todos: req.body.todos ? JSON.parse(req.body.todos) : undefined,
+        todos: req.body.todos ? (typeof req.body.todos === 'string' ? (req.body.todos.trim() ? JSON.parse(req.body.todos) : undefined) : req.body.todos) : undefined,
         ...(imageUrl && { imageUrl })
       };
       const validatedData = insertCostumeProgressSchema.partial().parse(bodyData);

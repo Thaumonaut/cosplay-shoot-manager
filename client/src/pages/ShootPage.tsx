@@ -374,12 +374,15 @@ export default function ShootPage() {
           personnelIds: selectedPersonnel,
           participants: participants,
         });
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
-      if (id) {
+        
+        // Invalidate queries AFTER resources update completes to avoid race condition
+        queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
         queryClient.invalidateQueries({ queryKey: ["/api/shoots", id] });
+      } else {
+        // For new shoots that don't exist yet
+        queryClient.invalidateQueries({ queryKey: ["/api/shoots"] });
       }
+      
       toast({
         title: "Success",
         description: "Shoot updated successfully",
